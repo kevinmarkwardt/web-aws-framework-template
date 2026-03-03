@@ -24,13 +24,7 @@ echo "[2/6] Packaging Lambda functions..."
 
 LAMBDA_DIRS=(
   "$PROJ_ROOT/api"
-  "$PROJ_ROOT/lambdas/crawler"
-  "$PROJ_ROOT/lambdas/alerts"
-  "$PROJ_ROOT/lambdas/digest"
-  "$PROJ_ROOT/lambdas/reminders"
-  "$PROJ_ROOT/lambdas/impact-scorer"
-  "$PROJ_ROOT/lambdas/report-generator"
-  "$PROJ_ROOT/lambdas/stripe-webhook"
+  "$PROJ_ROOT/lambdas/daily-job"
 )
 
 for dir in "${LAMBDA_DIRS[@]}"; do

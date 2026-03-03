@@ -15,13 +15,7 @@ echo "========================================="
 # Lambda name -> source directory mapping
 declare -A LAMBDAS=(
   ["yourapp-api"]="$PROJ_ROOT/api"
-  ["yourapp-crawler"]="$PROJ_ROOT/lambdas/crawler"
-  ["yourapp-alerts"]="$PROJ_ROOT/lambdas/alerts"
-  ["yourapp-digest"]="$PROJ_ROOT/lambdas/digest"
-  ["yourapp-reminders"]="$PROJ_ROOT/lambdas/reminders"
-  ["yourapp-impact-scorer"]="$PROJ_ROOT/lambdas/impact-scorer"
-  ["yourapp-report-generator"]="$PROJ_ROOT/lambdas/report-generator"
-  ["yourapp-stripe-webhook"]="$PROJ_ROOT/lambdas/stripe-webhook"
+  ["yourapp-daily-job"]="$PROJ_ROOT/lambdas/daily-job"
 )
 
 # Allow deploying a single Lambda: ./deploy-lambdas.sh yourapp-api
