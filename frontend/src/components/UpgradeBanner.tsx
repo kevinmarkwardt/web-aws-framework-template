@@ -31,11 +31,11 @@ export default function UpgradeBanner({ plan, itemCount }: UpgradeBannerProps) {
     <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
         <p className="text-sm font-medium text-indigo-900">
-          You've reached your {limit}-link limit
+          You've reached your {limit}-item limit
         </p>
         <p className="text-sm text-indigo-700 mt-0.5">
           Upgrade to {targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1)} for up to{' '}
-          {targetLimit} links.
+          {targetLimit} items.
         </p>
       </div>
       <button

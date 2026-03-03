@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchConfig, updateConfig } from '../../../admin-api';
 import type { SiteConfig } from '../../../admin-types';
 
-export default function CrawlSettingsPage() {
+export default function JobSettingsPage() {
   const [config, setConfig] = useState<SiteConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -21,7 +21,7 @@ export default function CrawlSettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await updateConfig({ crawlSettings: config.crawlSettings });
+      await updateConfig({ jobSettings: config.jobSettings });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
@@ -37,10 +37,10 @@ export default function CrawlSettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Crawl Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Job Settings</h1>
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Crawler Configuration</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Background Job Configuration</h2>
           <div className="flex items-center gap-3">
             {saved && <span className="text-sm text-green-600 font-medium">Saved</span>}
             <button onClick={save} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
@@ -55,10 +55,10 @@ export default function CrawlSettingsPage() {
               type="number"
               min="0"
               max="23"
-              value={config.crawlSettings.dailyCrawlHourUtc}
+              value={config.jobSettings.dailyCrawlHourUtc}
               onChange={(e) => setConfig({
                 ...config,
-                crawlSettings: { ...config.crawlSettings, dailyCrawlHourUtc: parseInt(e.target.value) || 0 },
+                jobSettings: { ...config.jobSettings, dailyCrawlHourUtc: parseInt(e.target.value) || 0 },
               })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
@@ -67,10 +67,10 @@ export default function CrawlSettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Rate Limit Delay (ms)</label>
             <input
               type="number"
-              value={config.crawlSettings.rateLimitDelayMs}
+              value={config.jobSettings.rateLimitDelayMs}
               onChange={(e) => setConfig({
                 ...config,
-                crawlSettings: { ...config.crawlSettings, rateLimitDelayMs: parseInt(e.target.value) || 0 },
+                jobSettings: { ...config.jobSettings, rateLimitDelayMs: parseInt(e.target.value) || 0 },
               })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
@@ -79,10 +79,10 @@ export default function CrawlSettingsPage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={config.crawlSettings.hourlyCrawlEnabled}
+                checked={config.jobSettings.hourlyCrawlEnabled}
                 onChange={(e) => setConfig({
                   ...config,
-                  crawlSettings: { ...config.crawlSettings, hourlyCrawlEnabled: e.target.checked },
+                  jobSettings: { ...config.jobSettings, hourlyCrawlEnabled: e.target.checked },
                 })}
                 className="rounded border-gray-300 text-indigo-600"
               />

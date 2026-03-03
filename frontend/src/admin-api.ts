@@ -87,8 +87,8 @@ export const deleteAdminItem = (userId: string, itemId: string) =>
 export const fetchHealth = () => adminFetch<HealthData>('/health');
 
 // Actions
-export const triggerCrawlAll = () =>
-  adminFetch('/actions/crawl-all', { method: 'POST' });
+export const triggerDailyJob = () =>
+  adminFetch('/actions/trigger-daily-job', { method: 'POST' });
 export const triggerDigest = () =>
   adminFetch('/actions/send-digest', { method: 'POST' });
 

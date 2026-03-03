@@ -14,8 +14,8 @@ const navGroups = [
   {
     label: 'App Data',
     items: [
-      { to: '/data/links', label: 'Items' },
-      { to: '/data/pitches', label: 'Second Entity' },
+      { to: '/data/items', label: 'Items' },
+      { to: '/data/second-entity', label: 'Second Entity' },
     ],
   },
   {
@@ -23,7 +23,7 @@ const navGroups = [
     items: [
       { to: '/config/features', label: 'Feature Toggles' },
       { to: '/config/plans', label: 'Plan Limits' },
-      { to: '/config/crawl', label: 'Job Settings' },
+      { to: '/config/jobs', label: 'Job Settings' },
       { to: '/config/email', label: 'Email Templates' },
     ],
   },

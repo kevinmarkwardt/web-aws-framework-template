@@ -38,10 +38,10 @@ export interface HealthData {
 export interface SiteConfig {
   maintenanceMode: boolean;
   signupsEnabled: boolean;
-  crawlingEnabled: boolean;
+  jobsEnabled: boolean;
   alertsEnabled: boolean;
   planLimits: { free: number; starter: number; pro: number };
-  crawlSettings: {
+  jobSettings: {
     dailyCrawlHourUtc: number;
     hourlyCrawlEnabled: boolean;
     rateLimitDelayMs: number;

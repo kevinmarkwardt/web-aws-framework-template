@@ -5,7 +5,7 @@ import type { SiteConfig } from '../../../admin-types';
 const TOGGLES = [
   ['maintenanceMode', 'Maintenance Mode', 'Shows a "back soon" page to all visitors'],
   ['signupsEnabled', 'Signups Enabled', 'Allow new user registrations'],
-  ['crawlingEnabled', 'Processing Enabled', 'Run scheduled item processing jobs'],
+  ['jobsEnabled', 'Processing Enabled', 'Run scheduled item processing jobs'],
   ['alertsEnabled', 'Alerts Enabled', 'Send status change alert emails'],
 ] as const;
 
@@ -36,7 +36,7 @@ export default function FeatureTogglesPage() {
       await updateConfig({
         maintenanceMode: config.maintenanceMode,
         signupsEnabled: config.signupsEnabled,
-        crawlingEnabled: config.crawlingEnabled,
+        jobsEnabled: config.jobsEnabled,
         alertsEnabled: config.alertsEnabled,
       });
       setSaved(true);

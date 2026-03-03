@@ -7,19 +7,19 @@ const planDetails: Record<Plan, { name: string; price: string; features: string[
   free: {
     name: 'Free',
     price: '$0/month',
-    features: ['5 monitored links', 'Daily crawls', 'Instant alerts', 'Weekly digest'],
+    features: ['10 items (free plan)', 'Daily processing', 'Instant alerts', 'Weekly digest'],
     limit: 5,
   },
   starter: {
     name: 'Starter',
     price: '$9/month',
-    features: ['50 monitored links', 'Daily crawls', 'Pipeline tracker'],
+    features: ['100 items', 'Daily processing', 'Advanced features'],
     limit: 50,
   },
   pro: {
     name: 'Pro',
     price: '$19/month',
-    features: ['Unlimited links', 'Hourly crawls', 'AI scoring', 'Monthly reports'],
+    features: ['Unlimited items', 'Hourly processing', 'AI scoring', 'Monthly reports'],
     limit: null,
   },
 };
@@ -203,7 +203,7 @@ export default function SettingsPage() {
         {showCancelConfirm && (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm font-medium text-amber-900 mb-3">
-              Are you sure you want to cancel your subscription? You'll be downgraded to the free plan (5 links).
+              Are you sure you want to cancel your subscription? You'll be downgraded to the free plan (10 items).
             </p>
             <div className="flex gap-2">
               <button
@@ -342,7 +342,7 @@ export default function SettingsPage() {
           <label className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-900">Weekly digest</p>
-              <p className="text-xs text-gray-500">Monday morning summary of all links</p>
+              <p className="text-xs text-gray-500">Weekly summary digest</p>
             </div>
             <input
               type="checkbox"
@@ -353,9 +353,9 @@ export default function SettingsPage() {
           </label>
           <label className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-900">Pipeline reminders</p>
+              <p className="text-sm font-medium text-gray-900">Reminders</p>
               <p className="text-xs text-gray-500">
-                Follow-up reminders for stale pitches
+                Periodic reminders and notifications
               </p>
             </div>
             <input

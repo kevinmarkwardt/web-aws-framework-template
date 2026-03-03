@@ -285,6 +285,19 @@ def get_health(event: dict) -> dict:
 
 # --- Actions ---
 
+def trigger_daily_job(event: dict) -> dict:
+    auth_err = _require_admin(event)
+    if auth_err:
+        return auth_err
+    client = boto3.client("lambda", region_name=REGION)
+    client.invoke(
+        FunctionName="yourapp-daily-job",
+        InvocationType="Event",
+        Payload="{}",
+    )
+    return ok({"triggered": "daily-job"})
+
+
 def trigger_digest(event: dict) -> dict:
     auth_err = _require_admin(event)
     if auth_err:

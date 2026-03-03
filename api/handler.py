@@ -136,8 +136,8 @@ def _admin_route(method: str, path: str, event: dict) -> dict:
     if method == "GET" and path == "/api/admin/health":
         return admin.get_health(event)
 
-    if method == "POST" and path == "/api/admin/actions/crawl-all":
-        return admin.trigger_crawl_all(event)
+    if method == "POST" and path == "/api/admin/actions/trigger-daily-job":
+        return admin.trigger_daily_job(event)
 
     if method == "POST" and path == "/api/admin/actions/send-digest":
         return admin.trigger_digest(event)
