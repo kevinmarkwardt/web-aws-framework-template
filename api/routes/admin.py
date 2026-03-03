@@ -11,10 +11,9 @@ import boto3
 try:
     from lib.admin_auth import verify_admin_login, verify_admin_token
     from lib.db import (
-        _get_table, scan_all_users, scan_all_links, scan_all_pitches,
-        get_user, get_links, get_pitches, update_user_plan,
-        delete_link, delete_pitch, update_link, update_pitch,
-        increment_link_count,
+        _get_table, scan_all_users, scan_all_items,
+        get_user, get_items, update_user_plan,
+        delete_item, update_item, increment_item_count,
         get_config as db_get_config, put_config as db_put_config,
     )
     from lib.response import ok, error, unauthorized, not_found, forbidden
@@ -22,10 +21,9 @@ try:
 except ImportError:
     from api.lib.admin_auth import verify_admin_login, verify_admin_token
     from api.lib.db import (
-        _get_table, scan_all_users, scan_all_links, scan_all_pitches,
-        get_user, get_links, get_pitches, update_user_plan,
-        delete_link, delete_pitch, update_link, update_pitch,
-        increment_link_count,
+        _get_table, scan_all_users, scan_all_items,
+        get_user, get_items, update_user_plan,
+        delete_item, update_item, increment_item_count,
         get_config as db_get_config, put_config as db_put_config,
     )
     from api.lib.response import ok, error, unauthorized, not_found, forbidden
@@ -87,7 +85,7 @@ def get_overview(event: dict) -> dict:
         return auth_err
 
     users = scan_all_users()
-    links = scan_all_links()
+    items = scan_all_items()
 
     plan_counts = {"free": 0, "starter": 0, "pro": 0}
     for u in users:
@@ -95,8 +93,8 @@ def get_overview(event: dict) -> dict:
         plan_counts[plan] = plan_counts.get(plan, 0) + 1
 
     status_counts = {}
-    for lnk in links:
-        s = lnk.get("status", "PENDING")
+    for item in items:
+        s = item.get("status", "ACTIVE")
         status_counts[s] = status_counts.get(s, 0) + 1
 
     mrr = plan_counts.get("starter", 0) * 9 + plan_counts.get("pro", 0) * 19
@@ -104,7 +102,7 @@ def get_overview(event: dict) -> dict:
     return ok({
         "totalUsers": len(users),
         "planCounts": plan_counts,
-        "totalLinks": len(links),
+        "totalItems": len(items),
         "statusCounts": status_counts,
         "mrr": mrr,
     })
@@ -135,15 +133,11 @@ def get_user_detail(event: dict, user_id: str) -> dict:
         return not_found("User not found")
     user.pop("pk", None)
     user.pop("sk", None)
-    user_links = get_links(user_id)
-    for lnk in user_links:
-        lnk.pop("pk", None)
-        lnk.pop("sk", None)
-    user_pitches = get_pitches(user_id)
-    for p in user_pitches:
-        p.pop("pk", None)
-        p.pop("sk", None)
-    return ok({"user": user, "links": user_links, "pitches": user_pitches})
+    user_items = get_items(user_id)
+    for item in user_items:
+        item.pop("pk", None)
+        item.pop("sk", None)
+    return ok({"user": user, "items": user_items})
 
 
 def update_user(event: dict, user_id: str) -> dict:
@@ -167,20 +161,17 @@ def delete_user_account(event: dict, user_id: str) -> dict:
     user = get_user(user_id)
     if not user:
         return not_found("User not found")
-    user_links = get_links(user_id)
-    for lnk in user_links:
-        delete_link(user_id, lnk["linkId"])
-    user_pitches = get_pitches(user_id)
-    for p in user_pitches:
-        delete_pitch(user_id, p["pitchId"])
+    user_items = get_items(user_id)
+    for item in user_items:
+        delete_item(user_id, item["itemId"])
     table = _get_table()
     table.delete_item(Key={"pk": f"USER#{user_id}", "sk": "PROFILE"})
     return ok({"deleted": True})
 
 
-# --- Links (admin) ---
+# --- Items (admin) ---
 
-def list_all_links(event: dict) -> dict:
+def list_all_items(event: dict) -> dict:
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
@@ -188,87 +179,37 @@ def list_all_links(event: dict) -> dict:
     status_filter = params.get("status")
     q = params.get("q", "").lower()
 
-    links = scan_all_links()
-    for lnk in links:
-        lnk.pop("pk", None)
-        lnk.pop("sk", None)
+    items = scan_all_items()
+    for item in items:
+        item.pop("pk", None)
+        item.pop("sk", None)
 
     if status_filter:
-        links = [l for l in links if l.get("status") == status_filter]
+        items = [i for i in items if i.get("status") == status_filter]
     if q:
-        links = [l for l in links if q in l.get("pageUrl", "").lower()
-                 or q in l.get("destinationUrl", "").lower()
-                 or q in l.get("anchorText", "").lower()]
-    links.sort(key=lambda x: x.get("lastChecked", ""), reverse=True)
-    return ok(links)
+        items = [i for i in items if q in i.get("name", "").lower()]
+    items.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    return ok(items)
 
 
-def update_admin_link(event: dict, user_id: str, link_id: str) -> dict:
+def update_admin_item(event: dict, user_id: str, item_id: str) -> dict:
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
     body = _parse_body(event)
-    allowed = {"pageUrl", "destinationUrl", "anchorText", "status"}
+    allowed = {"name", "status"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if updates:
-        update_link(user_id, link_id, updates)
+        update_item(user_id, item_id, updates)
     return ok({"updated": True})
 
 
-def delete_admin_link(event: dict, user_id: str, link_id: str) -> dict:
+def delete_admin_item(event: dict, user_id: str, item_id: str) -> dict:
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
-    delete_link(user_id, link_id)
-    increment_link_count(user_id, -1)
-    return ok({"deleted": True})
-
-
-def crawl_admin_link(event: dict, user_id: str, link_id: str) -> dict:
-    auth_err = _require_admin(event)
-    if auth_err:
-        return auth_err
-    client = boto3.client("lambda", region_name=REGION)
-    client.invoke(
-        FunctionName="yourapp-crawler",
-        InvocationType="Event",
-        Payload=json.dumps({"singleLink": True, "userId": user_id, "linkId": link_id}),
-    )
-    return ok({"crawlTriggered": True})
-
-
-# --- Pitches (admin) ---
-
-def list_all_pitches(event: dict) -> dict:
-    auth_err = _require_admin(event)
-    if auth_err:
-        return auth_err
-    pitches = scan_all_pitches()
-    for p in pitches:
-        p.pop("pk", None)
-        p.pop("sk", None)
-    pitches.sort(key=lambda x: x.get("pitchSentDate", ""), reverse=True)
-    return ok(pitches)
-
-
-def update_admin_pitch(event: dict, user_id: str, pitch_id: str) -> dict:
-    auth_err = _require_admin(event)
-    if auth_err:
-        return auth_err
-    body = _parse_body(event)
-    allowed = {"domain", "contactName", "contactEmail", "pitchSentDate",
-               "status", "publishedUrl", "publishedDate", "notes"}
-    updates = {k: v for k, v in body.items() if k in allowed}
-    if updates:
-        update_pitch(user_id, pitch_id, updates)
-    return ok({"updated": True})
-
-
-def delete_admin_pitch(event: dict, user_id: str, pitch_id: str) -> dict:
-    auth_err = _require_admin(event)
-    if auth_err:
-        return auth_err
-    delete_pitch(user_id, pitch_id)
+    delete_item(user_id, item_id)
+    increment_item_count(user_id, -1)
     return ok({"deleted": True})
 
 
@@ -287,9 +228,7 @@ def get_health(event: dict) -> dict:
     start = now - timedelta(hours=24)
 
     functions = [
-        "yourapp-api", "yourapp-crawler", "yourapp-alerts",
-        "yourapp-digest", "yourapp-reminders",
-        "yourapp-impact-scorer", "yourapp-report-generator",
+        "yourapp-api", "yourapp-daily-job",
     ]
     lambda_stats = {}
     for fn in functions:
@@ -346,30 +285,17 @@ def get_health(event: dict) -> dict:
 
 # --- Actions ---
 
-def trigger_crawl_all(event: dict) -> dict:
-    auth_err = _require_admin(event)
-    if auth_err:
-        return auth_err
-    client = boto3.client("lambda", region_name=REGION)
-    client.invoke(
-        FunctionName="yourapp-crawler",
-        InvocationType="Event",
-        Payload=json.dumps({"tier": "daily"}),
-    )
-    return ok({"triggered": "crawl-all"})
-
-
 def trigger_digest(event: dict) -> dict:
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="yourapp-digest",
+        FunctionName="yourapp-daily-job",
         InvocationType="Event",
         Payload="{}",
     )
-    return ok({"triggered": "digest"})
+    return ok({"triggered": "daily-job"})
 
 
 # --- Site Config ---
@@ -380,19 +306,7 @@ CONFIG_SK = "GLOBAL"
 DEFAULT_CONFIG = {
     "maintenanceMode": False,
     "signupsEnabled": True,
-    "crawlingEnabled": True,
-    "alertsEnabled": True,
-    "planLimits": {"free": 5, "starter": 50, "pro": 999999},
-    "crawlSettings": {"dailyCrawlHourUtc": 4, "hourlyCrawlEnabled": True, "rateLimitDelayMs": 500},
-    "emailTemplates": {
-        "alertSubject": "YourApp Alert: Link on {domain} is now {status}",
-        "digestSubject": "YourApp Weekly Digest — {dateRange}",
-        "reminderSubject": "YourApp: Follow up with {domain}",
-    },
-    "pricingDisplay": {
-        "starter": {"name": "Starter", "price": 9, "features": ["50 links", "Daily crawls", "Pipeline tracker"]},
-        "pro": {"name": "Pro", "price": 19, "features": ["Unlimited links", "Hourly crawls", "AI impact scoring", "Monthly reports"]},
-    },
+    "planLimits": {"free": 10, "starter": 100, "pro": 999999},
 }
 
 

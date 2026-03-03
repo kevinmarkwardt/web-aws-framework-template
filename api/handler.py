@@ -20,11 +20,11 @@ if _dir not in sys.path:
 try:
     from lib.auth import get_user_id
     from lib.response import ok, unauthorized, not_found, error
-    from routes import links, pitches, account, billing, admin
+    from routes import items, account, billing, admin
 except ImportError:
     from api.lib.auth import get_user_id
     from api.lib.response import ok, unauthorized, not_found, error
-    from api.routes import links, pitches, account, billing, admin
+    from api.routes import items, account, billing, admin
 
 
 def lambda_handler(event, context):
@@ -59,49 +59,20 @@ def lambda_handler(event, context):
 
 
 def _route(method: str, path: str, user_id: str, event: dict) -> dict:
-    # --- Links ---
-    if method == "GET" and path == "/api/links":
-        return links.list_links(user_id, event)
+    # --- Items ---
+    if method == "GET" and path == "/api/items":
+        return items.list_items(user_id, event)
 
-    if method == "POST" and path == "/api/links":
-        return links.create_link(user_id, event)
+    if method == "POST" and path == "/api/items":
+        return items.create_item(user_id, event)
 
-    if method == "POST" and path == "/api/links/csv":
-        return links.create_links_csv(user_id, event)
-
-    # Links with ID: /api/links/{linkId}/crawl
-    m = re.match(r"^/api/links/([A-Za-z0-9]+)/crawl$", path)
-    if m and method == "POST":
-        return links.crawl_link(user_id, m.group(1), event)
-
-    # Links with ID: /api/links/{linkId}/history
-    m = re.match(r"^/api/links/([A-Za-z0-9]+)/history$", path)
-    if m and method == "GET":
-        return links.get_link_history(user_id, m.group(1), event)
-
-    # Links with ID: /api/links/{linkId}
-    m = re.match(r"^/api/links/([A-Za-z0-9]+)$", path)
+    m = re.match(r"^/api/items/([A-Za-z0-9]+)$", path)
     if m:
-        link_id = m.group(1)
+        item_id = m.group(1)
         if method == "PUT":
-            return links.update_link(user_id, link_id, event)
+            return items.update_item(user_id, item_id, event)
         if method == "DELETE":
-            return links.delete_link(user_id, link_id, event)
-
-    # --- Pitches ---
-    if method == "GET" and path == "/api/pitches":
-        return pitches.list_pitches(user_id, event)
-
-    if method == "POST" and path == "/api/pitches":
-        return pitches.create_pitch(user_id, event)
-
-    m = re.match(r"^/api/pitches/([A-Za-z0-9]+)$", path)
-    if m:
-        pitch_id = m.group(1)
-        if method == "PUT":
-            return pitches.update_pitch(user_id, pitch_id, event)
-        if method == "DELETE":
-            return pitches.delete_pitch(user_id, pitch_id, event)
+            return items.delete_item(user_id, item_id, event)
 
     # --- Account ---
     if method == "GET" and path == "/api/account":
@@ -151,31 +122,16 @@ def _admin_route(method: str, path: str, event: dict) -> dict:
         if method == "DELETE":
             return admin.delete_user_account(event, uid)
 
-    if method == "GET" and path == "/api/admin/links":
-        return admin.list_all_links(event)
+    if method == "GET" and path == "/api/admin/items":
+        return admin.list_all_items(event)
 
-    m = re.match(r"^/api/admin/links/([A-Za-z0-9-]+)/([A-Za-z0-9]+)/crawl$", path)
-    if m and method == "POST":
-        return admin.crawl_admin_link(event, m.group(1), m.group(2))
-
-    m = re.match(r"^/api/admin/links/([A-Za-z0-9-]+)/([A-Za-z0-9]+)$", path)
+    m = re.match(r"^/api/admin/items/([A-Za-z0-9-]+)/([A-Za-z0-9]+)$", path)
     if m:
-        uid, lid = m.group(1), m.group(2)
+        uid, iid = m.group(1), m.group(2)
         if method == "PUT":
-            return admin.update_admin_link(event, uid, lid)
+            return admin.update_admin_item(event, uid, iid)
         if method == "DELETE":
-            return admin.delete_admin_link(event, uid, lid)
-
-    if method == "GET" and path == "/api/admin/pitches":
-        return admin.list_all_pitches(event)
-
-    m = re.match(r"^/api/admin/pitches/([A-Za-z0-9-]+)/([A-Za-z0-9]+)$", path)
-    if m:
-        uid, pid = m.group(1), m.group(2)
-        if method == "PUT":
-            return admin.update_admin_pitch(event, uid, pid)
-        if method == "DELETE":
-            return admin.delete_admin_pitch(event, uid, pid)
+            return admin.delete_admin_item(event, uid, iid)
 
     if method == "GET" and path == "/api/admin/health":
         return admin.get_health(event)

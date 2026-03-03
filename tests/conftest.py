@@ -33,8 +33,6 @@ os.environ["SES_FROM_EMAIL"] = "test@yourapp.com"
 os.environ["FRONTEND_URL"] = "https://yourapp.com"
 os.environ["REPORTS_BUCKET"] = "yourapp-reports-test"
 os.environ["BEDROCK_MODEL_ID"] = "anthropic.claude-3-haiku-20240307-v1:0"
-os.environ["ALERTS_FUNCTION"] = "yourapp-alerts-test"
-os.environ["IMPACT_SCORER_FUNCTION"] = "yourapp-impact-scorer-test"
 
 
 @pytest.fixture
@@ -123,14 +121,13 @@ def sample_pro_user():
 def create_test_user(dynamodb_table):
     """Factory fixture to insert a user into DynamoDB."""
     def _create(user_id="user-123", email="test@example.com", plan="free",
-                link_count=0, item_count=0, stripe_customer_id="", stripe_subscription_id=""):
+                item_count=0, stripe_customer_id="", stripe_subscription_id=""):
         item = {
             "pk": f"USER#{user_id}",
             "sk": "PROFILE",
             "userId": user_id,
             "email": email,
             "plan": plan,
-            "linkCount": link_count,
             "itemCount": item_count,
             "createdAt": "2026-01-01T00:00:00+00:00",
             "settings": {
@@ -166,57 +163,6 @@ def create_test_item(dynamodb_table):
         return item_id
     return _create
 
-
-@pytest.fixture
-def create_test_link(dynamodb_table):
-    """Factory fixture to insert a link into DynamoDB."""
-    def _create(user_id="user-123", link_id="link-001",
-                page_url="https://blog.example.com/post",
-                destination_url="https://mysite.com/product",
-                anchor_text="my product",
-                status="LIVE", status_history=None):
-        dynamodb_table.put_item(Item={
-            "pk": f"USER#{user_id}",
-            "sk": f"LINK#{link_id}",
-            "userId": user_id,
-            "linkId": link_id,
-            "pageUrl": page_url,
-            "destinationUrl": destination_url,
-            "anchorText": anchor_text,
-            "status": status,
-            "lastChecked": "2026-01-15T00:00:00+00:00",
-            "firstAdded": "2026-01-01T00:00:00+00:00",
-            "statusHistory": status_history or [],
-            "jsWarning": False,
-            "lastAlertSent": "",
-        })
-        return link_id
-    return _create
-
-
-@pytest.fixture
-def create_test_pitch(dynamodb_table):
-    """Factory fixture to insert a pitch into DynamoDB."""
-    def _create(user_id="user-123", pitch_id="pitch-001",
-                domain="blogsite.com", status="PITCHED"):
-        dynamodb_table.put_item(Item={
-            "pk": f"USER#{user_id}",
-            "sk": f"PITCH#{pitch_id}",
-            "userId": user_id,
-            "pitchId": pitch_id,
-            "domain": domain,
-            "contactName": "Editor",
-            "contactEmail": "editor@blogsite.com",
-            "pitchSentDate": "2026-01-01T00:00:00+00:00",
-            "status": status,
-            "publishedUrl": "",
-            "publishedDate": "",
-            "notes": "",
-            "linkedLinkId": "",
-            "lastReminderSent": "",
-        })
-        return pitch_id
-    return _create
 
 
 def make_api_event(method, path, body=None, user_id="user-123", headers=None):

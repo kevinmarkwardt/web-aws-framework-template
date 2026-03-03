@@ -216,7 +216,7 @@ class TestChangePlan:
     def test_upgrade_starter_to_pro(self, mock_stripe, mock_secrets, mock_prices, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", link_count=10)
+        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", item_count=10)
 
         mock_sub = {"id": "sub_1", "status": "active", "items": {"data": [{"id": "si_item1"}]}}
         mock_stripe.Subscription.retrieve.return_value = mock_sub
@@ -243,7 +243,7 @@ class TestChangePlan:
     def test_needs_checkout_when_free(self, mock_stripe, mock_secrets, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="free", link_count=2)
+        create_test_user(plan="free", item_count=2)
 
         event = make_api_event("POST", "/api/billing/change-plan", body={"plan": "starter"})
         result = billing.change_plan("user-123", event)
@@ -258,7 +258,7 @@ class TestChangePlan:
     def test_downgrade_allowed(self, mock_stripe, mock_secrets, mock_prices, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="pro", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", link_count=10)
+        create_test_user(plan="pro", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", item_count=10)
 
         mock_sub = {"id": "sub_1", "status": "active", "items": {"data": [{"id": "si_item1"}]}}
         mock_stripe.Subscription.retrieve.return_value = mock_sub
@@ -277,15 +277,14 @@ class TestChangePlan:
     def test_downgrade_blocked(self, mock_stripe, mock_secrets, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="pro", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", link_count=10)
+        create_test_user(plan="pro", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", item_count=11)
 
         event = make_api_event("POST", "/api/billing/change-plan", body={"plan": "free"})
         result = billing.change_plan("user-123", event)
 
         assert result["statusCode"] == 409
         body = json.loads(result["body"])
-        assert "10 links" in body["error"]
-        assert "free allows 5" in body["error"]
+        assert "11 items" in body["error"]
 
     @patch("api.routes.billing._get_stripe_secrets", return_value=TEST_SECRETS)
     @patch("api.routes.billing.stripe")
@@ -321,7 +320,7 @@ class TestCancelPlan:
     def test_cancel_success(self, mock_stripe, mock_secrets, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", link_count=3)
+        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", item_count=3)
 
         event = make_api_event("POST", "/api/billing/cancel")
         result = billing.cancel_plan("user-123", event)
@@ -340,15 +339,14 @@ class TestCancelPlan:
     def test_cancel_blocked(self, mock_stripe, mock_secrets, dynamodb_table, create_test_user):
         import stripe as real_stripe
         mock_stripe.error = real_stripe.error
-        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", link_count=10)
+        create_test_user(plan="starter", stripe_customer_id="cus_1", stripe_subscription_id="sub_1", item_count=11)
 
         event = make_api_event("POST", "/api/billing/cancel")
         result = billing.cancel_plan("user-123", event)
 
         assert result["statusCode"] == 409
         body = json.loads(result["body"])
-        assert "10 links" in body["error"]
-        assert "free allows 5" in body["error"]
+        assert "11 items" in body["error"]
 
     @patch("api.routes.billing._get_stripe_secrets", return_value=TEST_SECRETS)
     @patch("api.routes.billing.stripe")

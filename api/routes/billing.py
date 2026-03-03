@@ -216,16 +216,16 @@ def change_plan(user_id: str, event: dict) -> dict:
         # No subscription at all → needs Checkout Session for payment info
         return response.ok({"action": "checkout"})
 
-    # Downgrade check: block if link count exceeds target plan limit
+    # Downgrade check: block if item count exceeds target plan limit
     target_rank = _PLAN_RANK[plan]
     current_rank = _PLAN_RANK.get(current, 0)
     if target_rank < current_rank:
-        limit = db.LINK_LIMITS[plan]
-        link_count = user.get("linkCount", 0)
-        if link_count > limit:
+        limit = db.ITEM_LIMITS[plan]
+        item_count = user.get("itemCount", 0)
+        if item_count > limit:
             return response.error(
-                f"You have {link_count} links but {plan} allows {int(limit)}. "
-                f"Remove {link_count - int(limit)} links to downgrade.",
+                f"You have {item_count} items but {plan} allows {int(limit)}. "
+                f"Remove {item_count - int(limit)} items to downgrade.",
                 409,
             )
 
@@ -275,13 +275,13 @@ def cancel_plan(user_id: str, event: dict, user: dict = None) -> dict:
     if current == "free":
         return response.error("Already on free plan.")
 
-    # Block if link count exceeds free limit
-    limit = db.LINK_LIMITS["free"]
-    link_count = user.get("linkCount", 0)
-    if link_count > limit:
+    # Block if item count exceeds free limit
+    limit = db.ITEM_LIMITS["free"]
+    item_count = user.get("itemCount", 0)
+    if item_count > limit:
         return response.error(
-            f"You have {link_count} links but free allows {int(limit)}. "
-            f"Delete {link_count - int(limit)} links to cancel.",
+            f"You have {item_count} items but free allows {int(limit)}. "
+            f"Delete {item_count - int(limit)} items to cancel.",
             409,
         )
 
