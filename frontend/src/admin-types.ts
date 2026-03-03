@@ -1,17 +1,16 @@
-import type { Link, Pitch, User } from './types';
+import type { Item, User } from './types';
 
 export interface AdminOverview {
   totalUsers: number;
   planCounts: { free: number; starter: number; pro: number };
-  totalLinks: number;
+  totalItems: number;
   statusCounts: Record<string, number>;
   mrr: number;
 }
 
 export interface UserDetail {
   user: User;
-  links: Link[];
-  pitches: Pitch[];
+  items: Item[];
 }
 
 export interface LambdaStats {

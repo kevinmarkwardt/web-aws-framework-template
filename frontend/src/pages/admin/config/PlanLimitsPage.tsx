@@ -40,7 +40,7 @@ export default function PlanLimitsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Plan Limits</h1>
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Max Links per Plan</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Max Items per Plan</h2>
           <div className="flex items-center gap-3">
             {saved && <span className="text-sm text-green-600 font-medium">Saved</span>}
             <button onClick={save} disabled={saving} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
@@ -51,7 +51,7 @@ export default function PlanLimitsPage() {
         <div className="grid grid-cols-3 gap-4">
           {(['free', 'starter', 'pro'] as const).map((plan) => (
             <div key={plan}>
-              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{plan} — Max Links</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{plan} — Max Items</label>
               <input
                 type="number"
                 value={config.planLimits[plan]}

@@ -1,4 +1,4 @@
-import type { Link, Pitch, User } from './types';
+import type { Item, User } from './types';
 import type { AdminOverview, UserDetail, HealthData, SiteConfig, StripeConfig } from './admin-types';
 
 let adminToken: string | null = null;
@@ -70,27 +70,18 @@ export const updateUser = (userId: string, data: { plan?: string }) =>
 export const deleteUser = (userId: string) =>
   adminFetch(`/users/${userId}`, { method: 'DELETE' });
 
-// Links
-export const fetchAllLinks = (params?: { status?: string; q?: string }) => {
+// Items
+export const fetchAllItems = (params?: { status?: string; q?: string }) => {
   const qs = new URLSearchParams();
   if (params?.status) qs.set('status', params.status);
   if (params?.q) qs.set('q', params.q);
   const query = qs.toString();
-  return adminFetch<Link[]>(`/links${query ? `?${query}` : ''}`);
+  return adminFetch<Item[]>(`/items${query ? `?${query}` : ''}`);
 };
-export const updateAdminLink = (userId: string, linkId: string, data: Partial<Link>) =>
-  adminFetch(`/links/${userId}/${linkId}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteAdminLink = (userId: string, linkId: string) =>
-  adminFetch(`/links/${userId}/${linkId}`, { method: 'DELETE' });
-export const crawlAdminLink = (userId: string, linkId: string) =>
-  adminFetch(`/links/${userId}/${linkId}/crawl`, { method: 'POST' });
-
-// Pitches
-export const fetchAllPitches = () => adminFetch<Pitch[]>('/pitches');
-export const updateAdminPitch = (userId: string, pitchId: string, data: Partial<Pitch>) =>
-  adminFetch(`/pitches/${userId}/${pitchId}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteAdminPitch = (userId: string, pitchId: string) =>
-  adminFetch(`/pitches/${userId}/${pitchId}`, { method: 'DELETE' });
+export const updateAdminItem = (userId: string, itemId: string, data: Partial<Item>) =>
+  adminFetch(`/items/${userId}/${itemId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteAdminItem = (userId: string, itemId: string) =>
+  adminFetch(`/items/${userId}/${itemId}`, { method: 'DELETE' });
 
 // Health
 export const fetchHealth = () => adminFetch<HealthData>('/health');

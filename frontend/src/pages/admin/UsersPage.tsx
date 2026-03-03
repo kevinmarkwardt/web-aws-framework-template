@@ -76,7 +76,7 @@ export default function UsersPage() {
             <tr>
               <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">Plan</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-500">Links</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-500">Items</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">Created</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
             </tr>
@@ -115,31 +115,17 @@ export default function UsersPage() {
                 {expandedId === u.userId && detail && (
                   <tr>
                     <td colSpan={5} className="px-4 py-4 bg-gray-50">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <h3 className="font-semibold text-gray-900 mb-2">Links ({detail.links.length})</h3>
-                          {detail.links.length === 0 ? (
-                            <p className="text-gray-400 text-xs">No links</p>
+                          <h3 className="font-semibold text-gray-900 mb-2">Items ({detail.items.length})</h3>
+                          {detail.items.length === 0 ? (
+                            <p className="text-gray-400 text-xs">No items</p>
                           ) : (
                             <div className="space-y-1 max-h-48 overflow-auto">
-                              {detail.links.map((l) => (
-                                <div key={l.linkId} className="flex items-center gap-2 text-xs">
-                                  <StatusBadge status={l.status} />
-                                  <span className="text-gray-600 truncate">{l.pageUrl}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 mb-2">Pitches ({detail.pitches.length})</h3>
-                          {detail.pitches.length === 0 ? (
-                            <p className="text-gray-400 text-xs">No pitches</p>
-                          ) : (
-                            <div className="space-y-1 max-h-48 overflow-auto">
-                              {detail.pitches.map((p) => (
-                                <div key={p.pitchId} className="text-xs text-gray-600">
-                                  {p.domain} — {p.status}
+                              {detail.items.map((item) => (
+                                <div key={item.itemId} className="flex items-center gap-2 text-xs">
+                                  <StatusBadge status={item.status} />
+                                  <span className="text-gray-600 truncate">{item.name}</span>
                                 </div>
                               ))}
                             </div>

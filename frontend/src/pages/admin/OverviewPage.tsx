@@ -20,7 +20,7 @@ export default function OverviewPage() {
 
   const cards = [
     { label: 'Total Users', value: data.totalUsers, sub: `Free: ${data.planCounts.free} / Starter: ${data.planCounts.starter} / Pro: ${data.planCounts.pro}` },
-    { label: 'Total Links', value: data.totalLinks, sub: Object.entries(data.statusCounts).map(([k, v]) => `${k}: ${v}`).join(' / ') },
+    { label: 'Total Items', value: data.totalItems, sub: Object.entries(data.statusCounts).map(([k, v]) => `${k}: ${v}`).join(' / ') },
   ];
 
   return (

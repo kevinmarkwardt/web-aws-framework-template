@@ -11,8 +11,7 @@ import SignupPage from './pages/auth/SignupPage';
 import VerifyPage from './pages/auth/VerifyPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
-import LinksPage from './pages/dashboard/LinksPage';
-import PipelinePage from './pages/dashboard/PipelinePage';
+import ItemsPage from './pages/dashboard/ItemsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
 
@@ -127,8 +126,7 @@ function UserApp() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<LinksPage />} />
-          <Route path="pipeline" element={<PipelinePage />} />
+          <Route index element={<ItemsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reports" element={<ReportsPage />} />
         </Route>

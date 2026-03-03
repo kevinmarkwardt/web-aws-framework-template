@@ -5,7 +5,7 @@ import type { SiteConfig } from '../../../admin-types';
 const TOGGLES = [
   ['maintenanceMode', 'Maintenance Mode', 'Shows a "back soon" page to all visitors'],
   ['signupsEnabled', 'Signups Enabled', 'Allow new user registrations'],
-  ['crawlingEnabled', 'Crawling Enabled', 'Run scheduled link crawls'],
+  ['crawlingEnabled', 'Processing Enabled', 'Run scheduled item processing jobs'],
   ['alertsEnabled', 'Alerts Enabled', 'Send status change alert emails'],
 ] as const;
 

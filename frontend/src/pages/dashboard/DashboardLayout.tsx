@@ -25,8 +25,7 @@ export default function DashboardLayout() {
   const badge = planLabels[plan];
 
   const navItems = [
-    { to: '/dashboard', label: 'Links', end: true },
-    { to: '/dashboard/pipeline', label: 'Pipeline' },
+    { to: '/dashboard', label: 'Items', end: true },
     { to: '/dashboard/settings', label: 'Settings' },
     { to: '/dashboard/reports', label: 'Reports' },
   ];
