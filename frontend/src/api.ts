@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import type { Link, Pitch, User, UserSettings } from './types';
+import type { Item, CreateItemRequest, UpdateItemRequest, User, UserSettings } from './types';
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken();
@@ -37,77 +37,23 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return res.json();
 }
 
-// Links
-export const fetchLinks = () => apiFetch<Link[]>('/links');
+// Items
+export const fetchItems = () => apiFetch<Item[]>('/items');
 
-export const addLink = (data: {
-  pageUrl: string;
-  destinationUrl: string;
-  anchorText?: string;
-}) => apiFetch<Link>('/links', { method: 'POST', body: JSON.stringify(data) });
-
-export const addLinksBulk = (
-  links: { pageUrl: string; destinationUrl: string; anchorText?: string }[]
-) => apiFetch<Link[]>('/links', { method: 'POST', body: JSON.stringify(links) });
-
-export const uploadCSV = async (file: File) => {
-  const token = await getToken();
-  if (!token) {
-    window.location.href = '/login';
-    throw new Error('Not authenticated');
-  }
-  // Read file as text and send as plain text body (not FormData)
-  // Lambda Function URL doesn't handle multipart natively
-  const text = await file.text();
-  const res = await fetch('/api/links/csv', {
+export const createItem = (data: CreateItemRequest) =>
+  apiFetch<Item>('/items', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'text/csv',
-    },
-    body: text,
+    body: JSON.stringify(data),
   });
-  if (res.status === 401) {
-    window.location.href = '/login';
-    throw new Error('Session expired');
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const message = body.error || body.message;
-    if (message) {
-      throw new Error(message);
-    }
-    if (res.status >= 500) {
-      throw new Error('Something went wrong on our end. Please try again in a few minutes.');
-    }
-    throw new Error(`Request failed (${res.status})`);
-  }
-  return res.json() as Promise<Link[]>;
-};
 
-export const deleteLink = (linkId: string) =>
-  apiFetch<void>(`/links/${linkId}`, { method: 'DELETE' });
-
-export const recrawlLink = (linkId: string) =>
-  apiFetch<Link>(`/links/${linkId}/crawl`, { method: 'POST' });
-
-export const fetchLinkHistory = (linkId: string) =>
-  apiFetch<Link['statusHistory']>(`/links/${linkId}/history`);
-
-// Pitches
-export const fetchPitches = () => apiFetch<Pitch[]>('/pitches');
-
-export const addPitch = (data: Omit<Pitch, 'pitchId' | 'linkedLinkId'>) =>
-  apiFetch<Pitch>('/pitches', { method: 'POST', body: JSON.stringify(data) });
-
-export const updatePitch = (pitchId: string, data: Partial<Pitch>) =>
-  apiFetch<Pitch>(`/pitches/${pitchId}`, {
+export const updateItem = (itemId: string, data: UpdateItemRequest) =>
+  apiFetch<Item>(`/items/${itemId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 
-export const deletePitch = (pitchId: string) =>
-  apiFetch<void>(`/pitches/${pitchId}`, { method: 'DELETE' });
+export const deleteItem = (itemId: string) =>
+  apiFetch<void>(`/items/${itemId}`, { method: 'DELETE' });
 
 // Account
 export const fetchAccount = () => apiFetch<User>('/account');

@@ -132,7 +132,7 @@ export default function SettingsPage() {
   };
 
   const currentPlan = user?.plan || 'free';
-  const linkCount = user?.linkCount || 0;
+  const itemCount = user?.itemCount || 0;
 
   return (
     <div className="max-w-4xl">
@@ -235,7 +235,7 @@ export default function SettingsPage() {
             const isHigher = PLAN_RANK[plan] > PLAN_RANK[currentPlan];
             const isLower = PLAN_RANK[plan] < PLAN_RANK[currentPlan];
             const targetLimit = details.limit;
-            const overLimit = targetLimit !== null && linkCount > targetLimit;
+            const overLimit = targetLimit !== null && itemCount > targetLimit;
             const isLoading = loadingPlan === plan;
 
             return (
@@ -297,8 +297,8 @@ export default function SettingsPage() {
                       </button>
                       {overLimit && targetLimit !== null && (
                         <p className="mt-2 text-xs text-amber-700">
-                          You have {linkCount} links (limit: {targetLimit}). Remove{' '}
-                          {linkCount - targetLimit} to downgrade.
+                          You have {itemCount} items (limit: {targetLimit}). Remove{' '}
+                          {itemCount - targetLimit} to downgrade.
                         </p>
                       )}
                     </>

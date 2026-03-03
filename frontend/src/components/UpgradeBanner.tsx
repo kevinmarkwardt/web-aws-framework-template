@@ -4,13 +4,13 @@ import { createCheckoutSession } from '../api';
 
 interface UpgradeBannerProps {
   plan: Plan;
-  linkCount: number;
+  itemCount: number;
 }
 
-export default function UpgradeBanner({ plan, linkCount }: UpgradeBannerProps) {
+export default function UpgradeBanner({ plan, itemCount }: UpgradeBannerProps) {
   const [loading, setLoading] = useState(false);
   const limit = plan === 'free' ? 5 : plan === 'starter' ? 50 : Infinity;
-  const atLimit = linkCount >= limit;
+  const atLimit = itemCount >= limit;
 
   if (!atLimit || plan === 'pro') return null;
 

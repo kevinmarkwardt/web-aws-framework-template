@@ -101,7 +101,7 @@ export default function UsersPage() {
                       <option value="pro">Pro</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{u.linkCount}</td>
+                  <td className="px-4 py-3 text-gray-600">{u.itemCount}</td>
                   <td className="px-4 py-3 text-gray-500">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <button
