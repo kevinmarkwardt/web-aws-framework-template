@@ -1,17 +1,25 @@
-# CLAUDE.md
+# CLAUDE.md — web-aws-framework-template
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## What This Is
 
-## Quick Reference
+A reusable AWS SaaS starter built from a working production app. Clone via GitHub template, run `./scripts/init.sh`, and you have a fully deployable SaaS with auth, billing, admin, email, and AI.
 
-| Item | Value |
-|------|-------|
-| Domain | yourapp.com |
-| Admin | manager.yourapp.com |
-| AWS Account | YOUR_AWS_ACCOUNT_ID |
-| Region | us-east-1 |
-| CDK Stack | YourAppStack |
-| Spec | SPEC.md |
+## Placeholder Values
+
+All project-specific values use these placeholders (replaced by `init.sh`):
+
+| Placeholder | Replaced with |
+|-------------|--------------|
+| `yourapp` | Project name (lowercase) |
+| `YourApp` | Display name (title case) |
+| `yourapp.com` | Your domain |
+| `manager.yourapp.com` | Admin subdomain |
+| `YOUR_AWS_ACCOUNT_ID` | AWS account ID |
+
+To find all placeholder occurrences:
+```bash
+grep -r "yourapp" --include="*.ts" --include="*.py" --include="*.json" .
+```
 
 ## Commands
 
@@ -22,26 +30,24 @@ cd frontend
 npm run dev         # Vite dev server (proxies /api/* to localhost:3000)
 npm run build       # TypeScript check + Vite build
 npm run lint        # ESLint
-npm run preview     # Serve dist/ locally
 ```
 
 ### Backend Tests
 
 ```bash
-python -m pytest tests/                     # All tests
-python -m pytest tests/test_api_links.py    # Single file
-python -m pytest tests/test_crawler.py -k "test_missing_link"  # Single test
+python -m pytest tests/                          # All tests
+python -m pytest tests/test_api_items.py         # Items CRUD tests
+python -m pytest tests/test_api_items.py -k "test_create"  # Single test
 ```
 
-Uses pytest + moto (`@mock_aws`) for AWS mocking. No frontend tests exist yet.
+Uses pytest + moto (`@mock_aws`) for AWS mocking. No frontend tests.
 
 ### Deploy
 
 ```bash
-./scripts/deploy.sh                         # Full: deps + CDK + frontend + S3 sync + CF invalidation
-./scripts/deploy-frontend.sh                # Frontend only (requires cdk-outputs.json)
-./scripts/deploy-lambdas.sh                 # All Lambdas
-./scripts/deploy-lambdas.sh yourapp-api  # Single Lambda by function name
+./scripts/deploy.sh                   # Full: deps + CDK + frontend + S3 sync + CF invalidation
+./scripts/deploy-frontend.sh          # Frontend only (requires cdk-outputs.json)
+./scripts/deploy-lambdas.sh           # All Lambdas
 ```
 
 ### CDK
@@ -53,60 +59,49 @@ npx cdk diff      # Preview changes
 npx cdk deploy    # Deploy stack
 ```
 
-### Admin Setup
+## Architecture Decisions (Don't Change These Lightly)
 
-```bash
-./scripts/setup-admin.sh   # Create/update admin credentials in Secrets Manager
-```
+**Lambda Function URLs instead of API Gateway:** Avoids $3.50/million request overhead. CORS is handled manually in `api/handler.py`. Both Lambda Function URL and API Gateway v1 formats are supported for local testing.
 
-## Architecture
+**DynamoDB single-table design:** Everything in one table with `pk`/`sk` composite keys. Prefixes: `USER#`, `ITEM#`, `CONFIG`. Add GSIs when you need to query by non-key attributes.
 
-### Two Apps, One Bundle
+**Cognito ID token (not Access token):** The frontend sends the ID token as `Bearer`. It contains `sub` (user ID), `email`, `name` — useful for user context without extra DB calls.
 
-The frontend serves both the user app (`yourapp.com`) and admin app (`manager.yourapp.com`) from the same S3 bucket and CloudFront distribution. `App.tsx` checks `window.location.hostname.startsWith('manager.')` to decide which app to render. Admin pages are lazy-loaded to avoid bloating the user bundle.
+**Dual-app single bundle:** User app + admin app in one React build, split by hostname (`manager.*` → admin). Admin pages are lazy-loaded.
 
-### API Routing (No Framework)
+**Admin auth is separate from Cognito:** Admin JWT lives in Secrets Manager (HS256), not in Cognito. Keeps admin access independent of user accounts.
 
-`api/handler.py` uses manual `if` statements and `re.match()` — no Flask/FastAPI. Three routing tiers:
+**ARM64 Lambda:** All Lambdas run on Graviton2 (ARM64). Python dependencies must be installed with `--platform manylinux2014_aarch64` for compatibility. The deploy scripts handle this automatically.
 
-1. **OPTIONS** — CORS preflight, immediate 200
-2. **`/api/webhooks/stripe`** — bypasses JWT auth, verified by Stripe signature
-3. **`/api/admin/*`** — separate admin JWT auth (Secrets Manager-based)
-4. **Everything else** — Cognito JWT auth, `user_id` extracted from token `sub` claim
+## Where to Add New Entities
 
-The Lambda supports both Function URL format and API Gateway v1 format (for local testing).
+When replacing "items" with your domain entity (e.g., "links"):
 
-### Auth Systems
+1. **`api/lib/db.py`** — Add `get_links()`, `create_link()`, `update_link()`, `delete_link()` using `LINK#` prefix. Add `LINK_LIMITS` dict. Add `increment_link_count()`.
+2. **`api/routes/links.py`** — Copy `api/routes/items.py`, rename functions, add domain logic.
+3. **`api/handler.py`** — Add `from routes import links` and route `/api/links` in `_route()`.
+4. **`frontend/src/types.ts`** — Add `Link` interface.
+5. **`frontend/src/api.ts`** — Add `fetchLinks()`, `createLink()`, etc.
+6. **`frontend/src/pages/dashboard/LinksPage.tsx`** — Create page component.
+7. **`frontend/src/components/LinksTable.tsx`** — Create table component.
+8. **`frontend/src/App.tsx`** — Add route: `<Route path="links" element={<LinksPage />} />`.
+9. **`frontend/src/pages/dashboard/DashboardLayout.tsx`** — Add nav item.
+10. **`tests/test_api_links.py`** — Write tests first (TDD). Add `create_test_link` fixture to conftest.py.
 
-**User auth:** Cognito via AWS Amplify v6 on frontend. The frontend sends the **ID token** (not access token) as `Bearer` — the backend reads `sub`, `email`, and `name` claims from it. JWT verification uses JWKS downloaded from Cognito (cached 1 hour in module-level global).
+## How to Add New Lambda Workers
 
-**Admin auth:** Completely separate. Credentials (email + bcrypt hash + JWT secret) stored in Secrets Manager at `yourapp/admin-credentials`. Login returns a 24-hour HS256 JWT stored in memory (not localStorage — lost on page refresh).
+1. Create `lambdas/my-worker/handler.py` (copy from `lambdas/daily-job/`).
+2. Add `lambdas/my-worker/requirements.txt`.
+3. In `cdk/lib/yourapp-stack.ts`, add a `lambda.Function` and an `events.Rule`.
+4. Deploy: `./scripts/deploy-lambdas.sh`.
 
-### DynamoDB (Single Table)
+## Stripe Plan Tiers
 
-Table name: `yourapp`. All items use `pk`/`sk` string keys.
+Plans live in two places:
+- **`api/lib/db.py`** — `ITEM_LIMITS` dict controls per-plan entity limits (enforced on create).
+- **`CONFIG | STRIPE`** DynamoDB record — holds Stripe price IDs (set via admin panel or DynamoDB console after first deploy).
 
-| Entity | pk | sk |
-|--------|----|----|
-| User profile | `USER#{userId}` | `PROFILE` |
-| Link | `USER#{userId}` | `LINK#{linkId}` |
-| Pitch | `USER#{userId}` | `PITCH#{pitchId}` |
-| Site config | `CONFIG` | `GLOBAL` |
-| Stripe config | `CONFIG` | `STRIPE` |
-
-**GSIs:** `email-index` (pk=email), `stripe-customer-index` (pk=stripeCustomerId)
-
-**Plan limits:** `{"free": 5, "starter": 50, "pro": float("inf")}` — enforced via denormalized `linkCount` on user profile, atomically incremented/decremented on link create/delete.
-
-### Stripe Config Split
-
-- **Keys** (secret, publishable, webhook) → Secrets Manager at `yourapp/stripe`, cached 5 min
-- **Price IDs** (starter, pro) → DynamoDB at `CONFIG/STRIPE`, cached 5 min
-- `invalidate_caches()` in billing.py clears both caches (called by admin after config updates)
-
-### Lambda Packaging
-
-Source directories (`api/`, `lambdas/*/`) contain only `.py` files in git. Dependencies are installed into those dirs at deploy time (Linux ARM64 wheels via `--platform manylinux2014_aarch64`). Installed packages are gitignored.
+The admin panel (`/config/plans`) lets you update plan limits without redeploying.
 
 ## Key Patterns
 
@@ -118,44 +113,48 @@ All API modules use try/except imports to support both contexts:
 
 ### Test Fixtures
 
-`conftest.py` sets `TABLE_NAME=yourapp-test` before imports. Resets `api.lib.db._table = None` before/after each test to prevent the module-level DynamoDB singleton from holding stale moto references.
+`conftest.py` sets env vars before imports and resets `api.lib.db._table = None` before/after each test to prevent the module-level DynamoDB singleton from holding stale moto references.
 
-Factory fixtures (`create_test_user`, `create_test_link`, `create_test_pitch`) are callables — call with kwargs to customize.
+Factory fixtures (`create_test_user`, `create_test_item`) are callables — call with kwargs to customize.
 
 ### Response Format
 
-All API responses use `lib/response.py`: `ok(body, status)` and `error(message, status)`. Both return `{"statusCode": N, "headers": {CORS}, "body": JSON string}`. `DecimalEncoder` handles DynamoDB Decimal types.
+All API responses use `lib/response.py`: `ok(body, status)`, `error(message, status)`, `not_found(message)`. Returns `{"statusCode": N, "headers": {CORS}, "body": JSON string}`.
 
 ### User Auto-Provisioning
 
 No explicit user creation endpoint. `GET /api/account` auto-creates the DynamoDB user profile on first call by reading `email` and `name` from the JWT ID token claims.
 
-### Status History
+## Key File Map
 
-Link `statusHistory` is a DynamoDB list attribute appended with `list_append(if_not_exists(..., :empty), :hist)`. Grows unbounded — no pruning.
-
-### CSV Upload
-
-Sent as `Content-Type: text/csv` with raw text body (not multipart/form-data), because Lambda Function URLs don't handle multipart natively.
-
-### Admin Request Body Parsing
-
-CloudFront may base64-encode request bodies without setting `isBase64Encoded=True`. The admin route parser falls back to trying base64 decode if JSON parse fails.
-
-## Stack
-
-**Frontend:** React 19, TypeScript 5.9, Vite, Tailwind CSS v4 (plugin-based, no config file), React Router v7, AWS Amplify v6 (auth only)
-
-**Backend:** Python 3.12, Lambda ARM64 (Graviton2), 128MB default (crawler 256MB, report-gen 512MB)
-
-**Infra:** CDK (TypeScript), DynamoDB provisioned 25 RCU/WCU (free tier), CloudFront + S3, Lambda Function URLs (no API Gateway), SES, Cognito, EventBridge, Bedrock (Claude Haiku for Pro features), Stripe
+| File | Purpose |
+|------|---------|
+| `cdk/lib/yourapp-stack.ts` | All AWS infrastructure |
+| `api/handler.py` | Lambda entry point + routing |
+| `api/lib/db.py` | DynamoDB helpers + entity functions |
+| `api/lib/auth.py` | Cognito JWT verification |
+| `api/routes/items.py` | CRUD for your main entity |
+| `api/routes/billing.py` | Stripe checkout + webhooks |
+| `api/routes/admin.py` | Admin endpoints |
+| `lambdas/daily-job/handler.py` | Example scheduled worker |
+| `frontend/src/App.tsx` | React router (user + admin apps) |
+| `frontend/src/auth.ts` | Cognito Amplify integration |
+| `frontend/src/api.ts` | API client functions |
+| `frontend/src/types.ts` | TypeScript interfaces |
+| `tests/conftest.py` | pytest fixtures + moto setup |
+| `scripts/init.sh` | Project initialization script |
+| `scripts/deploy.sh` | Full deployment |
 
 ## Environment Variables
 
-`frontend/.env` is auto-generated by deploy scripts from `cdk-outputs.json`:
-```
-VITE_USER_POOL_ID=...
-VITE_CLIENT_ID=...
+Copy `.env.example` to `.env` and fill in:
+
+```bash
+# Stripe (required for billing)
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PRO=price_...
 ```
 
-Root `.env.example` has Stripe keys for local dev context. Lambda env vars (TABLE_NAME, USER_POOL_ID, etc.) are set by CDK.
+Lambda environment variables are set by CDK (`cdk/lib/yourapp-stack.ts`) — do not set them manually.
