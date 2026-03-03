@@ -6,8 +6,8 @@ const app = new cdk.App();
 
 new YourAppStack(app, 'YourAppStack', {
   env: {
-    account: 'YOUR_AWS_ACCOUNT_ID',
-    region: 'us-east-1',
+    account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID,
+    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
   },
   domainName: 'yourapp.com',
 });
