@@ -193,103 +193,51 @@ export class YourAppStack extends cdk.Stack {
       },
     });
 
-    // --- Link Crawler ---
-    const linkCrawler = new lambda.Function(this, 'LinkCrawler', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-crawler',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/crawler'),
-      logGroup: makeLogGroup('crawler'),
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 256,
-      environment: {
-        ...sharedEnv,
-        ALERTS_FUNCTION: 'yourapp-alerts',
-      },
-    });
-
-    // --- Alert Sender ---
-    const alertSender = new lambda.Function(this, 'AlertSender', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-alerts',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/alerts'),
-      logGroup: makeLogGroup('alerts'),
-      environment: {
-        ...sharedEnv,
-        IMPACT_SCORER_FUNCTION: 'yourapp-impact-scorer',
-      },
-    });
-
-    // --- Digest Sender (weekly Monday digest) ---
-    const digestSender = new lambda.Function(this, 'DigestSender', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-digest',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/digest'),
-      logGroup: makeLogGroup('digest'),
-      timeout: cdk.Duration.minutes(5),
-      environment: {
-        ...sharedEnv,
-      },
-    });
-
-    // --- Reminder Sender (pipeline follow-up reminders) ---
-    const reminderSender = new lambda.Function(this, 'ReminderSender', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-reminders',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/reminders'),
-      logGroup: makeLogGroup('reminders'),
-      environment: {
-        ...sharedEnv,
-      },
-    });
-
-    // --- Impact Scorer (Pro -- Bedrock Haiku enrichment) ---
-    const impactScorer = new lambda.Function(this, 'ImpactScorer', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-impact-scorer',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/impact-scorer'),
-      logGroup: makeLogGroup('impact-scorer'),
-      timeout: cdk.Duration.seconds(60),
-      environment: {
-        ...sharedEnv,
-        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-haiku-20241022-v1:0',
-      },
-    });
-
-    // --- Report Generator (Pro -- monthly PDF) ---
-    const reportGenerator = new lambda.Function(this, 'ReportGenerator', {
-      ...lambdaDefaults,
-      functionName: 'yourapp-report-generator',
-      handler: 'handler.lambda_handler',
-      code: lambda.Code.fromAsset('../lambdas/report-generator'),
-      logGroup: makeLogGroup('report-generator'),
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 512,
-      environment: {
-        ...sharedEnv,
-        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-haiku-20241022-v1:0',
-      },
-    });
-
     // NOTE: Stripe webhooks are handled by the API handler at /api/webhooks/stripe.
     // No separate stripe-webhook Lambda needed — billing.handle_webhook() handles
     // signature verification and plan updates directly.
 
     // ========================================================================
+    // daily-job Lambda — Example scheduled worker (replace with your logic)
+    // ========================================================================
+    const dailyJobFn = new lambda.Function(this, 'DailyJobFunction', {
+      functionName: 'yourapp-daily-job',
+      runtime: lambda.Runtime.PYTHON_3_12,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'handler.handler',
+      code: lambda.Code.fromAsset('../lambdas/daily-job'),
+      timeout: cdk.Duration.minutes(5),
+      memorySize: 256,
+      logGroup: makeLogGroup('daily-job'),
+      environment: {
+        TABLE_NAME: mainTable.tableName,
+        FROM_EMAIL: `noreply@${domainName}`,
+        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-haiku-20241022-v1:0',
+      },
+    });
+
+    mainTable.grantReadWriteData(dailyJobFn);
+
+    dailyJobFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ses:SendEmail'],
+      resources: ['*'],
+    }));
+
+    dailyJobFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['bedrock:InvokeModel'],
+      resources: ['*'],
+    }));
+
+    // ========================================================================
     // IAM Permissions
     // ========================================================================
 
-    // API handler — full CRUD on main table + Cognito admin + invoke crawler
+    // API handler — full CRUD on main table + Cognito admin
     mainTable.grantReadWriteData(apiHandler);
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['cognito-idp:AdminGetUser'],
       resources: [userPool.userPoolArn],
     }));
-    linkCrawler.grantInvoke(apiHandler); // for on-demand crawl
 
     // Admin dashboard permissions
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
@@ -315,55 +263,6 @@ export class YourAppStack extends cdk.Stack {
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:DescribeTable'],
       resources: [mainTable.tableArn],
-    }));
-
-    // Link crawler — read/write main table (read users, write link status), invoke alert sender
-    mainTable.grantReadWriteData(linkCrawler);
-    alertSender.grantInvoke(linkCrawler);
-
-    // Alert sender — read/write main table (read users+links, write lastAlertSent), send SES, invoke impact scorer
-    mainTable.grantReadWriteData(alertSender);
-    alertSender.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-      resources: ['*'],
-    }));
-    impactScorer.grantInvoke(alertSender);
-
-    // Digest sender — read main table, send SES
-    mainTable.grantReadData(digestSender);
-    digestSender.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-      resources: ['*'],
-    }));
-
-    // Reminder sender — read/write main table (read users+pitches, write lastReminderSent), send SES
-    mainTable.grantReadWriteData(reminderSender);
-    reminderSender.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-      resources: ['*'],
-    }));
-
-    // Impact scorer — read main table, invoke Bedrock, send SES
-    mainTable.grantReadData(impactScorer);
-    impactScorer.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel'],
-      resources: ['*'],
-    }));
-    impactScorer.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-      resources: ['*'],
-    }));
-
-    // Report generator — read main table, write reports bucket, send SES, invoke Bedrock
-    mainTable.grantReadData(reportGenerator);
-    reportsBucket.grantReadWrite(reportGenerator);
-    reportGenerator.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-      resources: ['*'],
-    }));
-    reportGenerator.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['bedrock:InvokeModel'],
-      resources: ['*'],
     }));
 
     // Stripe webhooks are handled by apiHandler — already has read/write access.
@@ -484,46 +383,13 @@ function handler(event) {
     });
 
     // ========================================================================
-    // EventBridge Schedules
+    // EventBridge — Daily job schedule (8 AM UTC)
+    // Change cron expression to match your needs
     // ========================================================================
-
-    // Daily crawl — 11 PM ET (4 AM UTC next day) for Free/Starter links
-    new events.Rule(this, 'DailyCrawlRule', {
-      ruleName: 'yourapp-daily-crawl',
-      schedule: events.Schedule.cron({ minute: '0', hour: '4' }), // 11 PM ET = 4 AM UTC
-      targets: [new eventsTargets.LambdaFunction(linkCrawler, {
-        event: events.RuleTargetInput.fromObject({ tier: 'daily' }),
-      })],
-    });
-
-    // Hourly crawl — every hour for Pro links
-    new events.Rule(this, 'HourlyCrawlRule', {
-      ruleName: 'yourapp-hourly-crawl',
-      schedule: events.Schedule.rate(cdk.Duration.hours(1)),
-      targets: [new eventsTargets.LambdaFunction(linkCrawler, {
-        event: events.RuleTargetInput.fromObject({ tier: 'hourly' }),
-      })],
-    });
-
-    // Monday digest — Monday 7 AM ET (12 PM UTC)
-    new events.Rule(this, 'MondayDigestRule', {
-      ruleName: 'yourapp-monday-digest',
-      schedule: events.Schedule.cron({ minute: '0', hour: '12', weekDay: 'MON' }),
-      targets: [new eventsTargets.LambdaFunction(digestSender)],
-    });
-
-    // Daily reminders — 8 AM ET (1 PM UTC)
-    new events.Rule(this, 'DailyRemindersRule', {
-      ruleName: 'yourapp-daily-reminders',
-      schedule: events.Schedule.cron({ minute: '0', hour: '13' }), // 8 AM ET = 1 PM UTC
-      targets: [new eventsTargets.LambdaFunction(reminderSender)],
-    });
-
-    // Monthly report — 1st of month, 6 AM ET (11 AM UTC)
-    new events.Rule(this, 'MonthlyReportRule', {
-      ruleName: 'yourapp-monthly-report',
-      schedule: events.Schedule.cron({ minute: '0', hour: '11', day: '1' }),
-      targets: [new eventsTargets.LambdaFunction(reportGenerator)],
+    new events.Rule(this, 'DailyJobRule', {
+      ruleName: 'yourapp-daily-job',
+      schedule: events.Schedule.cron({ minute: '0', hour: '8' }),
+      targets: [new eventsTargets.LambdaFunction(dailyJobFn)],
     });
 
     // ========================================================================
