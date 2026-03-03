@@ -1,4 +1,4 @@
-"""LinkKeeper Impact Scorer — Bedrock Haiku enrichment for Pro users.
+"""YourApp Impact Scorer — Bedrock Haiku enrichment for Pro users.
 
 Triggered asynchronously by the alerts Lambda when a LIVE -> MISSING
 status change is detected for a Pro user. Uses Bedrock Claude Haiku
@@ -14,10 +14,10 @@ from urllib.parse import urlparse
 import boto3
 import requests
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
-SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "alerts@linkkeeper.co")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "alerts@yourapp.com")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://linkkeeper.co")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
 OPEN_PAGERANK_API_KEY = os.environ.get("OPEN_PAGERANK_API_KEY", "")
 
 dynamodb = boto3.resource("dynamodb")
@@ -119,7 +119,7 @@ def _send_impact_email(
     da: dict,
     assessment: str,
 ):
-    subject = f"LinkKeeper Pro: Impact Assessment — Link lost on {domain}"
+    subject = f"YourApp Pro: Impact Assessment — Link lost on {domain}"
     body = (
         f"LINK LOSS IMPACT ASSESSMENT\n"
         f"{'=' * 40}\n\n"

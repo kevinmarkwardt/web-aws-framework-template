@@ -5,11 +5,11 @@
 
 ## Overview
 
-Extract LinkKeeper into a reusable GitHub Template Repository (`web-aws-framework-template`) — a fully working, deployable opinionated SaaS starter on AWS. New projects are initialized via a `scripts/init.sh` setup script that does automated find-replace on placeholder values.
+Extract YourApp into a reusable GitHub Template Repository (`web-aws-framework-template`) — a fully working, deployable opinionated SaaS starter on AWS. New projects are initialized via a `scripts/init.sh` setup script that does automated find-replace on placeholder values.
 
 ## Approach
 
-Option A — Systematic placeholder replacement. Copy the entire LinkKeeper repo, do a thorough find-replace throughout all files, genericize the domain-specific frontend/backend, strip domain lambdas (replace with one example worker), and write `init.sh` for new project setup.
+Option A — Systematic placeholder replacement. Copy the entire YourApp repo, do a thorough find-replace throughout all files, genericize the domain-specific frontend/backend, strip domain lambdas (replace with one example worker), and write `init.sh` for new project setup.
 
 ## Placeholder Naming Convention
 
@@ -21,10 +21,10 @@ Option A — Systematic placeholder replacement. Copy the entire LinkKeeper repo
 | `manager.yourapp.com` | Admin subdomain placeholder |
 | `YOUR_AWS_ACCOUNT_ID` | AWS account ID placeholder |
 
-## What Changes vs. LinkKeeper
+## What Changes vs. YourApp
 
 ### CDK Stack
-- Files renamed: `cdk/bin/linkkeeper.ts` → `cdk/bin/yourapp.ts`, `cdk/lib/linkkeeper-stack.ts` → `cdk/lib/yourapp-stack.ts`
+- Files renamed: `cdk/bin/yourapp.ts` → `cdk/bin/yourapp.ts`, `cdk/lib/yourapp-stack.ts` → `cdk/lib/yourapp-stack.ts`
 - Stack renamed to `YourAppStack`
 - All resource names use `yourapp-` prefix
 - Account ID replaced with `YOUR_AWS_ACCOUNT_ID` placeholder (not hardcoded)
@@ -38,7 +38,7 @@ Option A — Systematic placeholder replacement. Copy the entire LinkKeeper repo
   - `LandingPage` → generic SaaS hero with placeholder copy
   - `AddLinkForm` → `AddItemForm`
   - `LinksTable` → `ItemsTable`
-- **Removed:** `PipelinePage`, `BulkPasteModal`, `CSVUploadModal`, `LinkDetailDrawer`, `PipelineTable` (LinkKeeper-specific)
+- **Removed:** `PipelinePage`, `BulkPasteModal`, `CSVUploadModal`, `LinkDetailDrawer`, `PipelineTable` (YourApp-specific)
 - App router updated to remove `/dashboard/pipeline` route
 
 ### Backend
@@ -64,7 +64,7 @@ Option A — Systematic placeholder replacement. Copy the entire LinkKeeper repo
 
 ### New Files
 - `README.md` — full setup guide, stack overview, how to use the template
-- `CLAUDE.md` — updated for template context (not LinkKeeper-specific)
+- `CLAUDE.md` — updated for template context (not YourApp-specific)
 
 ## `init.sh` Design
 
@@ -75,15 +75,15 @@ $ ./scripts/init.sh
 
 Welcome to web-aws-framework-template setup!
 
-Project name (lowercase, no spaces) [myapp]: linkkeeper
-Display name [Linkkeeper]: LinkKeeper
-Domain name [linkkeeper.com]: linkkeeper.co
-AWS Account ID [123456789012]: 177913614409
+Project name (lowercase, no spaces) [myapp]: yourapp
+Display name [Linkkeeper]: YourApp
+Domain name [yourapp.comm]: yourapp.com
+AWS Account ID [123456789012]: YOUR_AWS_ACCOUNT_ID
 
-Replacing 'yourapp' → 'linkkeeper' in 47 files...
-Replacing 'YourApp' → 'LinkKeeper' in 23 files...
-Replacing 'yourapp.com' → 'linkkeeper.co' in 12 files...
-Replacing 'YOUR_AWS_ACCOUNT_ID' → '177913614409' in 3 files...
+Replacing 'yourapp' → 'yourapp' in 47 files...
+Replacing 'YourApp' → 'YourApp' in 23 files...
+Replacing 'yourapp.com' → 'yourapp.com' in 12 files...
+Replacing 'YOUR_AWS_ACCOUNT_ID' → 'YOUR_AWS_ACCOUNT_ID' in 3 files...
 
 Done! Next steps:
   1. Copy .env.example → .env and fill in Stripe/SES/Bedrock keys

@@ -1,4 +1,4 @@
-"""LinkKeeper Link Crawler — processes batches of links.
+"""YourApp Link Crawler — processes batches of links.
 
 Triggered by EventBridge:
   - Daily at 11 PM ET for Free/Starter links
@@ -19,11 +19,11 @@ import requests
 from boto3.dynamodb.conditions import Key
 from bs4 import BeautifulSoup
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
-ALERTS_FUNCTION = os.environ.get("ALERTS_FUNCTION", "linkkeeper-alerts")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+ALERTS_FUNCTION = os.environ.get("ALERTS_FUNCTION", "yourapp-alerts")
 
 USER_AGENT = (
-    "Mozilla/5.0 (compatible; LinkKeeperBot/1.0; +https://linkkeeper.co/bot)"
+    "Mozilla/5.0 (compatible; YourAppBot/1.0; +https://yourapp.com/bot)"
 )
 REQUEST_TIMEOUT = 15
 MAX_REDIRECTS = 3

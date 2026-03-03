@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# LinkKeeper — Admin credential setup
+# YourApp — Admin credential setup
 # Creates or updates the admin secret in AWS Secrets Manager.
-# Secret: linkkeeper/admin-credentials  (us-east-1)
+# Secret: yourapp/admin-credentials  (us-east-1)
 set -euo pipefail
 
 ADMIN_EMAIL="kevinmarkwardt@gmail.com"
 
 echo "========================================="
-echo "  LinkKeeper — Admin Credential Setup"
+echo "  YourApp — Admin Credential Setup"
 echo "========================================="
 echo ""
 echo "  Email:  $ADMIN_EMAIL"
@@ -53,7 +53,7 @@ secret_value = json.dumps({
 })
 
 client = boto3.client("secretsmanager", region_name="us-east-1")
-secret_name = "linkkeeper/admin-credentials"
+secret_name = "yourapp/admin-credentials"
 
 try:
     client.describe_secret(SecretId=secret_name)

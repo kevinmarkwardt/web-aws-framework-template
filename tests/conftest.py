@@ -1,4 +1,4 @@
-"""Shared test fixtures for LinkKeeper backend tests."""
+"""Shared test fixtures for YourApp backend tests."""
 
 import json
 import os
@@ -16,7 +16,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # Set environment variables before any app imports
-os.environ["TABLE_NAME"] = "linkkeeper-test"
+os.environ["TABLE_NAME"] = "yourapp-test"
 os.environ["USER_POOL_ID"] = "us-east-1_TestPool"
 os.environ["USER_POOL_CLIENT_ID"] = "test-client-id"
 os.environ["AWS_REGION"] = "us-east-1"
@@ -29,12 +29,12 @@ os.environ["STRIPE_SECRET_KEY"] = "sk_test_fake"
 os.environ["STRIPE_WEBHOOK_SECRET"] = "whsec_test_fake"
 os.environ["STRIPE_STARTER_PRICE_ID"] = "price_starter_test"
 os.environ["STRIPE_PRO_PRICE_ID"] = "price_pro_test"
-os.environ["SES_FROM_EMAIL"] = "test@linkkeeper.co"
-os.environ["FRONTEND_URL"] = "https://linkkeeper.co"
-os.environ["REPORTS_BUCKET"] = "linkkeeper-reports-test"
+os.environ["SES_FROM_EMAIL"] = "test@yourapp.com"
+os.environ["FRONTEND_URL"] = "https://yourapp.com"
+os.environ["REPORTS_BUCKET"] = "yourapp-reports-test"
 os.environ["BEDROCK_MODEL_ID"] = "anthropic.claude-3-haiku-20240307-v1:0"
-os.environ["ALERTS_FUNCTION"] = "linkkeeper-alerts-test"
-os.environ["IMPACT_SCORER_FUNCTION"] = "linkkeeper-impact-scorer-test"
+os.environ["ALERTS_FUNCTION"] = "yourapp-alerts-test"
+os.environ["IMPACT_SCORER_FUNCTION"] = "yourapp-impact-scorer-test"
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def dynamodb_table(aws_credentials):
     with mock_aws():
         client = boto3.resource("dynamodb", region_name="us-east-1")
         table = client.create_table(
-            TableName="linkkeeper-test",
+            TableName="yourapp-test",
             KeySchema=[
                 {"AttributeName": "pk", "KeyType": "HASH"},
                 {"AttributeName": "sk", "KeyType": "RANGE"},
@@ -78,7 +78,7 @@ def dynamodb_table(aws_credentials):
             ],
             BillingMode="PAY_PER_REQUEST",
         )
-        table.meta.client.get_waiter("table_exists").wait(TableName="linkkeeper-test")
+        table.meta.client.get_waiter("table_exists").wait(TableName="yourapp-test")
 
         # Reset the db module's cached table reference so it picks up the mock
         import api.lib.db as db_module

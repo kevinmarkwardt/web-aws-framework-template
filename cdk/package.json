@@ -1,8 +1,8 @@
 {
-  "name": "linkkeeper-cdk",
+  "name": "yourapp-cdk",
   "version": "1.0.0",
   "bin": {
-    "linkkeeper": "bin/linkkeeper.js"
+    "yourapp": "bin/yourapp.js"
   },
   "scripts": {
     "build": "tsc",

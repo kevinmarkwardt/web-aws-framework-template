@@ -17,9 +17,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://linkkeeper.co")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
-STRIPE_SECRET_NAME = "linkkeeper/stripe"
+STRIPE_SECRET_NAME = "yourapp/stripe"
 
 _PLAN_RANK = {"free": 0, "starter": 1, "pro": 2}
 

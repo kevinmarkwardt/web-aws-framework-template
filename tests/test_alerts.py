@@ -164,7 +164,7 @@ class TestAlertSender:
         # Verify impact scorer was invoked
         mock_lambda.invoke.assert_called_once()
         invoke_kwargs = mock_lambda.invoke.call_args[1]
-        assert invoke_kwargs["FunctionName"] == "linkkeeper-impact-scorer-test"
+        assert invoke_kwargs["FunctionName"] == "yourapp-impact-scorer-test"
 
 
 class TestSendAlert:

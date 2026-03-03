@@ -1,4 +1,4 @@
-"""LinkKeeper Alert Sender — status change detection + SES alerts.
+"""YourApp Alert Sender — status change detection + SES alerts.
 
 Triggered after crawler completes. Scans links for status changes
 since last alert and sends SES email notifications.
@@ -12,10 +12,10 @@ from datetime import datetime, timezone
 import boto3
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
-SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "alerts@linkkeeper.co")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://linkkeeper.co")
-IMPACT_SCORER_FUNCTION = os.environ.get("IMPACT_SCORER_FUNCTION", "linkkeeper-impact-scorer")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "alerts@yourapp.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
+IMPACT_SCORER_FUNCTION = os.environ.get("IMPACT_SCORER_FUNCTION", "yourapp-impact-scorer")
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
@@ -104,7 +104,7 @@ def _send_alert(email: str, link: dict, old_status: str, new_status: str, plan: 
     domain = urlparse(page_url).netloc
 
     if old_status == "LIVE" and new_status == "MISSING":
-        subject = f"LinkKeeper Alert: Link on {domain} is now MISSING"
+        subject = f"YourApp Alert: Link on {domain} is now MISSING"
         body = (
             f"Your link on {page_url} changed status from {old_status} to {new_status}.\n\n"
             f'Your "{anchor_text}" link to {destination_url} is no longer detected on the page.\n\n'
@@ -131,7 +131,7 @@ def _send_alert(email: str, link: dict, old_status: str, new_status: str, plan: 
             )
 
     elif new_status == "LIVE" and old_status in ("MISSING", "404", "ERROR", "REDIRECT"):
-        subject = f"LinkKeeper: Link on {domain} is live again"
+        subject = f"YourApp: Link on {domain} is live again"
         body = (
             f"Good news — your link on {page_url} is back.\n\n"
             f'Your "{anchor_text}" link to {destination_url} is now detected on the page.\n\n'
@@ -139,7 +139,7 @@ def _send_alert(email: str, link: dict, old_status: str, new_status: str, plan: 
         )
 
     elif new_status == "404":
-        subject = f"LinkKeeper Alert: Page on {domain} returning 404"
+        subject = f"YourApp Alert: Page on {domain} returning 404"
         body = (
             f"The page at {page_url} is returning a 404.\n\n"
             f'Your "{anchor_text}" link to {destination_url} was on this page.\n\n'
@@ -147,7 +147,7 @@ def _send_alert(email: str, link: dict, old_status: str, new_status: str, plan: 
         )
 
     elif new_status == "REDIRECT":
-        subject = f"LinkKeeper Alert: Page on {domain} redirecting"
+        subject = f"YourApp Alert: Page on {domain} redirecting"
         body = (
             f"The page at {page_url} is now redirecting to a different domain.\n\n"
             f'Your "{anchor_text}" link to {destination_url} may no longer be accessible.\n\n'
@@ -155,7 +155,7 @@ def _send_alert(email: str, link: dict, old_status: str, new_status: str, plan: 
         )
 
     else:
-        subject = f"LinkKeeper Alert: Link on {domain} is now {new_status}"
+        subject = f"YourApp Alert: Link on {domain} is now {new_status}"
         body = (
             f"Your link on {page_url} changed status from {old_status} to {new_status}.\n\n"
             f"View in Dashboard: {FRONTEND_URL}/dashboard\n"

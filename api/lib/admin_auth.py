@@ -11,7 +11,7 @@ import boto3
 from jose import jwt
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
-SECRET_NAME = "linkkeeper/admin-credentials"
+SECRET_NAME = "yourapp/admin-credentials"
 
 
 def _get_admin_secret() -> dict:

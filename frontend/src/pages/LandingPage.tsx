@@ -132,7 +132,7 @@ export default function LandingPage() {
             <svg className="w-7 h-7 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
-            <span className="text-xl font-bold text-gray-900">LinkKeeper</span>
+            <span className="text-xl font-bold text-gray-900">YourApp</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">
@@ -327,9 +327,9 @@ export default function LandingPage() {
             <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
-            <span className="text-sm text-gray-500">LinkKeeper</span>
+            <span className="text-sm text-gray-500">YourApp</span>
           </div>
-          <p className="text-sm text-gray-400">linkkeeper.co</p>
+          <p className="text-sm text-gray-400">yourapp.com</p>
         </div>
       </footer>
     </div>

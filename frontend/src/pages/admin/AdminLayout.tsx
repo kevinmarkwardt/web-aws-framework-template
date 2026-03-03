@@ -46,7 +46,7 @@ export default function AdminLayout() {
           <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
           </svg>
-          <span className="font-bold text-sm">LinkKeeper Manager</span>
+          <span className="font-bold text-sm">YourApp Manager</span>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-4">
           {navGroups.map((group) => (

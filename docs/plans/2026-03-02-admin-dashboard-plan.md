@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add an admin dashboard at `manager.linkkeeper.co` for managing users, monitoring system health, browsing data, and configuring the site — all behind Secrets Manager-based authentication.
+**Goal:** Add an admin dashboard at `manager.yourapp.com` for managing users, monitoring system health, browsing data, and configuring the site — all behind Secrets Manager-based authentication.
 
-**Architecture:** Same React SPA serves both `linkkeeper.co` (user app) and `manager.linkkeeper.co` (admin). Hostname detection in App.tsx routes to lazy-loaded admin pages. Admin API endpoints at `/api/admin/*` use JWT auth backed by AWS Secrets Manager credentials. CloudWatch queries provide live system metrics.
+**Architecture:** Same React SPA serves both `yourapp.com` (user app) and `manager.yourapp.com` (admin). Hostname detection in App.tsx routes to lazy-loaded admin pages. Admin API endpoints at `/api/admin/*` use JWT auth backed by AWS Secrets Manager credentials. CloudWatch queries provide live system metrics.
 
 **Tech Stack:** React 19, Tailwind v4, Vite 7, Python 3.12 Lambda, AWS CDK, DynamoDB, Secrets Manager, CloudWatch, bcrypt
 
@@ -23,11 +23,11 @@
 # Usage: ./scripts/setup-admin.sh
 set -euo pipefail
 
-SECRET_NAME="linkkeeper/admin-credentials"
+SECRET_NAME="yourapp/admin-credentials"
 REGION="us-east-1"
 ADMIN_EMAIL="kevinmarkwert@gmail.com"
 
-echo "LinkKeeper Admin Setup"
+echo "YourApp Admin Setup"
 echo "======================"
 echo ""
 echo "Admin email: $ADMIN_EMAIL"
@@ -100,7 +100,7 @@ Expected: Prompt for password, create secret in Secrets Manager
 
 **Step 4: Verify the secret**
 
-Run: `aws secretsmanager get-secret-value --secret-id linkkeeper/admin-credentials --region us-east-1 --query 'SecretString' --output text | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Email: {d[\"email\"]}\nHash: {d[\"passwordHash\"][:20]}...\nJWT Secret: {d[\"jwtSecret\"][:20]}...')"}`
+Run: `aws secretsmanager get-secret-value --secret-id yourapp/admin-credentials --region us-east-1 --query 'SecretString' --output text | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Email: {d[\"email\"]}\nHash: {d[\"passwordHash\"][:20]}...\nJWT Secret: {d[\"jwtSecret\"][:20]}...')"}`
 Expected: Shows email, truncated hash, truncated JWT secret
 
 **Step 5: Commit**
@@ -115,11 +115,11 @@ git commit -m "feat: add admin credential setup script (Secrets Manager)"
 ## Task 2: CDK Infrastructure Updates
 
 **Files:**
-- Modify: `cdk/lib/linkkeeper-stack.ts`
+- Modify: `cdk/lib/yourapp-stack.ts`
 
 **Step 1: Update ACM certificate to include manager subdomain**
 
-In `linkkeeper-stack.ts`, update the Certificate construct's `subjectAlternativeNames` (around line 39):
+In `yourapp-stack.ts`, update the Certificate construct's `subjectAlternativeNames` (around line 39):
 
 ```typescript
 const certificate = new acm.Certificate(this, 'Certificate', {
@@ -129,7 +129,7 @@ const certificate = new acm.Certificate(this, 'Certificate', {
 });
 ```
 
-**Step 2: Add `manager.linkkeeper.co` to CloudFront distribution**
+**Step 2: Add `manager.yourapp.com` to CloudFront distribution**
 
 Update the `domainNames` array in the Distribution construct (around line 388):
 
@@ -145,7 +145,7 @@ Update the viewer request function (around line 356) to skip www redirect for ma
 
 ```typescript
 const viewerRequestFunction = new cloudfront.Function(this, 'ViewerRequestFunction', {
-  functionName: 'linkkeeper-viewer-request',
+  functionName: 'yourapp-viewer-request',
   code: cloudfront.FunctionCode.fromInline(`
 function handler(event) {
   var request = event.request;
@@ -197,7 +197,7 @@ After the existing IAM policy statements for `apiHandler` (around line 296), add
 // Admin: read Secrets Manager for admin auth
 apiHandler.addToRolePolicy(new iam.PolicyStatement({
   actions: ['secretsmanager:GetSecretValue'],
-  resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:linkkeeper/*`],
+  resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:yourapp/*`],
 }));
 
 // Admin: CloudWatch metrics for health dashboard
@@ -213,7 +213,7 @@ apiHandler.addToRolePolicy(new iam.PolicyStatement({
 // Admin: Lambda function info for health dashboard
 apiHandler.addToRolePolicy(new iam.PolicyStatement({
   actions: ['lambda:ListFunctions', 'lambda:GetFunction', 'lambda:InvokeFunction'],
-  resources: [`arn:aws:lambda:${this.region}:${this.account}:function:linkkeeper-*`],
+  resources: [`arn:aws:lambda:${this.region}:${this.account}:function:yourapp-*`],
 }));
 
 // Admin: SES stats for health dashboard
@@ -225,7 +225,7 @@ apiHandler.addToRolePolicy(new iam.PolicyStatement({
 // Admin: EventBridge rules for schedule info
 apiHandler.addToRolePolicy(new iam.PolicyStatement({
   actions: ['events:ListRules', 'events:DescribeRule'],
-  resources: [`arn:aws:events:${this.region}:${this.account}:rule/linkkeeper-*`],
+  resources: [`arn:aws:events:${this.region}:${this.account}:rule/yourapp-*`],
 }));
 
 // Admin: DynamoDB describe for table metrics
@@ -243,7 +243,7 @@ Expected: No errors
 **Step 7: Commit**
 
 ```bash
-git add cdk/lib/linkkeeper-stack.ts
+git add cdk/lib/yourapp-stack.ts
 git commit -m "feat: CDK updates for admin dashboard (cert, CloudFront, Route53, IAM)"
 ```
 
@@ -285,7 +285,7 @@ import boto3
 from jose import jwt
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
-SECRET_NAME = "linkkeeper/admin-credentials"
+SECRET_NAME = "yourapp/admin-credentials"
 
 _secret_cache = None
 _secret_cache_time = 0
@@ -578,7 +578,7 @@ def crawl_admin_link(event: dict, user_id: str, link_id: str) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-crawler",
+        FunctionName="yourapp-crawler",
         InvocationType="Event",
         Payload=json.dumps({"singleLink": True, "userId": user_id, "linkId": link_id}),
     )
@@ -636,9 +636,9 @@ def get_health(event: dict) -> dict:
 
     # Lambda metrics
     functions = [
-        "linkkeeper-api", "linkkeeper-crawler", "linkkeeper-alerts",
-        "linkkeeper-digest", "linkkeeper-reminders",
-        "linkkeeper-impact-scorer", "linkkeeper-report-generator",
+        "yourapp-api", "yourapp-crawler", "yourapp-alerts",
+        "yourapp-digest", "yourapp-reminders",
+        "yourapp-impact-scorer", "yourapp-report-generator",
     ]
     lambda_stats = {}
     for fn in functions:
@@ -664,7 +664,7 @@ def get_health(event: dict) -> dict:
 
     # DynamoDB metrics
     try:
-        table_desc = ddb.describe_table(TableName="linkkeeper")["Table"]
+        table_desc = ddb.describe_table(TableName="yourapp")["Table"]
         ddb_stats = {
             "itemCount": table_desc.get("ItemCount", 0),
             "tableSizeBytes": table_desc.get("TableSizeBytes", 0),
@@ -703,7 +703,7 @@ def trigger_crawl_all(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-crawler",
+        FunctionName="yourapp-crawler",
         InvocationType="Event",
         Payload=json.dumps({"tier": "daily"}),
     )
@@ -716,7 +716,7 @@ def trigger_digest(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-digest",
+        FunctionName="yourapp-digest",
         InvocationType="Event",
         Payload="{}",
     )
@@ -736,9 +736,9 @@ DEFAULT_CONFIG = {
     "planLimits": {"free": 5, "starter": 50, "pro": 999999},
     "crawlSettings": {"dailyCrawlHourUtc": 4, "hourlyCrawlEnabled": True, "rateLimitDelayMs": 500},
     "emailTemplates": {
-        "alertSubject": "LinkKeeper Alert: Link on {domain} is now {status}",
-        "digestSubject": "LinkKeeper Weekly Digest — {dateRange}",
-        "reminderSubject": "LinkKeeper: Follow up with {domain}",
+        "alertSubject": "YourApp Alert: Link on {domain} is now {status}",
+        "digestSubject": "YourApp Weekly Digest — {dateRange}",
+        "reminderSubject": "YourApp: Follow up with {domain}",
     },
     "pricingDisplay": {
         "starter": {"name": "Starter", "price": 9, "features": ["50 links", "Daily crawls", "Pipeline tracker"]},
@@ -1104,7 +1104,7 @@ export default function AdminLogin({ onLogin }: Props) {
             <svg className="w-7 h-7 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
-            <h1 className="text-xl font-bold text-gray-900">LinkKeeper Manager</h1>
+            <h1 className="text-xl font-bold text-gray-900">YourApp Manager</h1>
           </div>
 
           {error && (
@@ -1199,7 +1199,7 @@ export default function AdminLayout() {
           <svg className="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
           </svg>
-          <span className="font-bold text-sm">LinkKeeper Manager</span>
+          <span className="font-bold text-sm">YourApp Manager</span>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map((item) => (
@@ -1263,7 +1263,7 @@ import PipelinePage from './pages/dashboard/PipelinePage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
 
-// Admin pages — lazy loaded (only fetched on manager.linkkeeper.co)
+// Admin pages — lazy loaded (only fetched on manager.yourapp.com)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminOverview = lazy(() => import('./pages/admin/OverviewPage'));
@@ -1297,7 +1297,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const isManagerHost = window.location.hostname === 'manager.linkkeeper.co';
+const isManagerHost = window.location.hostname === 'manager.yourapp.com';
 
 function AdminApp() {
   const [authenticated, setAuthenticated] = useState(hasAdminToken());
@@ -1685,7 +1685,7 @@ export default function HealthPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {Object.entries(data.lambda).map(([name, stats]) => (
           <div key={name} className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-sm font-medium text-gray-900 mb-2">{name.replace('linkkeeper-', '')}</p>
+            <p className="text-sm font-medium text-gray-900 mb-2">{name.replace('yourapp-', '')}</p>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats.invocations}</p>
@@ -2141,32 +2141,32 @@ git commit -m "feat: admin config page with toggles, plan limits, crawl settings
 
 **Step 1: Run CDK deploy to update infrastructure**
 
-Run: `cd ~/.openclaw/workspace/linkkeeper && bash scripts/deploy.sh`
-Expected: ACM cert will be replaced (adds manager.linkkeeper.co SAN), CloudFront updated, Route53 record added. ~20-30 min.
+Run: `cd ~/.openclaw/workspace/yourapp && bash scripts/deploy.sh`
+Expected: ACM cert will be replaced (adds manager.yourapp.com SAN), CloudFront updated, Route53 record added. ~20-30 min.
 
 **Step 2: Set up admin credentials**
 
 Run: `bash scripts/setup-admin.sh`
 Expected: Prompts for password, creates Secrets Manager secret.
 
-**Step 3: Verify DNS for manager.linkkeeper.co**
+**Step 3: Verify DNS for manager.yourapp.com**
 
-Run: `dig manager.linkkeeper.co +short`
+Run: `dig manager.yourapp.com +short`
 Expected: CloudFront IPs returned
 
 **Step 4: Test admin login**
 
-Run: `curl -s https://manager.linkkeeper.co/api/admin/login -X POST -H 'Content-Type: application/json' -d '{"email":"kevinmarkwert@gmail.com","password":"YOUR_PASSWORD"}' | python3 -m json.tool`
+Run: `curl -s https://manager.yourapp.com/api/admin/login -X POST -H 'Content-Type: application/json' -d '{"email":"kevinmarkwert@gmail.com","password":"YOUR_PASSWORD"}' | python3 -m json.tool`
 Expected: `{"token": "eyJ..."}`
 
 **Step 5: Test admin overview**
 
-Run: `TOKEN=$(curl -s https://manager.linkkeeper.co/api/admin/login -X POST -H 'Content-Type: application/json' -d '{"email":"kevinmarkwert@gmail.com","password":"YOUR_PASSWORD"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])') && curl -s https://manager.linkkeeper.co/api/admin/overview -H "Authorization: Bearer $TOKEN" | python3 -m json.tool`
+Run: `TOKEN=$(curl -s https://manager.yourapp.com/api/admin/login -X POST -H 'Content-Type: application/json' -d '{"email":"kevinmarkwert@gmail.com","password":"YOUR_PASSWORD"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])') && curl -s https://manager.yourapp.com/api/admin/overview -H "Authorization: Bearer $TOKEN" | python3 -m json.tool`
 Expected: JSON with totalUsers, planCounts, totalLinks, statusCounts, mrr
 
 **Step 6: Commit everything and verify**
 
 ```bash
 git add -A
-git commit -m "feat: LinkKeeper admin dashboard v1 — manager.linkkeeper.co"
+git commit -m "feat: YourApp admin dashboard v1 — manager.yourapp.com"
 ```

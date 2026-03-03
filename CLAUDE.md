@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Item | Value |
 |------|-------|
-| Domain | linkkeeper.co |
-| Admin | manager.linkkeeper.co |
-| AWS Account | 177913614409 |
+| Domain | yourapp.com |
+| Admin | manager.yourapp.com |
+| AWS Account | YOUR_AWS_ACCOUNT_ID |
 | Region | us-east-1 |
-| CDK Stack | LinkKeeperStack |
+| CDK Stack | YourAppStack |
 | Spec | SPEC.md |
 
 ## Commands
@@ -41,7 +41,7 @@ Uses pytest + moto (`@mock_aws`) for AWS mocking. No frontend tests exist yet.
 ./scripts/deploy.sh                         # Full: deps + CDK + frontend + S3 sync + CF invalidation
 ./scripts/deploy-frontend.sh                # Frontend only (requires cdk-outputs.json)
 ./scripts/deploy-lambdas.sh                 # All Lambdas
-./scripts/deploy-lambdas.sh linkkeeper-api  # Single Lambda by function name
+./scripts/deploy-lambdas.sh yourapp-api  # Single Lambda by function name
 ```
 
 ### CDK
@@ -63,7 +63,7 @@ npx cdk deploy    # Deploy stack
 
 ### Two Apps, One Bundle
 
-The frontend serves both the user app (`linkkeeper.co`) and admin app (`manager.linkkeeper.co`) from the same S3 bucket and CloudFront distribution. `App.tsx` checks `window.location.hostname.startsWith('manager.')` to decide which app to render. Admin pages are lazy-loaded to avoid bloating the user bundle.
+The frontend serves both the user app (`yourapp.com`) and admin app (`manager.yourapp.com`) from the same S3 bucket and CloudFront distribution. `App.tsx` checks `window.location.hostname.startsWith('manager.')` to decide which app to render. Admin pages are lazy-loaded to avoid bloating the user bundle.
 
 ### API Routing (No Framework)
 
@@ -80,11 +80,11 @@ The Lambda supports both Function URL format and API Gateway v1 format (for loca
 
 **User auth:** Cognito via AWS Amplify v6 on frontend. The frontend sends the **ID token** (not access token) as `Bearer` — the backend reads `sub`, `email`, and `name` claims from it. JWT verification uses JWKS downloaded from Cognito (cached 1 hour in module-level global).
 
-**Admin auth:** Completely separate. Credentials (email + bcrypt hash + JWT secret) stored in Secrets Manager at `linkkeeper/admin-credentials`. Login returns a 24-hour HS256 JWT stored in memory (not localStorage — lost on page refresh).
+**Admin auth:** Completely separate. Credentials (email + bcrypt hash + JWT secret) stored in Secrets Manager at `yourapp/admin-credentials`. Login returns a 24-hour HS256 JWT stored in memory (not localStorage — lost on page refresh).
 
 ### DynamoDB (Single Table)
 
-Table name: `linkkeeper`. All items use `pk`/`sk` string keys.
+Table name: `yourapp`. All items use `pk`/`sk` string keys.
 
 | Entity | pk | sk |
 |--------|----|----|
@@ -100,7 +100,7 @@ Table name: `linkkeeper`. All items use `pk`/`sk` string keys.
 
 ### Stripe Config Split
 
-- **Keys** (secret, publishable, webhook) → Secrets Manager at `linkkeeper/stripe`, cached 5 min
+- **Keys** (secret, publishable, webhook) → Secrets Manager at `yourapp/stripe`, cached 5 min
 - **Price IDs** (starter, pro) → DynamoDB at `CONFIG/STRIPE`, cached 5 min
 - `invalidate_caches()` in billing.py clears both caches (called by admin after config updates)
 
@@ -118,7 +118,7 @@ All API modules use try/except imports to support both contexts:
 
 ### Test Fixtures
 
-`conftest.py` sets `TABLE_NAME=linkkeeper-test` before imports. Resets `api.lib.db._table = None` before/after each test to prevent the module-level DynamoDB singleton from holding stale moto references.
+`conftest.py` sets `TABLE_NAME=yourapp-test` before imports. Resets `api.lib.db._table = None` before/after each test to prevent the module-level DynamoDB singleton from holding stale moto references.
 
 Factory fixtures (`create_test_user`, `create_test_link`, `create_test_pitch`) are callables — call with kwargs to customize.
 

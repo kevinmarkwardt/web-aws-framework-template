@@ -1,4 +1,4 @@
-"""LinkKeeper API Handler — Lambda entry point.
+"""YourApp API Handler — Lambda entry point.
 
 Single Lambda handling all HTTP routes via Function URL.
 Routes requests based on method + path to route modules.

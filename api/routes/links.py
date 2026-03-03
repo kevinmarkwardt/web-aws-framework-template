@@ -154,7 +154,7 @@ def crawl_link(user_id: str, link_id: str, event: dict) -> dict:
         "linkId": link_id,
     })
     client.invoke(
-        FunctionName=f"linkkeeper-crawler",
+        FunctionName=f"yourapp-crawler",
         InvocationType="Event",
         Payload=payload.encode(),
     )

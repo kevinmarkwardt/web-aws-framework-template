@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# LinkKeeper — Frontend-only deploy
+# YourApp — Frontend-only deploy
 # Builds React app, syncs to S3, invalidates CloudFront.
 set -euo pipefail
 
 PROJ_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STACK_NAME="LinkKeeperStack"
+STACK_NAME="YourAppStack"
 REGION="us-east-1"
 
 echo "========================================="
-echo "  LinkKeeper — Frontend Deploy"
+echo "  YourApp — Frontend Deploy"
 echo "========================================="
 
 # Get outputs from CDK (must have been deployed at least once)
@@ -56,4 +56,4 @@ INVALIDATION_ID=$(aws cloudfront create-invalidation \
 echo "  Invalidation: ${INVALIDATION_ID}"
 
 echo ""
-echo "Frontend deployed to https://linkkeeper.co"
+echo "Frontend deployed to https://yourapp.com"

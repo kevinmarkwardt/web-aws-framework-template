@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# LinkKeeper — Full deployment script
+# YourApp — Full deployment script
 # Builds frontend, packages Lambdas, deploys CDK stack, syncs SPA, invalidates cache.
 set -euo pipefail
 
 PROJ_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STACK_NAME="LinkKeeperStack"
+STACK_NAME="YourAppStack"
 REGION="us-east-1"
 
 echo "========================================="
-echo "  LinkKeeper — Full Deploy"
+echo "  YourApp — Full Deploy"
 echo "========================================="
 
 # ── 1. Install frontend dependencies ─────────────────────────────────────────

@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node bin/linkkeeper.ts",
+  "app": "npx ts-node bin/yourapp.ts",
   "watch": {
     "include": ["**"],
     "exclude": [

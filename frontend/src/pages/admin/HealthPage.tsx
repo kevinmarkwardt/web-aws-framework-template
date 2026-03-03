@@ -41,7 +41,7 @@ export default function HealthPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {Object.entries(data.lambda).map(([name, stats]) => (
           <div key={name} className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-sm font-medium text-gray-900 mb-2">{name.replace('linkkeeper-', '')}</p>
+            <p className="text-sm font-medium text-gray-900 mb-2">{name.replace('yourapp-', '')}</p>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats.invocations}</p>

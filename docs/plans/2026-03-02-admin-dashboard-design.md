@@ -1,7 +1,7 @@
-# LinkKeeper Admin Dashboard — Design Document
+# YourApp Admin Dashboard — Design Document
 
 **Date:** 2026-03-02
-**URL:** manager.linkkeeper.co
+**URL:** manager.yourapp.com
 **Approach:** Same SPA, subdomain routing (Option A)
 
 ---
@@ -10,7 +10,7 @@
 
 Admin login is independent of Cognito. Credentials stored in AWS Secrets Manager.
 
-**Secret:** `linkkeeper/admin-credentials`
+**Secret:** `yourapp/admin-credentials`
 ```json
 {
   "email": "kevinmarkwert@gmail.com",
@@ -20,7 +20,7 @@ Admin login is independent of Cognito. Credentials stored in AWS Secrets Manager
 ```
 
 **Flow:**
-1. Visit `manager.linkkeeper.co` → admin login page (email + password)
+1. Visit `manager.yourapp.com` → admin login page (email + password)
 2. POST `/api/admin/login` → compare against Secrets Manager credential
 3. On success → short-lived JWT (24h, signed with `jwtSecret`)
 4. JWT stored in memory (not localStorage), sent as `Authorization: Bearer <token>`
@@ -33,11 +33,11 @@ A helper script prompts for password, bcrypt-hashes it, generates JWT secret, an
 
 ## 2. Routing & Layout
 
-**Hostname detection:** `App.tsx` checks `window.location.hostname`. If `manager.linkkeeper.co`, render admin route tree. Otherwise, normal user app.
+**Hostname detection:** `App.tsx` checks `window.location.hostname`. If `manager.yourapp.com`, render admin route tree. Otherwise, normal user app.
 
 **Routes:**
 ```
-manager.linkkeeper.co
+manager.yourapp.com
 ├── /                → AdminLogin (if not authenticated)
 ├── /                → AdminDashboard (if authenticated)
 │   ├── / (default)  → Overview (stats summary cards)
@@ -49,7 +49,7 @@ manager.linkkeeper.co
 
 **Layout:**
 - Dark sidebar nav (`gray-900`) — visually distinct from user dashboard
-- Header: "LinkKeeper Manager" branding, admin email, logout
+- Header: "YourApp Manager" branding, admin email, logout
 - Same Tailwind design language (indigo primary, gray neutrals, rounded-xl cards)
 
 **Code splitting:**
@@ -106,14 +106,14 @@ Stored in DynamoDB (`pk=CONFIG, sk=GLOBAL`), read by Lambdas at runtime:
 ## 4. Infrastructure Changes
 
 **CDK updates:**
-1. ACM Certificate — add `manager.linkkeeper.co` as SAN
-2. CloudFront Distribution — add `manager.linkkeeper.co` to `domainNames`
-3. Route53 — A record for `manager.linkkeeper.co` → CloudFront
+1. ACM Certificate — add `manager.yourapp.com` as SAN
+2. CloudFront Distribution — add `manager.yourapp.com` to `domainNames`
+3. Route53 — A record for `manager.yourapp.com` → CloudFront
 4. CloudFront Function — handle `manager` subdomain (no www redirect)
 5. API Lambda IAM — add: `secretsmanager:GetSecretValue`, `cloudwatch:GetMetricData`, `lambda:ListFunctions`, `lambda:GetFunction`, `ses:GetSendStatistics`, `events:ListRules`, `events:DescribeRule`
 6. DynamoDB — no schema changes. Config uses existing table (`pk=CONFIG, sk=GLOBAL`)
 
-No new Lambda functions. All admin endpoints handled by `linkkeeper-api`.
+No new Lambda functions. All admin endpoints handled by `yourapp-api`.
 
 ---
 

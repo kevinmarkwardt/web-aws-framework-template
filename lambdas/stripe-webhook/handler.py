@@ -1,4 +1,4 @@
-"""LinkKeeper Stripe Webhook — payment event processing.
+"""YourApp Stripe Webhook — payment event processing.
 
 Handles Stripe webhook events for subscription lifecycle management.
 Verifies webhook signature and updates user plan in DynamoDB.
@@ -13,7 +13,7 @@ import boto3
 import stripe
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 

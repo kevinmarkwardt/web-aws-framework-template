@@ -16,7 +16,7 @@ import PipelinePage from './pages/dashboard/PipelinePage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
 
-// Admin pages — lazy loaded (only fetched on manager.linkkeeper.co)
+// Admin pages — lazy loaded (only fetched on manager.yourapp.com)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminOverview = lazy(() => import('./pages/admin/OverviewPage'));

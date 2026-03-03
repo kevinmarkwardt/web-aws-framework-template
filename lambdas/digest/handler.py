@@ -1,4 +1,4 @@
-"""LinkKeeper Digest Sender — weekly Monday digest via SES.
+"""YourApp Digest Sender — weekly Monday digest via SES.
 
 Triggered by EventBridge every Monday at 7 AM ET.
 Aggregates link stats per user and sends a summary email.
@@ -12,9 +12,9 @@ from datetime import datetime, timezone, timedelta
 import boto3
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
-SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "digest@linkkeeper.co")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://linkkeeper.co")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "digest@yourapp.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
@@ -122,7 +122,7 @@ def _send_digest(
                 })
 
     date_range = f"{(now - timedelta(days=7)).strftime('%b %d')} - {now.strftime('%b %d, %Y')}"
-    subject = f"LinkKeeper Weekly Digest — {date_range}"
+    subject = f"YourApp Weekly Digest — {date_range}"
 
     body_parts = [
         f"{total} links checked. {live} live, {missing} missing, {errors} errors.\n",

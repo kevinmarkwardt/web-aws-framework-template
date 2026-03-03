@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Extract LinkKeeper into a reusable GitHub Template Repository (`web-aws-framework-template`) — a fully working, deployable opinionated AWS SaaS starter with a `scripts/init.sh` that bootstraps new projects in one command.
+**Goal:** Extract YourApp into a reusable GitHub Template Repository (`web-aws-framework-template`) — a fully working, deployable opinionated AWS SaaS starter with a `scripts/init.sh` that bootstraps new projects in one command.
 
-**Architecture:** Copy LinkKeeper wholesale, replace all project-specific strings with `yourapp`/`YourApp`/`yourapp.com` placeholders, remove domain-specific Lambda workers (replace with one `daily-job` example), genericize the CRUD entity (`Link` → `Item`), strip LinkKeeper-specific frontend pages, write comprehensive README and CLAUDE.md for template users, and mark as a GitHub Template Repository.
+**Architecture:** Copy YourApp wholesale, replace all project-specific strings with `yourapp`/`YourApp`/`yourapp.com` placeholders, remove domain-specific Lambda workers (replace with one `daily-job` example), genericize the CRUD entity (`Link` → `Item`), strip YourApp-specific frontend pages, write comprehensive README and CLAUDE.md for template users, and mark as a GitHub Template Repository.
 
 **Tech Stack:** React 19 + Vite + Tailwind CSS 4, Python 3.12 Lambda, AWS CDK v2 (TypeScript), DynamoDB single-table, Cognito, CloudFront + S3, SES, Bedrock Claude Haiku, Stripe, EventBridge, pytest + moto
 
@@ -14,8 +14,8 @@
 
 ## Pre-flight: understand the source repo
 
-Before starting, note these key paths in the source (`~/.openclaw/workspace/linkkeeper/`):
-- CDK: `cdk/bin/linkkeeper.ts`, `cdk/lib/linkkeeper-stack.ts`
+Before starting, note these key paths in the source (`~/.openclaw/workspace/yourapp/`):
+- CDK: `cdk/bin/yourapp.ts`, `cdk/lib/yourapp-stack.ts`
 - API: `api/handler.py`, `api/lib/db.py`, `api/routes/links.py`, `api/routes/pitches.py`
 - Frontend: `frontend/src/App.tsx`, `frontend/src/types.ts`, `frontend/src/api.ts`
 - Tests: `tests/conftest.py`, `tests/test_api_links.py`, `tests/test_api_pitches.py`
@@ -23,7 +23,7 @@ Before starting, note these key paths in the source (`~/.openclaw/workspace/link
 
 ---
 
-## Task 1: Create new repo and copy LinkKeeper as base
+## Task 1: Create new repo and copy YourApp as base
 
 **Files:**
 - Create: `~/.openclaw/workspace/web-aws-framework-template/` (new repo root)
@@ -38,12 +38,12 @@ gh repo create kevinmarkwardt/web-aws-framework-template \
   --clone-dir ~/.openclaw/workspace/web-aws-framework-template
 ```
 
-**Step 2: Copy LinkKeeper files (excluding build artifacts and secrets)**
+**Step 2: Copy YourApp files (excluding build artifacts and secrets)**
 
 ```bash
 cd ~/.openclaw/workspace
 
-rsync -av --progress linkkeeper/ web-aws-framework-template/ \
+rsync -av --progress yourapp/ web-aws-framework-template/ \
   --exclude='.git' \
   --exclude='node_modules' \
   --exclude='frontend/node_modules' \
@@ -59,12 +59,12 @@ rsync -av --progress linkkeeper/ web-aws-framework-template/ \
   --exclude='SPEC.md'
 ```
 
-**Step 3: Remove files that are specific to LinkKeeper and should not be in the template**
+**Step 3: Remove files that are specific to YourApp and should not be in the template**
 
 ```bash
 cd ~/.openclaw/workspace/web-aws-framework-template
 
-# Remove LinkKeeper-specific files
+# Remove YourApp-specific files
 rm -f SPEC.md
 rm -f cdk-outputs.json
 rm -f frontend/.env
@@ -75,11 +75,11 @@ rm -f frontend/.env
 ```bash
 cd ~/.openclaw/workspace/web-aws-framework-template
 git add .
-git commit -m "chore: initial copy from linkkeeper"
+git commit -m "chore: initial copy from yourapp"
 git push -u origin main
 ```
 
-Expected: Files pushed to GitHub. Repo has the full LinkKeeper structure.
+Expected: Files pushed to GitHub. Repo has the full YourApp structure.
 
 ---
 
@@ -113,19 +113,19 @@ FILES=$(find . \
   -type f)
 
 # 1. AWS account ID → placeholder
-echo "$FILES" | xargs sedi 's/177913614409/YOUR_AWS_ACCOUNT_ID/g'
+echo "$FILES" | xargs sedi 's/YOUR_AWS_ACCOUNT_ID/YOUR_AWS_ACCOUNT_ID/g'
 
 # 2. Subdomain (before root domain)
-echo "$FILES" | xargs sedi 's/manager\.linkkeeper\.co/manager.yourapp.com/g'
+echo "$FILES" | xargs sedi 's/manager\.yourapp\.co/manager.yourapp.com/g'
 
 # 3. Root domain
-echo "$FILES" | xargs sedi 's/linkkeeper\.co/yourapp.com/g'
+echo "$FILES" | xargs sedi 's/yourapp\.co/yourapp.com/g'
 
 # 4. Title case (must come before lowercase)
-echo "$FILES" | xargs sedi 's/LinkKeeper/YourApp/g'
+echo "$FILES" | xargs sedi 's/YourApp/YourApp/g'
 
 # 5. Lowercase (all remaining occurrences)
-echo "$FILES" | xargs sedi 's/linkkeeper/yourapp/g'
+echo "$FILES" | xargs sedi 's/yourapp/yourapp/g'
 
 # 6. Test table name
 echo "$FILES" | xargs sedi 's/yourapp-test/yourapp-test/g'  # no-op, confirm
@@ -140,7 +140,7 @@ cd ~/.openclaw/workspace/web-aws-framework-template
 
 # frontend/package.json: name field
 sedi 's/"name": "yourapp-frontend"/"name": "yourapp-frontend"/' frontend/package.json
-# (name was already linkkeeper-frontend → yourapp-frontend from step above)
+# (name was already yourapp-frontend → yourapp-frontend from step above)
 
 # cdk/package.json: name field
 sedi 's/"name": "yourapp"/"name": "yourapp-cdk"/' cdk/package.json
@@ -152,9 +152,9 @@ sedi 's/"name": "yourapp"/"name": "yourapp-cdk"/' cdk/package.json
 cd ~/.openclaw/workspace/web-aws-framework-template
 
 # Should show NO results (no lingering hardcoded values)
-grep -r "177913614409" --include="*.ts" --include="*.py" --include="*.json" .
-grep -r "linkkeeper\.co" --include="*.ts" --include="*.py" .
-grep -r "LinkKeeper" --include="*.ts" --include="*.tsx" --include="*.py" .
+grep -r "YOUR_AWS_ACCOUNT_ID" --include="*.ts" --include="*.py" --include="*.json" .
+grep -r "yourapp\.co" --include="*.ts" --include="*.py" .
+grep -r "YourApp" --include="*.ts" --include="*.tsx" --include="*.py" .
 
 # Should show references to yourapp (good)
 grep -r "yourapp" --include="*.ts" -l . | head -10
@@ -167,7 +167,7 @@ Expected: No results for the first three greps. Multiple files in the fourth.
 ```bash
 cd ~/.openclaw/workspace/web-aws-framework-template
 git add -A
-git commit -m "chore: replace all linkkeeper placeholders with yourapp"
+git commit -m "chore: replace all yourapp placeholders with yourapp"
 git push
 ```
 
@@ -176,8 +176,8 @@ git push
 ## Task 3: Rename CDK files and update cdk.json
 
 **Files:**
-- Rename: `cdk/bin/linkkeeper.ts` → `cdk/bin/yourapp.ts`
-- Rename: `cdk/lib/linkkeeper-stack.ts` → `cdk/lib/yourapp-stack.ts`
+- Rename: `cdk/bin/yourapp.ts` → `cdk/bin/yourapp.ts`
+- Rename: `cdk/lib/yourapp-stack.ts` → `cdk/lib/yourapp-stack.ts`
 - Modify: `cdk/cdk.json`
 
 **Step 1: Rename the files**
@@ -185,8 +185,8 @@ git push
 ```bash
 cd ~/.openclaw/workspace/web-aws-framework-template/cdk
 
-mv bin/linkkeeper.ts bin/yourapp.ts
-mv lib/linkkeeper-stack.ts lib/yourapp-stack.ts
+mv bin/yourapp.ts bin/yourapp.ts
+mv lib/yourapp-stack.ts lib/yourapp-stack.ts
 ```
 
 **Step 2: Update cdk.json to point to new entry**
@@ -202,7 +202,7 @@ Open `cdk/cdk.json`. Change the `app` field:
 
 **Step 3: Update the import in bin/yourapp.ts**
 
-The file currently imports from `../lib/linkkeeper-stack` — after the rename and global replace it should already say `../lib/yourapp-stack`. Verify:
+The file currently imports from `../lib/yourapp-stack` — after the rename and global replace it should already say `../lib/yourapp-stack`. Verify:
 
 ```bash
 cat cdk/bin/yourapp.ts
@@ -1028,7 +1028,7 @@ cat ~/.openclaw/workspace/web-aws-framework-template/frontend/src/types.ts
 
 **Step 2: Replace Link and Pitch types with Item**
 
-Remove `Link`, `Pitch`, and any LinkKeeper-specific interfaces. Add:
+Remove `Link`, `Pitch`, and any YourApp-specific interfaces. Add:
 
 ```typescript
 export interface Item {
@@ -1051,7 +1051,7 @@ export interface UpdateItemRequest {
 }
 ```
 
-Keep the `User` interface — it's generic. Remove any fields specific to LinkKeeper (e.g., `linkCount` → rename to `itemCount` in the User interface).
+Keep the `User` interface — it's generic. Remove any fields specific to YourApp (e.g., `linkCount` → rename to `itemCount` in the User interface).
 
 **Step 3: Update api.ts — replace link/pitch calls with item calls**
 
@@ -1109,7 +1109,7 @@ git push
 ## Task 9: Remove domain-specific frontend files, create generic replacements
 
 **Files:**
-- Delete: multiple LinkKeeper-specific components and pages
+- Delete: multiple YourApp-specific components and pages
 - Create: `frontend/src/pages/dashboard/ItemsPage.tsx`
 - Create: `frontend/src/components/ItemsTable.tsx`
 - Create: `frontend/src/components/AddItemForm.tsx`
@@ -1429,7 +1429,7 @@ const isManagerHost = window.location.hostname.startsWith('manager.');
 
 **Step 2: Update LandingPage.tsx with generic copy**
 
-Open `frontend/src/pages/LandingPage.tsx`. This file is LinkKeeper-specific (backlinks, SEO, etc.). Replace the marketing copy with generic placeholders:
+Open `frontend/src/pages/LandingPage.tsx`. This file is YourApp-specific (backlinks, SEO, etc.). Replace the marketing copy with generic placeholders:
 
 Key sections to update:
 - **Hero headline:** Change to `Track Your [Thing]. Know When It Changes.` (or similar generic SaaS copy)
@@ -1956,7 +1956,7 @@ git push
 **Files:**
 - Overwrite: `CLAUDE.md`
 
-**Step 1: Replace the current CLAUDE.md (which has LinkKeeper-specific content)**
+**Step 1: Replace the current CLAUDE.md (which has YourApp-specific content)**
 
 Create `CLAUDE.md`:
 
@@ -2105,19 +2105,19 @@ git push
 ## Task 15: Final cleanup and configure GitHub Template
 
 **Files:**
-- Verify: all files clean, no remaining LinkKeeper references
+- Verify: all files clean, no remaining YourApp references
 - Configure: GitHub repo as Template Repository
 
-**Step 1: Final grep for leftover LinkKeeper references**
+**Step 1: Final grep for leftover YourApp references**
 
 ```bash
 cd ~/.openclaw/workspace/web-aws-framework-template
 
 # These should all return NO results:
-grep -r "linkkeeper" --include="*.ts" --include="*.tsx" --include="*.py" --include="*.sh" --include="*.json" . 2>/dev/null | grep -v ".git"
-grep -r "LinkKeeper" --include="*.ts" --include="*.tsx" --include="*.py" . 2>/dev/null | grep -v ".git"
-grep -r "linkkeeper\.co" . --include="*.ts" --include="*.md" 2>/dev/null | grep -v ".git"
-grep -r "177913614409" . --include="*.ts" --include="*.json" 2>/dev/null | grep -v ".git"
+grep -r "yourapp" --include="*.ts" --include="*.tsx" --include="*.py" --include="*.sh" --include="*.json" . 2>/dev/null | grep -v ".git"
+grep -r "YourApp" --include="*.ts" --include="*.tsx" --include="*.py" . 2>/dev/null | grep -v ".git"
+grep -r "yourapp\.co" . --include="*.ts" --include="*.md" 2>/dev/null | grep -v ".git"
+grep -r "YOUR_AWS_ACCOUNT_ID" . --include="*.ts" --include="*.json" 2>/dev/null | grep -v ".git"
 ```
 
 Fix any remaining occurrences manually before proceeding.

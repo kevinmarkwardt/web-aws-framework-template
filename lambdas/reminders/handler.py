@@ -1,4 +1,4 @@
-"""LinkKeeper Reminder Sender — pipeline follow-up reminders.
+"""YourApp Reminder Sender — pipeline follow-up reminders.
 
 Triggered by EventBridge daily at 8 AM ET.
 Checks pitch dates and sends overdue follow-up reminders via SES.
@@ -12,9 +12,9 @@ from datetime import datetime, timezone, timedelta
 import boto3
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
-SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "reminders@linkkeeper.co")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://linkkeeper.co")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "reminders@yourapp.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
 
 FOLLOWUP_DAYS = 7   # Remind after 7 days with no response
 DRAFT_DAYS = 14     # Remind after 14 days with no draft submitted
@@ -125,14 +125,14 @@ def _send_reminder(email: str, pitch: dict, reminder_type: str):
             days_ago = (datetime.now(timezone.utc) - pitch_dt).days
         except (ValueError, TypeError):
             days_ago = 7
-        subject = f"LinkKeeper: Follow up with {domain}"
+        subject = f"YourApp: Follow up with {domain}"
         body = (
             f"{domain} hasn't responded to your pitch from {pitch_date} ({days_ago} days ago).\n\n"
             f"A quick follow-up email typically improves response rates by 2x.\n\n"
             f"Update status in Dashboard: {FRONTEND_URL}/dashboard/pipeline\n"
         )
     elif reminder_type == "draft":
-        subject = f"LinkKeeper: Submit draft for {domain}"
+        subject = f"YourApp: Submit draft for {domain}"
         body = (
             f"Your guest post for {domain} was accepted but no draft has been submitted.\n\n"
             f"Pitch was sent on {pitch_date}.\n\n"

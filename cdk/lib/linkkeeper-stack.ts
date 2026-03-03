@@ -15,12 +15,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 
-export interface LinkKeeperStackProps extends cdk.StackProps {
+export interface YourAppStackProps extends cdk.StackProps {
   domainName: string;
 }
 
-export class LinkKeeperStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props: LinkKeeperStackProps) {
+export class YourAppStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: YourAppStackProps) {
     super(scope, id, props);
 
     const { domainName } = props;
@@ -46,7 +46,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // Backend uses pk/sk with prefixed keys: USER#, LINK#, PITCH#
     // ========================================================================
     const mainTable = new dynamodb.Table(this, 'MainTable', {
-      tableName: 'linkkeeper',
+      tableName: 'yourapp',
       partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PROVISIONED,
@@ -78,7 +78,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // Cognito User Pool
     // ========================================================================
     const userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: 'linkkeeper-users',
+      userPoolName: 'yourapp-users',
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
@@ -97,7 +97,7 @@ export class LinkKeeperStack extends cdk.Stack {
     });
 
     const userPoolClient = userPool.addClient('WebClient', {
-      userPoolClientName: 'linkkeeper-web',
+      userPoolClientName: 'yourapp-web',
       authFlows: {
         userPassword: true,
         userSrp: true,
@@ -111,7 +111,7 @@ export class LinkKeeperStack extends cdk.Stack {
 
     // SPA hosting bucket
     const spaBucket = new s3.Bucket(this, 'SpaBucket', {
-      bucketName: `linkkeeper-spa-${this.account}`,
+      bucketName: `yourapp-spa-${this.account}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -119,7 +119,7 @@ export class LinkKeeperStack extends cdk.Stack {
 
     // PDF report archive bucket
     const reportsBucket = new s3.Bucket(this, 'ReportsBucket', {
-      bucketName: `linkkeeper-reports-${this.account}`,
+      bucketName: `yourapp-reports-${this.account}`,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       lifecycleRules: [
@@ -153,7 +153,7 @@ export class LinkKeeperStack extends cdk.Stack {
 
     // Shared log group settings — 30-day retention
     const makeLogGroup = (name: string) => new logs.LogGroup(this, `${name}Logs`, {
-      logGroupName: `/aws/lambda/linkkeeper-${name}`,
+      logGroupName: `/aws/lambda/yourapp-${name}`,
       retention: logs.RetentionDays.ONE_MONTH,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -172,7 +172,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // --- API Handler (main CRUD Lambda, exposed via Function URL) ---
     const apiHandler = new lambda.Function(this, 'ApiHandler', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-api',
+      functionName: 'yourapp-api',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../api'),
       logGroup: makeLogGroup('api'),
@@ -196,7 +196,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // --- Link Crawler ---
     const linkCrawler = new lambda.Function(this, 'LinkCrawler', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-crawler',
+      functionName: 'yourapp-crawler',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/crawler'),
       logGroup: makeLogGroup('crawler'),
@@ -204,27 +204,27 @@ export class LinkKeeperStack extends cdk.Stack {
       memorySize: 256,
       environment: {
         ...sharedEnv,
-        ALERTS_FUNCTION: 'linkkeeper-alerts',
+        ALERTS_FUNCTION: 'yourapp-alerts',
       },
     });
 
     // --- Alert Sender ---
     const alertSender = new lambda.Function(this, 'AlertSender', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-alerts',
+      functionName: 'yourapp-alerts',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/alerts'),
       logGroup: makeLogGroup('alerts'),
       environment: {
         ...sharedEnv,
-        IMPACT_SCORER_FUNCTION: 'linkkeeper-impact-scorer',
+        IMPACT_SCORER_FUNCTION: 'yourapp-impact-scorer',
       },
     });
 
     // --- Digest Sender (weekly Monday digest) ---
     const digestSender = new lambda.Function(this, 'DigestSender', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-digest',
+      functionName: 'yourapp-digest',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/digest'),
       logGroup: makeLogGroup('digest'),
@@ -237,7 +237,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // --- Reminder Sender (pipeline follow-up reminders) ---
     const reminderSender = new lambda.Function(this, 'ReminderSender', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-reminders',
+      functionName: 'yourapp-reminders',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/reminders'),
       logGroup: makeLogGroup('reminders'),
@@ -249,7 +249,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // --- Impact Scorer (Pro -- Bedrock Haiku enrichment) ---
     const impactScorer = new lambda.Function(this, 'ImpactScorer', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-impact-scorer',
+      functionName: 'yourapp-impact-scorer',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/impact-scorer'),
       logGroup: makeLogGroup('impact-scorer'),
@@ -263,7 +263,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // --- Report Generator (Pro -- monthly PDF) ---
     const reportGenerator = new lambda.Function(this, 'ReportGenerator', {
       ...lambdaDefaults,
-      functionName: 'linkkeeper-report-generator',
+      functionName: 'yourapp-report-generator',
       handler: 'handler.lambda_handler',
       code: lambda.Code.fromAsset('../lambdas/report-generator'),
       logGroup: makeLogGroup('report-generator'),
@@ -294,7 +294,7 @@ export class LinkKeeperStack extends cdk.Stack {
     // Admin dashboard permissions
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['secretsmanager:GetSecretValue', 'secretsmanager:PutSecretValue', 'secretsmanager:CreateSecret'],
-      resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:linkkeeper/*`],
+      resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:yourapp/*`],
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['cloudwatch:GetMetricData', 'cloudwatch:GetMetricStatistics', 'cloudwatch:ListMetrics'],
@@ -302,7 +302,7 @@ export class LinkKeeperStack extends cdk.Stack {
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['lambda:ListFunctions', 'lambda:GetFunction', 'lambda:InvokeFunction'],
-      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:linkkeeper-*`],
+      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:yourapp-*`],
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ses:GetSendStatistics', 'ses:GetSendQuota'],
@@ -310,7 +310,7 @@ export class LinkKeeperStack extends cdk.Stack {
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['events:ListRules', 'events:DescribeRule'],
-      resources: [`arn:aws:events:${this.region}:${this.account}:rule/linkkeeper-*`],
+      resources: [`arn:aws:events:${this.region}:${this.account}:rule/yourapp-*`],
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:DescribeTable'],
@@ -374,7 +374,7 @@ export class LinkKeeperStack extends cdk.Stack {
 
     // CloudFront Function: www redirect + SPA routing (combined — one function per event type)
     const viewerRequestFunction = new cloudfront.Function(this, 'ViewerRequestFunction', {
-      functionName: 'linkkeeper-viewer-request',
+      functionName: 'yourapp-viewer-request',
       code: cloudfront.FunctionCode.fromInline(`
 function handler(event) {
   var request = event.request;
@@ -489,7 +489,7 @@ function handler(event) {
 
     // Daily crawl — 11 PM ET (4 AM UTC next day) for Free/Starter links
     new events.Rule(this, 'DailyCrawlRule', {
-      ruleName: 'linkkeeper-daily-crawl',
+      ruleName: 'yourapp-daily-crawl',
       schedule: events.Schedule.cron({ minute: '0', hour: '4' }), // 11 PM ET = 4 AM UTC
       targets: [new eventsTargets.LambdaFunction(linkCrawler, {
         event: events.RuleTargetInput.fromObject({ tier: 'daily' }),
@@ -498,7 +498,7 @@ function handler(event) {
 
     // Hourly crawl — every hour for Pro links
     new events.Rule(this, 'HourlyCrawlRule', {
-      ruleName: 'linkkeeper-hourly-crawl',
+      ruleName: 'yourapp-hourly-crawl',
       schedule: events.Schedule.rate(cdk.Duration.hours(1)),
       targets: [new eventsTargets.LambdaFunction(linkCrawler, {
         event: events.RuleTargetInput.fromObject({ tier: 'hourly' }),
@@ -507,21 +507,21 @@ function handler(event) {
 
     // Monday digest — Monday 7 AM ET (12 PM UTC)
     new events.Rule(this, 'MondayDigestRule', {
-      ruleName: 'linkkeeper-monday-digest',
+      ruleName: 'yourapp-monday-digest',
       schedule: events.Schedule.cron({ minute: '0', hour: '12', weekDay: 'MON' }),
       targets: [new eventsTargets.LambdaFunction(digestSender)],
     });
 
     // Daily reminders — 8 AM ET (1 PM UTC)
     new events.Rule(this, 'DailyRemindersRule', {
-      ruleName: 'linkkeeper-daily-reminders',
+      ruleName: 'yourapp-daily-reminders',
       schedule: events.Schedule.cron({ minute: '0', hour: '13' }), // 8 AM ET = 1 PM UTC
       targets: [new eventsTargets.LambdaFunction(reminderSender)],
     });
 
     // Monthly report — 1st of month, 6 AM ET (11 AM UTC)
     new events.Rule(this, 'MonthlyReportRule', {
-      ruleName: 'linkkeeper-monthly-report',
+      ruleName: 'yourapp-monthly-report',
       schedule: events.Schedule.cron({ minute: '0', hour: '11', day: '1' }),
       targets: [new eventsTargets.LambdaFunction(reportGenerator)],
     });

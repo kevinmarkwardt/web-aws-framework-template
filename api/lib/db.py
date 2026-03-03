@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import boto3
 from boto3.dynamodb.conditions import Key
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "linkkeeper")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
 
 _table = None
 

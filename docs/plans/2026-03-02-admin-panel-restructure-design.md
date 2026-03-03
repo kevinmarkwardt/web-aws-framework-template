@@ -1,7 +1,7 @@
 # Admin Panel Restructuring Design
 
 **Date:** 2026-03-02
-**Goal:** Restructure the admin panel sidebar and pages to separate generic website template concerns from site-specific (LinkKeeper) concerns, making the admin panel reusable across future projects.
+**Goal:** Restructure the admin panel sidebar and pages to separate generic website template concerns from site-specific (YourApp) concerns, making the admin panel reusable across future projects.
 
 ## Sidebar Structure
 
@@ -28,8 +28,8 @@ Three always-expanded groups with section headers, replacing the current flat 5-
 ```
 
 **Platform** = generic, reusable across any SaaS project.
-**App Data** = site-specific data management (LinkKeeper: links + pitches).
-**App Config** = site-specific configuration (LinkKeeper: crawl settings, plan limits, etc.).
+**App Data** = site-specific data management (YourApp: links + pitches).
+**App Config** = site-specific configuration (YourApp: crawl settings, plan limits, etc.).
 
 ## Page Changes
 

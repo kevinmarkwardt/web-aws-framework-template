@@ -230,7 +230,7 @@ def crawl_admin_link(event: dict, user_id: str, link_id: str) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-crawler",
+        FunctionName="yourapp-crawler",
         InvocationType="Event",
         Payload=json.dumps({"singleLink": True, "userId": user_id, "linkId": link_id}),
     )
@@ -287,9 +287,9 @@ def get_health(event: dict) -> dict:
     start = now - timedelta(hours=24)
 
     functions = [
-        "linkkeeper-api", "linkkeeper-crawler", "linkkeeper-alerts",
-        "linkkeeper-digest", "linkkeeper-reminders",
-        "linkkeeper-impact-scorer", "linkkeeper-report-generator",
+        "yourapp-api", "yourapp-crawler", "yourapp-alerts",
+        "yourapp-digest", "yourapp-reminders",
+        "yourapp-impact-scorer", "yourapp-report-generator",
     ]
     lambda_stats = {}
     for fn in functions:
@@ -314,7 +314,7 @@ def get_health(event: dict) -> dict:
             lambda_stats[fn] = {"invocations": 0, "errors": 0, "avgDurationMs": 0}
 
     try:
-        table_desc = ddb.describe_table(TableName="linkkeeper")["Table"]
+        table_desc = ddb.describe_table(TableName="yourapp")["Table"]
         ddb_stats = {
             "itemCount": table_desc.get("ItemCount", 0),
             "tableSizeBytes": table_desc.get("TableSizeBytes", 0),
@@ -352,7 +352,7 @@ def trigger_crawl_all(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-crawler",
+        FunctionName="yourapp-crawler",
         InvocationType="Event",
         Payload=json.dumps({"tier": "daily"}),
     )
@@ -365,7 +365,7 @@ def trigger_digest(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="linkkeeper-digest",
+        FunctionName="yourapp-digest",
         InvocationType="Event",
         Payload="{}",
     )
@@ -385,9 +385,9 @@ DEFAULT_CONFIG = {
     "planLimits": {"free": 5, "starter": 50, "pro": 999999},
     "crawlSettings": {"dailyCrawlHourUtc": 4, "hourlyCrawlEnabled": True, "rateLimitDelayMs": 500},
     "emailTemplates": {
-        "alertSubject": "LinkKeeper Alert: Link on {domain} is now {status}",
-        "digestSubject": "LinkKeeper Weekly Digest — {dateRange}",
-        "reminderSubject": "LinkKeeper: Follow up with {domain}",
+        "alertSubject": "YourApp Alert: Link on {domain} is now {status}",
+        "digestSubject": "YourApp Weekly Digest — {dateRange}",
+        "reminderSubject": "YourApp: Follow up with {domain}",
     },
     "pricingDisplay": {
         "starter": {"name": "Starter", "price": 9, "features": ["50 links", "Daily crawls", "Pipeline tracker"]},
@@ -423,7 +423,7 @@ def update_config(event: dict) -> dict:
 
 # --- Stripe Config ---
 
-STRIPE_SECRET_NAME = "linkkeeper/stripe"
+STRIPE_SECRET_NAME = "yourapp/stripe"
 
 
 def _mask_secret(value: str) -> str:
