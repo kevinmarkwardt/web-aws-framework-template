@@ -123,7 +123,7 @@ def sample_pro_user():
 def create_test_user(dynamodb_table):
     """Factory fixture to insert a user into DynamoDB."""
     def _create(user_id="user-123", email="test@example.com", plan="free",
-                link_count=0, stripe_customer_id="", stripe_subscription_id=""):
+                link_count=0, item_count=0, stripe_customer_id="", stripe_subscription_id=""):
         item = {
             "pk": f"USER#{user_id}",
             "sk": "PROFILE",
@@ -131,6 +131,7 @@ def create_test_user(dynamodb_table):
             "email": email,
             "plan": plan,
             "linkCount": link_count,
+            "itemCount": item_count,
             "createdAt": "2026-01-01T00:00:00+00:00",
             "settings": {
                 "alertsEnabled": True,
@@ -145,6 +146,24 @@ def create_test_user(dynamodb_table):
             item["stripeSubscriptionId"] = stripe_subscription_id
         dynamodb_table.put_item(Item=item)
         return user_id
+    return _create
+
+
+@pytest.fixture
+def create_test_item(dynamodb_table):
+    """Factory fixture to insert an item into DynamoDB."""
+    def _create(user_id="user-123", item_id="item-001",
+                name="Test item", status="ACTIVE"):
+        dynamodb_table.put_item(Item={
+            "pk": f"USER#{user_id}",
+            "sk": f"ITEM#{item_id}",
+            "userId": user_id,
+            "itemId": item_id,
+            "name": name,
+            "status": status,
+            "createdAt": "2026-01-01T00:00:00+00:00",
+        })
+        return item_id
     return _create
 
 
