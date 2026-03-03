@@ -1,0 +1,91 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Build output
+frontend/dist/
+cdk.out/
+cdk/dist/
+
+# CDK
+cdk/cdk.context.json
+
+# Environment
+.env
+.env.local
+
+# Deploy artifacts
+cdk-outputs.json
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Worktrees
+.worktrees/
+
+# Python packaging in Lambda dirs (installed at deploy time, not tracked in git)
+lambdas/*/*.dist-info/
+lambdas/*/*.so
+lambdas/*/bin/
+lambdas/*/boto3/
+lambdas/*/botocore/
+lambdas/*/bs4/
+lambdas/*/certifi/
+lambdas/*/cffi/
+lambdas/*/charset_normalizer/
+lambdas/*/cryptography/
+lambdas/*/dateutil/
+lambdas/*/ecdsa/
+lambdas/*/idna/
+lambdas/*/jmespath/
+lambdas/*/jose/
+lambdas/*/PIL/
+lambdas/*/pillow.libs/
+lambdas/*/pyasn1/
+lambdas/*/pycparser/
+lambdas/*/reportlab/
+lambdas/*/requests/
+lambdas/*/rsa/
+lambdas/*/s3transfer/
+lambdas/*/six.py
+lambdas/*/soupsieve/
+lambdas/*/stripe/
+lambdas/*/typing_extensions.py
+lambdas/*/ulid/
+lambdas/*/urllib3/
+api/*.dist-info/
+api/*.so
+api/bin/
+api/bcrypt/
+api/boto3/
+api/botocore/
+api/certifi/
+api/cffi/
+api/charset_normalizer/
+api/cryptography/
+api/dateutil/
+api/ecdsa/
+api/idna/
+api/jmespath/
+api/jose/
+api/pyasn1/
+api/pycparser/
+api/requests/
+api/rsa/
+api/s3transfer/
+api/six.py
+api/stripe/
+api/typing_extensions.py
+api/ulid/
+api/urllib3/
+.venv/

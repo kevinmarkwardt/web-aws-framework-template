@@ -1,0 +1,24 @@
+{
+  "name": "linkkeeper-cdk",
+  "version": "1.0.0",
+  "bin": {
+    "linkkeeper": "bin/linkkeeper.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "aws-cdk": "^2.178.0",
+    "typescript": "~5.7.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.178.0",
+    "constructs": "^10.0.0"
+  }
+}
