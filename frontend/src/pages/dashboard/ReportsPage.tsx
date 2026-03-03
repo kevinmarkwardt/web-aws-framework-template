@@ -25,8 +25,8 @@ export default function ReportsPage() {
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">Monthly Reports</h2>
         <p className="text-gray-600 mb-6 max-w-md mx-auto">
-          Get monthly PDF portfolio health reports with publisher breakdowns, anchor text analysis,
-          and trend data. Available on the Pro plan.
+          Get monthly PDF reports with detailed breakdowns and trend analysis.
+          Available on the Pro plan.
         </p>
         <button
           onClick={handleUpgrade}
@@ -43,7 +43,7 @@ export default function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Monthly portfolio health reports archived here
+          Monthly reports archived here
         </p>
       </div>
 
