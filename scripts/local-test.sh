@@ -42,6 +42,9 @@ case "${1:-}" in
     export STRIPE_SECRET_NAME="$SECRET_PREFIX/stripe"
     export FRONTEND_URL="http://localhost:$WEB_PORT" SITE_DOMAIN SITE_URL="http://localhost:$WEB_PORT"
     export SES_FROM_EMAIL="noreply@${SITE_DOMAIN#test.}"
+    # the admin API's MFA gate as deployed (output AdminMfa; older stacks don't have it: off)
+    ADMIN_MFA=0; if [ "$(jq -r --arg s "$STACK" '.[$s].AdminMfa // empty' "$OUT")" = required ]; then ADMIN_MFA=1; fi
+    export ADMIN_MFA
     if [ "$STAGE" = test ]; then
       export TEST_LOGIN=1 TEST_LOGIN_SECRET_NAME="$SECRET_PREFIX/test-login"
     fi

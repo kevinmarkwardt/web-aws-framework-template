@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Button, Field, Input, Notice, useTranslation } from '@yourapp/shared';
+import { Button, Field, Input, Notice, TOTP_SIGN_IN_STEP, useTranslation } from '@yourapp/shared';
 import { Icon } from '../icons';
-import { login, MOCK_AUTH } from '../auth';
+import { login, logout, MOCK_AUTH } from '../auth';
+import MfaCodePage from './MfaCodePage';
 
 /** The admin site's own sign-in: the same accounts as the user site (one Cognito pool), a separate session. */
 export default function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
@@ -10,6 +11,7 @@ export default function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [totp, setTotp] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +19,9 @@ export default function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
     setError('');
     try {
       const out = await login(email, password);
-      if (!out.done) {
+      if (out.nextStep === TOTP_SIGN_IN_STEP) {
+        setTotp(true);  // the account has an authenticator app: MfaCodePage finishes the sign-in
+      } else if (!out.done) {
         setError(t('admin.signIn.needsAnotherStep'));
       } else {
         onSignedIn();
@@ -27,6 +31,10 @@ export default function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
     }
     setBusy(false);
   };
+
+  if (totp) {
+    return <MfaCodePage onDone={onSignedIn} onCancel={() => { setTotp(false); logout().catch(() => {}); }} />;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">

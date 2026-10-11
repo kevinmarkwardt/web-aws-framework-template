@@ -363,3 +363,70 @@ MOCK_AUTH is constant `false` in production builds (`import.meta.env.DEV`), so i
 ## Environment Variables
 
 Lambda environment variables are set by CDK (`cdk/lib/yourapp-stack.ts`) — do not set them manually. The sites' `VITE_*` values are written by `scripts/deploy.sh` (`frontend/.env.production.local`, `admin/.env.production.local`) and `scripts/local-test.sh`; see `frontend/.env.example` and `admin/.env.example` (declared once in `packages/shared/src/env.d.ts`). The root `.env.example` lists the shell settings the scripts use (`STAGE`, `AWS_REGION`, `YES`). No secrets go in any `.env` file.
+
+## Ops and security (cdk.json flags, alarms, WAF, budget, MFA)
+
+Everything here is in `cdk/lib/yourapp-stack.ts`; the console steps (SES production access, alarm email
+confirmation, CloudTrail, GuardDuty, Stripe live, ...) and the prod deploy order are in
+[docs/launch-checklist.md](docs/launch-checklist.md).
+
+**`cdk/cdk.json` context** (or `-c name=value`; booleans accept `true`/`false`/`1`/`0`):
+
+| Key | Default | Effect |
+|---|---|---|
+| `alarmEmail` | `""` | SNS alarm + budget subscription (prod); empty = `adminEmail`; neither = a synth warning |
+| `budgetUsd` | `50` | monthly AWS Budget (account-wide): 80% / 100% actual and 100% forecast to the alert topic (prod) |
+| `waf` | `false` | prod only: a web ACL on both distributions |
+| `wafRateLimit` | `1000` | per-IP requests per 5 minutes (the Stripe webhook is exempt) |
+| `adminAllowIps` | `[]` | CIDRs (bare IPs get /32 or /128): a second web ACL on the admin distribution blocks everyone else; needs `waf` |
+| `cognitoSes` | `false` | Cognito mail from `noreply@<domain>` through SES (only after SES production access) |
+| `adminMfa` | prod on, test off | the admin API requires an authenticator app (`ADMIN_MFA` on the admin Lambda) |
+| `googleTags` | `false` | the user site's CSP also allows GA4 / AdSense hosts and inline scripts |
+| `csp` | `enforce` | `report-only` (sent as Content-Security-Policy-Report-Only) or `off` |
+
+**Alarms** (prod, `addProdMonitoring`): one SNS topic `<prefix>-alerts` gets ALARM and OK for: user and admin API
+`Url5xxCount`, p95 duration, throttles and errors; daily-job errors; Stripe webhook failures (`WEBHOOK_FAILED` /
+`STRIPE_WEBHOOK_SECRET_MISSING` metric filter on the API log; not with `billingMode: none`); payments sweep failures
+(`PAYMENTS_SWEEP_FAILED`; credits modes); DynamoDB read/write throttles on the table and both GSIs; SES bounce (5%)
+and complaint (0.1%) rates; CloudFront 5xx rate (5% for 10 minutes) on both distributions. Each bounce and complaint
+is also posted to the topic (SES configuration set `<prefix>-transactional`, the domain identity's default, which
+also suppresses those addresses). Add alarms with the `alarm(id, description, metric, threshold)` helper there; a log
+line to alarm on goes through `logCount` (log failures with a fixed UPPER_CASE marker, as the API does).
+
+**WAF** (CLOUDFRONT scope, so the stack must be in us-east-1; synth refuses `waf` elsewhere): per-IP rate limit, AWS
+common rule set (webhook exempt; `SizeRestrictions_BODY` only counted), known bad inputs, Amazon IP reputation. The
+test stage never gets WAF (cost).
+
+**Security headers:** both sites get HSTS, nosniff, frame options, a referrer policy and a CSP. The user site's CSP
+allows `'self'`, Cognito (`cognito-idp.<region>.amazonaws.com`), Stripe.js (`js.stripe.com`, `hooks.stripe.com`,
+`api.stripe.com`) and, with `googleTags`, Google's tag and ad hosts; `img-src` allows any https image. The admin
+site's CSP allows only `'self'` and Cognito, with `frame-ancestors 'none'`. A new third-party origin on the user site
+goes into `siteCsp` (try `csp: report-only` first). CloudFront limits the CSP to 1783 characters.
+
+**`/api/*` cache key:** `Authorization` + only the query parameters the API reads (`API_CACHE_QUERY_KEYS`). Reading a
+new query parameter (`params.query` / `query_int` / `day`) means adding it there; `tests/test_edge_sync.py` fails
+until you do.
+
+**Cognito:** branded code and invitation emails (`displayName`), MFA `OPTIONAL` with TOTP only (no SMS), the SES
+sender behind `cognitoSes`.
+
+**Admin MFA:** with `ADMIN_MFA=1`, `api/lib/admins.check` also requires `SOFTWARE_TOKEN_MFA` in the admin's
+`AdminGetUser` `UserMFASettingList` (live, on every request, failing closed); otherwise the admin API answers 403
+`MFA_REQUIRED` (after the admin check, so non-admins still get `NOT_ADMIN`). The admin site then shows
+`MfaSetupPage` (QR code + key, one code, TOTP preferred). Once it's on, both sites' sign-in asks for the code (`login`
+returns `nextStep: TOTP_SIGN_IN_STEP`, and `TotpCodeForm` finishes the sign-in). Shared pieces:
+`packages/shared/src/mfa.ts` (Amplify calls) and `totp.tsx` (`QrCode` via `uqr`, `TotpCodeForm`, `TotpSetup`, which
+a user settings page can reuse for an opt-in). MOCK_AUTH never asks for MFA. To reset a lost authenticator:
+`aws cognito-idp admin-set-user-mfa-preference ... --software-token-mfa-settings Enabled=false,PreferredMfa=false`.
+Tests: `tests/test_admin_mfa.py`.
+
+**Optional email forwarding:** `infra/email-forwarding.yaml` (CloudFormation, outside the CDK app) +
+`scripts/deploy-email-forwarding.sh`: MX, SES receipt rule, S3, a forwarder Lambda, and optional root SPF and
+`_dmarc` records.
+
+**Checking the stack without AWS:** `npx cdk synth` needs credentials for the hosted-zone lookup. To synthesize
+in-process, build `YourAppStack` in a scratch `.ts` under `cdk/`. Give its `cdk.App` the context key
+`hosted-zone:account=<acct>:domainName=yourapp.com:region=us-east-1` =
+`{ "Id": "/hostedzone/Z0FAKE", "Name": "yourapp.com." }`, a fake account in `env`, and the flags you're testing. Then
+inspect it with `Template.fromStack` from `aws-cdk-lib/assertions`. `build/api` and `build/daily-job` must exist
+(empty folders are enough).

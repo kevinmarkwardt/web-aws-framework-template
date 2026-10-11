@@ -6,6 +6,8 @@ URL with the admin X-Origin-Verify value, which differs from the user API's. Eve
   2. a valid Cognito ID token of this stage's pool (401 SIGNED_OUT)
   3. the caller is an admin: in the Cognito group "admins" (token and live) AND isAdmin on the profile (403 NOT_ADMIN);
      lib/admins.py, re-checked on every request
+  4. with ADMIN_MFA=1 (prod by default): the admin has an authenticator app enabled (403 MFA_REQUIRED; the admin site
+     then shows the TOTP setup)
 Maintenance mode never applies here. The user API Lambda (handler.py) answers 404 for every /api/admin/* path.
 """
 
@@ -80,6 +82,8 @@ def _dispatch(event: dict) -> dict:
     if not uid:
         if why == "SIGNED_OUT":
             return error("Sign in first", 401, "SIGNED_OUT")
+        if why == "MFA_REQUIRED":
+            return error("Set up an authenticator app to use the admin site", 403, "MFA_REQUIRED")
         return error("This account isn't an admin of this site", 403, "NOT_ADMIN")
     actor = f"admin:{uid}"
 

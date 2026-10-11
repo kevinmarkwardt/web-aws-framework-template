@@ -276,6 +276,29 @@ Run specific tests:
 .venv/bin/python -m pytest tests/test_api_items.py::TestCreateItem::test_create_item -v
 ```
 
+## Going live: alarms, WAF, budget, MFA
+
+Prod comes with ops and security built in. You switch the optional parts on in `cdk/cdk.json`. Work through
+[docs/launch-checklist.md](docs/launch-checklist.md) before opening the site: SES production access, Cognito via
+SES, DMARC, CloudTrail and GuardDuty, Stripe live, consent, and the deploy order.
+
+- **Alarms (prod):** about 15 CloudWatch alarms send email through SNS to `alarmEmail` (or `adminEmail`) when
+  something breaks: API 5xx, latency and throttles, Lambda errors, failed Stripe webhooks, the refund sweep, DynamoDB
+  throttles, SES bounce and complaint rates, and CloudFront 5xx on both sites. Confirm the subscription email once.
+- **Budget (prod):** a monthly AWS Budget of `budgetUsd` (default $50), with alerts at 80% and 100%.
+- **WAF (prod, opt-in):** `"waf": true` adds per-IP rate limits and the AWS managed rule groups (common,
+  known-bad-inputs, IP reputation) to both sites, for about $9 a month. `adminAllowIps` limits the admin site to your
+  addresses.
+- **Headers:** HSTS, nosniff, frame and referrer policies, and a Content-Security-Policy on both sites. Stripe.js is
+  always allowed; set `"googleTags": true` to also allow GA4 and AdSense.
+- **Admin MFA:** admins must use an authenticator app (`adminMfa`, on in prod). The admin site walks them through the
+  setup with a QR code, and both sites ask for the code at sign-in. Users can opt in, since the pool's MFA is
+  optional.
+- **Cognito email:** codes are sent under your site's name, and from `noreply@<domain>` through SES once
+  `"cognitoSes": true` (after SES production access).
+- **Optional inbound mail:** `scripts/deploy-email-forwarding.sh` forwards `hello@<domain>` to your inbox
+  (`infra/email-forwarding.yaml`).
+
 ## Cost Estimate
 
 At low traffic (~0-100 users):
@@ -287,6 +310,7 @@ At low traffic (~0-100 users):
 - Route53: ~$0.50/month (hosted zone)
 - ACM: $0 (certificates are free)
 - **Total: ~$0.50/month at low traffic**
+- Prod alarms: ~$1.50/month (about $0.10 per alarm); WAF when enabled: ~$9/month + $0.60 per million requests
 
 At scale (1,000 users):
 - Estimated: $15-30/month

@@ -20,3 +20,6 @@ export { DEFAULT_LANGUAGE, LANGUAGES, LANGUAGE_CODES, supportedLanguage } from '
 export { currentLanguage, i18n, languageChosen, switchLanguage } from './i18n/setup';
 export { LanguagePicker } from './i18n/LanguagePicker';
 export { Trans, useTranslation } from 'react-i18next';
+// MFA (TOTP): required for admins when the stack's adminMfa flag is on
+export { TOTP_SIGN_IN_STEP, confirmTotpSignIn, disableTotp, finishTotpSetup, startTotpSetup, totpEnabled } from './mfa';
+export { QrCode, TotpCodeForm, TotpSetup } from './totp';

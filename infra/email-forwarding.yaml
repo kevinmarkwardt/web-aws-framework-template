@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  OPTIONAL inbound email forwarding for the site's domain: mail to one mailbox (e.g. hello@yourapp.com) -> SES receiving
+  -> S3 -> Lambda -> forwarded to a mailbox you read. Not part of the CDK stack; deploy it with
+  scripts/deploy-email-forwarding.sh. The domain's SES identity and DKIM records come from the CDK prod stack.
+  SES allows one ACTIVE receipt rule set per region, so the rule joins the region's active set (RuleSetName), or this
+  stack creates one (CreateRuleSet=true) that the deploy script then activates. SES receiving exists only in some
+  regions (us-east-1, us-west-2, eu-west-1, ...): deploy in the stack's region if it is one of them.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: yourapp
+    AllowedPattern: '[a-z0-9-]{1,40}'
+    Description: Prefix for resource names
+  Domain:
+    Type: String
+    Default: yourapp.com
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: The domain's Route 53 hosted zone
+  Mailbox:
+    Type: String
+    Description: The address that receives mail, at the domain (e.g. hello@yourapp.com). Forwarded mail is also sent from it.
+  ForwardTo:
+    Type: String
+    Description: Where the mail goes. Must be a verified SES identity while the account is in the SES sandbox.
+  RuleSetName:
+    Type: String
+    Default: yourapp-inbound
+    Description: The region's active receipt rule set (or the one to create with CreateRuleSet=true)
+  CreateRuleSet:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: 'true when the region has no active receipt rule set yet (the deploy script activates it)'
+  RetentionDays:
+    Type: Number
+    Default: 90
+    Description: Days the raw messages stay in the bucket
+  ManageSpf:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >-
+      Create the root TXT record "v=spf1 include:amazonses.com ~all". A zone can hold one TXT record set per name:
+      'false' when the root already has TXT values (then add include:amazonses.com to your SPF by hand).
+  ManageDmarc:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: "Create _dmarc.<domain> ('false' when you already have one)"
+  # DMARC: start with p=none and reports (rua) to a mailbox at this domain (other domains must publish an authorization
+  # record to receive them); after a few weeks in which only SES and known senders pass, move to quarantine
+  # (docs/launch-checklist.md).
+  DmarcPolicy:
+    Type: String
+    Default: none
+    AllowedValues: [none, quarantine, reject]
+  DmarcReportTo:
+    Type: String
+    Default: ''
+    Description: Mailbox for DMARC aggregate reports (rua); empty = none
+
+Conditions:
+  CreateRuleSet: !Equals [!Ref CreateRuleSet, 'true']
+  ManageSpf: !Equals [!Ref ManageSpf, 'true']
+  ManageDmarc: !Equals [!Ref ManageDmarc, 'true']
+  HasDmarcReports: !Not [!Equals [!Ref DmarcReportTo, '']]
+
+Resources:
+  RuleSet:
+    Type: AWS::SES::ReceiptRuleSet
+    Condition: CreateRuleSet
+    Properties:
+      RuleSetName: !Ref RuleSetName
+
+  MailBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub ${AppName}-mail-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireInboundMessages
+            Status: Enabled
+            Prefix: inbox/
+            ExpirationInDays: !Ref RetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  MailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SESWriteInboundMessages
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${MailBucket.Arn}/inbox/*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              StringLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:receipt-rule-set/${RuleSetName}:receipt-rule/*'
+          - Sid: RequireTLS
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource: [!GetAtt MailBucket.Arn, !Sub '${MailBucket.Arn}/*']
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  MailExchangeRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref Domain
+      Type: MX
+      TTL: 300
+      ResourceRecords:
+        - !Sub 10 inbound-smtp.${AWS::Region}.amazonaws.com
+
+  SpfRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: ManageSpf
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref Domain
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - '"v=spf1 include:amazonses.com ~all"'
+
+  DmarcRecord:
+    Type: AWS::Route53::RecordSet
+    Condition: ManageDmarc
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub _dmarc.${Domain}
+      Type: TXT
+      TTL: 300
+      ResourceRecords:
+        - !If
+          - HasDmarcReports
+          - !Sub '"v=DMARC1; p=${DmarcPolicy}; rua=mailto:${DmarcReportTo}"'
+          - !Sub '"v=DMARC1; p=${DmarcPolicy}"'
+
+  ForwarderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AppName}-mail-forwarder
+      RetentionInDays: 30
+
+  ForwarderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ForwardInboundMail
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: WriteFunctionLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub '${ForwarderLogGroup.Arn}'
+              - Sid: ReadInboundMessages
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${MailBucket.Arn}/inbox/*'
+              - Sid: SendForwardedMail
+                Effect: Allow
+                Action: ses:SendRawEmail
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${Domain}'
+                  # In the SES sandbox IAM also checks the recipient's identity.
+                  - !Sub 'arn:${AWS::Partition}:ses:${AWS::Region}:${AWS::AccountId}:identity/${ForwardTo}'
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Ref Mailbox
+
+  Forwarder:
+    Type: AWS::Lambda::Function
+    DependsOn: ForwarderLogGroup
+    Properties:
+      FunctionName: !Sub ${AppName}-mail-forwarder
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt ForwarderRole.Arn
+      Environment:
+        Variables:
+          BUCKET: !Ref MailBucket
+          SENDER: !Ref Mailbox
+          FORWARD_TO: !Ref ForwardTo
+      Code:
+        ZipFile: |
+          # Re-send each received message from SENDER to FORWARD_TO (SES only sends from verified identities, so the
+          # original From moves to Reply-To and the name to "<name> via <mailbox>"). Virus-flagged mail is dropped;
+          # spam-flagged mail is marked in the subject.
+          import email
+          import email.policy
+          import os
+          from email.utils import formataddr, parseaddr
+
+          import boto3
+
+          s3 = boto3.client("s3")
+          ses = boto3.client("ses")
+          BUCKET = os.environ["BUCKET"]
+          SENDER = os.environ["SENDER"]
+          FORWARD_TO = os.environ["FORWARD_TO"]
+
+
+          def handler(event, context):
+              record = event["Records"][0]["ses"]
+              message_id = record["mail"]["messageId"]
+              receipt = record["receipt"]
+              if receipt.get("virusVerdict", {}).get("status") == "FAIL":
+                  print(f"virus rejected {message_id}")
+                  return
+
+              raw = s3.get_object(Bucket=BUCKET, Key=f"inbox/{message_id}")["Body"].read()
+              msg = email.message_from_bytes(raw, policy=email.policy.SMTP)
+              original_from = str(msg.get("From", ""))
+              original_reply_to = str(msg.get("Reply-To", ""))
+              name, address = parseaddr(original_from)
+              label = name or address or "Unknown sender"
+
+              for header in (
+                  "Return-Path", "Sender", "Message-ID", "DKIM-Signature",
+                  "DomainKey-Signature", "From", "Reply-To", "To", "Cc", "Bcc",
+              ):
+                  while header in msg:
+                      del msg[header]
+              msg["From"] = formataddr((f"{label} via {SENDER}", SENDER), charset="utf-8")
+              if original_reply_to or original_from:
+                  msg["Reply-To"] = original_reply_to or original_from
+              msg["To"] = FORWARD_TO
+              if receipt.get("spamVerdict", {}).get("status") == "FAIL":
+                  subject = str(msg.get("Subject", ""))
+                  if "Subject" in msg:
+                      msg.replace_header("Subject", f"[Suspected spam] {subject}")
+                  else:
+                      msg["Subject"] = "[Suspected spam] "
+
+              ses.send_raw_email(Source=SENDER, Destinations=[FORWARD_TO], RawMessage={"Data": msg.as_bytes()})
+              print(f"forwarded {message_id}")
+
+  AllowSESInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Forwarder
+      Action: lambda:InvokeFunction
+      Principal: ses.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  ReceiptRule:
+    Type: AWS::SES::ReceiptRule
+    DependsOn:
+      - MailBucketPolicy
+      - AllowSESInvoke
+    Properties:
+      RuleSetName: !If [CreateRuleSet, !Ref RuleSet, !Ref RuleSetName]
+      Rule:
+        Name: !Sub ${AppName}-forward-mailbox
+        Recipients:
+          - !Ref Mailbox
+        Enabled: true
+        ScanEnabled: true
+        TlsPolicy: Optional
+        Actions:
+          - S3Action:
+              BucketName: !Ref MailBucket
+              ObjectKeyPrefix: inbox/
+          - LambdaAction:
+              FunctionArn: !GetAtt Forwarder.Arn
+              InvocationType: Event
+
+Outputs:
+  Bucket:
+    Value: !Ref MailBucket
+  Function:
+    Value: !Ref Forwarder
+  RuleSet:
+    Value: !Ref RuleSetName

@@ -53,6 +53,14 @@
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
     "bedrockModelId": "",
     "billingMode": "both",
-    "adminEmail": ""
+    "adminEmail": "",
+    "alarmEmail": "",
+    "budgetUsd": 50,
+    "waf": false,
+    "wafRateLimit": 1000,
+    "adminAllowIps": [],
+    "cognitoSes": false,
+    "googleTags": false,
+    "csp": "enforce"
   }
 }
