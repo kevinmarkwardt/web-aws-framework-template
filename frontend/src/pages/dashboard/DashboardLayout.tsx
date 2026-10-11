@@ -44,7 +44,8 @@ export default function DashboardLayout() {
 
   // Billing pages appear only for the modules that are on (the API answers 404 for the others)
   const navItems: { to: string; label: string; end?: boolean }[] = [
-    { to: '/dashboard', label: t('app.nav.items'), end: true }, // example:items
+    { to: '/dashboard', label: t('app.nav.home'), end: true },
+    { to: '/dashboard/items', label: t('app.nav.items') }, // example:items
     ...dashboardEntityNav.map((n) => ({ to: n.to, label: t(n.label), end: false })),
     ...(subscriptionsOn(mode) ? [{ to: '/dashboard/plans', label: t('app.nav.plans') }] : []),
     ...(creditsOn(mode) ? [{ to: '/dashboard/wallet', label: t('app.nav.wallet') }] : []),

@@ -28,3 +28,5 @@ export type { BrowseView, Filter, FilterOption, SortOption } from './Browse';
 export { Detail } from './Detail';
 export { DashboardArchetype, DashboardPanel, Faq, FormArchetype, PricingArchetype, ProseArchetype } from './Pages';
 export type { FormSection, PricingPlan } from './Pages';
+export { Reveal } from './motion';
+export { useInView, useLoop, useReducedMotion } from './motion-hooks';

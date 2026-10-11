@@ -13,6 +13,7 @@ import SignupPage from './pages/auth/SignupPage';
 import VerifyPage from './pages/auth/VerifyPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
+import HomePage from './pages/dashboard/HomePage';
 import ItemsPage from './pages/dashboard/ItemsPage'; // example:items (scripts/init.py removes these lines once the spec has entities)
 import { dashboardEntityRoutes, publicEntityRoutes } from './entities/routes.gen';
 import SettingsPage from './pages/dashboard/SettingsPage';
@@ -114,8 +115,9 @@ function UserApp() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ItemsPage />} /> {/* example:items */}
-          {/* the spec's entities: my records, forms, signed-in-only entities (and the index once Items is gone) */}
+          <Route index element={<HomePage />} />
+          <Route path="items" element={<ItemsPage />} /> {/* example:items */}
+          {/* the spec's entities: my records, forms, signed-in-only entities */}
           {dashboardEntityRoutes}
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reports" element={<ReportsPage />} />

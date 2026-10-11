@@ -116,7 +116,9 @@ def test_the_items_example_is_gone(site):
         assert "example:items" not in read(site, rel) and "ItemsPage" not in read(site, rel)
     limit = json.loads(read(ROOT, "packages/shared/src/locales/en/items.json"))["items"]["limit"]
     assert json.loads(read(site, "packages/shared/src/locales/en/items.json")) == {"items": {"limit": limit}}
-    assert "index: true" in read(site, "frontend/src/entities/routes.gen.ts")
+    # /dashboard stays the Home page; generated routes never claim the index
+    assert "index: true" not in read(site, "frontend/src/entities/routes.gen.ts")
+    assert "<HomePage />" in read(site, "frontend/src/App.tsx")
     assert (site / "api/routes/items.py").exists()  # the backend example stays
 
 

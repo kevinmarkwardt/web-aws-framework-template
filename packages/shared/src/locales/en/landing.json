@@ -1,79 +1,115 @@
 {
   "landing": {
     "nav": {
+      "how": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
       "login": "Log in"
     },
-    "getStarted": "Get Started Free",
+    "getStarted": "Start free",
     "hero": {
-      "title": "Track Everything.",
-      "titleAccent": "Know When It Changes.",
-      "body": "Monitor your items on a schedule. Get instant alerts when status changes. A simple, focused tool that stays out of your way.",
-      "start": "Start Monitoring Free",
-      "viewPricing": "View Pricing",
+      "eyebrow": "Change monitoring",
+      "title": "Know the moment something changes.",
+      "body": "YourApp checks the pages, feeds and endpoints you care about on a schedule, and tells you exactly what changed. No dashboard to babysit.",
+      "secondary": "See how it works",
       "freeIncludes": "Free plan includes {{items}}. ",
-      "noCard": "No credit card required."
+      "noCard": "No card needed."
     },
-    "features": {
-      "title": "Everything you need to stay on top of your data",
-      "subtitle": "One focused tool. No bloat.",
-      "monitoring": {
-        "title": "Automated Monitoring",
-        "description": "Set it and forget it. Your items are checked on a schedule and you are alerted the moment something changes."
-      },
-      "alerts": {
-        "title": "Instant Alerts",
-        "description": "Get notified the same day something changes. No more discovering issues days or weeks after they happen."
-      },
-      "organize": {
-        "title": "Organize Everything",
-        "description": "Add tags, notes, and metadata to your items. Filter and search across your entire collection instantly."
-      },
-      "digest": {
-        "title": "Weekly Digest",
-        "description": "Every week, get a summary of what changed, what is healthy, and what needs your attention."
-      },
-      "insights": {
-        "title": "AI-Powered Insights",
-        "description": "Pro users get AI-powered analysis and recommendations based on their data trends."
-      },
-      "reports": {
-        "title": "Monthly Reports",
-        "description": "Pro users receive a monthly summary report with trends, breakdowns, and historical comparisons."
-      }
+    "demo": {
+      "title": "Monitoring",
+      "count_one": "{{count}} item",
+      "count_other": "{{count}} items",
+      "ok": "No change",
+      "changed": "Changed",
+      "checked": "{{s}}s ago",
+      "alert": "Alert sent: {{name}} changed",
+      "rows": [
+        { "name": "Pricing page", "url": "example.com/pricing" },
+        { "name": "Status feed", "url": "status.example.com/feed" },
+        { "name": "Careers", "url": "example.com/careers" },
+        { "name": "API health", "url": "api.example.com/health" },
+        { "name": "Terms of service", "url": "example.com/terms" }
+      ],
+      "addLabel": "URL to watch",
+      "addUrl": "https://example.com/changelog",
+      "add": "Add",
+      "added": "Watching: first check in a minute",
+      "hours": "Last 24 hours",
+      "checks_other": "{{count}} checks",
+      "checks_one": "{{count}} check",
+      "change": "1 change at {{time}}",
+      "diffTitle": "Pricing page changed",
+      "diffWhen": "Today, 09:41",
+      "diffOld": "Pro plan · $19 a month",
+      "diffNew": "Pro plan · $24 a month",
+      "diffContext": "Billed monthly. Cancel any time.",
+      "digestTitle": "Your week",
+      "digestHealthy": "Unchanged",
+      "digestChanged": "Changed",
+      "digestFailing": "Unreachable"
     },
     "how": {
-      "title": "How it works",
+      "eyebrow": "How it works",
+      "title": "Set it up once. Hear about it only when it matters.",
+      "body": "Add what you want watched and pick how often. Everything else happens on its own: checks run, changes are compared, and you get one clear message.",
       "add": {
-        "title": "Add your items",
-        "desc": "Add items individually or in bulk. Include a URL, a label, and any notes you want to track."
+        "title": "Add anything with a URL",
+        "desc": "Paste a page, a feed or an API endpoint. Give it a label and a note so future you remembers why."
       },
-      "check": {
-        "title": "We check them on a schedule",
-        "desc": "Your items are checked daily (or hourly on Pro). We detect status changes and record the history."
+      "schedule": {
+        "title": "Checked on your schedule",
+        "desc": "Daily on the free plan, hourly on paid plans. Every check is kept, so you can see when a change happened."
       },
-      "alert": {
-        "title": "Get alerted instantly",
-        "desc": "The moment an item changes status, you get an email. Every week, you get a full digest of what is healthy and what is not."
+      "alerts": {
+        "title": "Alerts that show the change",
+        "desc": "Not just \"something changed\": the email shows the lines that are different, before and after."
+      },
+      "digest": {
+        "title": "A weekly digest",
+        "desc": "One summary every Monday: what changed, what stayed the same, and what could not be reached."
       }
     },
+    "details": {
+      "eyebrow": "Details",
+      "title": "The rest of it.",
+      "items": [
+        { "t": "Tags and notes", "d": "Group items and keep the context next to them." },
+        { "t": "Full history", "d": "Every check and every change, with the time it happened." },
+        { "t": "Quiet by default", "d": "No alert unless something actually changed." },
+        { "t": "Your language", "d": "The app and its emails follow your language setting." },
+        { "t": "Cancel any time", "d": "Downgrade or cancel from your account, no emails needed." },
+        { "t": "Fair billing", "d": "Pay monthly or as you go, with refunds on unused credit." }
+      ]
+    },
     "pricing": {
-      "title": "Simple, transparent pricing",
-      "subtitle": "Start free. Upgrade when you need more.",
+      "eyebrow": "Pricing",
+      "title": "Start free. Pay when you need more.",
+      "subtitle": "Every plan has the same features; paid plans watch more items, more often.",
       "price": "${{amount}}",
-      "perMonth": "/month",
+      "perMonth": "a month",
       "startFree": "Start free",
       "choose": "Choose {{plan}}",
       "payg": {
-        "title": "Pay as you go",
+        "title": "Or pay as you go",
         "buy": "Buy {{credits}} when you need them ({{perDollar}} = $1).",
         "buyWithGift": "Buy {{credits}} when you need them ({{perDollar}} = $1); new accounts get {{gift}}.",
         "refund_one": "Unused bought {{credits}} can be refunded within {{count}} day.",
         "refund_other": "Unused bought {{credits}} can be refunded within {{count}} days."
       }
     },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Before you ask.",
+      "items": [
+        { "q": "Do I need a card to start?", "a": "No. The free plan needs only an email address. You add a card when you choose a paid plan." },
+        { "q": "What counts as an item?", "a": "One URL you want watched: a page, a feed or an API endpoint. Your plan sets how many you can have." },
+        { "q": "How do I cancel?", "a": "From Plans in your account. Paid features stay on until the end of the period you paid for." },
+        { "q": "Where is my data kept?", "a": "In our AWS account in the United States. We never sell it or share it for advertising." }
+      ]
+    },
     "cta": {
-      "title": "Start tracking in under 60 seconds",
-      "body": "Free plan available. No credit card required."
+      "title": "Start watching your first page in a minute.",
+      "body": "Free plan, no card needed."
     }
   }
 }

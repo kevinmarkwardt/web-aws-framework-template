@@ -1,0 +1,49 @@
+{
+  "home": {
+    "greeting": "Welcome, {{name}}",
+    "greetingBack": "Welcome back, {{name}}",
+    "subtitle": "Here's where your account stands.",
+    "start": {
+      "title": "Get started",
+      "progress": "{{done}} of {{total}} done",
+      "account": "Create your account",
+      "accountDesc": "Done. You're signed in.",
+      "profile": "Add your name",
+      "profileDesc": "It's how we address you in emails.",
+      "firstItem": "Add your first item",
+      "firstItemDesc": "Paste a URL you want watched.",
+      "plan": "Choose a plan",
+      "planDesc": "The free plan works; paid plans check more, more often.",
+      "credits": "Add credits",
+      "creditsDesc": "Top up once and spend as you go.",
+      "open": "Open"
+    },
+    "tiles": {
+      "plan": "Plan",
+      "usage": "{{count}} of {{limit}} items",
+      "usageUnlimited": "{{count}} items, no limit",
+      "credits": "Balance",
+      "alerts": "Alerts",
+      "alertsNone": "None right now",
+      "alertsSome_one": "{{count}} to read",
+      "alertsSome_other": "{{count}} to read",
+      "manage": "Manage"
+    },
+    "activity": {
+      "title": "Alerts",
+      "empty": "You're all caught up.",
+      "emptyDesc": "Account notices, support replies and payment updates show up here."
+    },
+    "links": {
+      "title": "Your account",
+      "settings": "Settings",
+      "settingsDesc": "Name, language and email preferences",
+      "support": "Support",
+      "supportDesc": "Ask a question or report a problem",
+      "plans": "Plans",
+      "plansDesc": "Change or cancel your plan",
+      "wallet": "Wallet",
+      "walletDesc": "Balance, top-ups and refunds"
+    }
+  }
+}

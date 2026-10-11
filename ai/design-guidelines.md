@@ -43,6 +43,16 @@ These are the rules for design work in the playbook (steps 4 and 6). They come f
   - IBM Plex Sans with Plex Mono: engineered.
 - Prefer OFL fonts (Google Fonts, Fontsource). Satoshi and Switzer use the Fontshare license: check the terms first.
 
+## Landing pages and motion
+- **Template reference:** `frontend/src/pages/LandingPage.tsx`. The hero is split: the offer on the left, the product working on the right (`LiveMonitor`). Below it, sections keep a sticky text column next to small working demos instead of screenshots or icon grids (`pages/landing/demos.tsx`). Then come a details index, pricing from the API, FAQ and one closing call to action.
+- **Demos show the product doing its job** with the site's own example data. Never use stats, logos or testimonials the site doesn't have.
+- **Motion:**
+  - `Reveal` eases content in once, as it scrolls into view.
+  - Demos run only while on screen (`useLoop`).
+  - Everything respects `prefers-reduced-motion`, so those visitors see the finished state.
+  - Use one orchestrated entrance per section, not fade-up on every element.
+- **The signed-in Home page** (`pages/dashboard/HomePage.tsx`) is where sign-up lands. It shows a getting-started checklist that hides itself when everything is done, the account at a glance, and alerts. Add the site's own first steps to its `steps` list.
+
 ## How directions differ
 Three directions differ in **structure**, not only in palette: navigation model, home composition, density, cards vs lists vs ruled indexes, image weight. The template's examples (`/__directions`):
 - **Instrument:** a tool. Search first, side filters, borders not shadows, dense, 6 px radius.
