@@ -5,11 +5,12 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 **What's included out of the box:**
 - User auth (sign up, log in, email verification, forgot password) via Cognito
 - Protected dashboard with generic CRUD (replace "items" with your entity)
-- Admin panel with user management, billing overview, feature toggles
+- Admin panel with user management, billing overview, feature toggles, plan limits (enforced by the API)
+- Two stages: `test.yourdomain.com` (disposable, noindex, username test login) and `yourdomain.com`
 - Stripe subscription billing (Checkout + Customer Portal)
 - Scheduled background job (EventBridge + Lambda)
 - Transactional email via SES
-- AI integration via Bedrock (Claude Haiku)
+- AI integration via Bedrock (model id set in `cdk/cdk.json`)
 - Full test suite (pytest + moto) with all AWS services mocked
 - One-command deploy via CDK
 
@@ -24,7 +25,7 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 | Database | DynamoDB (single-table design) |
 | CDN + Hosting | CloudFront + S3 |
 | Email | AWS SES |
-| AI | AWS Bedrock (Claude Haiku) |
+| AI | AWS Bedrock (optional example in the daily job) |
 | Payments | Stripe (subscriptions) |
 | Scheduling | EventBridge |
 | DNS | Route53 |
@@ -57,38 +58,50 @@ cd YOUR_REPO_NAME
 
 This prompts for your project name, display name, domain, and AWS account ID — then does a global find-replace across all files and renames the CDK stack.
 
-### 3. Configure secrets
+### 3. Deploy the test stage, then prod
 
 ```bash
-cp .env.example .env
-# Edit .env and fill in:
-#   STRIPE_SECRET_KEY
-#   STRIPE_WEBHOOK_SECRET
-#   STRIPE_PRICE_STARTER
-#   STRIPE_PRICE_PRO
+STAGE=test ./scripts/deploy.sh     # https://test.yourdomain.com
+STAGE=prod ./scripts/deploy.sh     # https://yourdomain.com (asks you to type "prod")
 ```
 
-### 4. Deploy to AWS
+Each run:
+1. Bundles the Lambdas into `build/` (Linux ARM64 wheels, hash-checked API dependencies)
+2. Deploys the stage's CDK stack (DynamoDB, Cognito, Lambda, CloudFront, Route53, ...) → `cdk-outputs-{stage}.json`
+3. Writes the site's Cognito ids to `frontend/.env.production.local` and builds the React app
+4. Uploads it to S3 (hashed assets cached for a year, `index.html` revalidated every visit) and invalidates CloudFront
+
+`--infra-only` and `--site-only` run half of it.
+
+### 4. Set up admin access
 
 ```bash
-./scripts/deploy.sh
+STAGE=test ./scripts/setup-admin.sh you@example.com
 ```
 
-This runs in steps:
-1. Install frontend and Lambda dependencies
-2. Deploy CDK infrastructure (DynamoDB, Cognito, Lambda, CloudFront, SES, Route53)
-3. Extract Cognito IDs → `frontend/.env`
-4. Build the React app
-5. Sync to S3 and invalidate CloudFront
-6. Done — your app is live at your domain
+Stores the admin login in Secrets Manager (`yourapp/test/admin-credentials`). The admin panel is at `manager.test.yourdomain.com` (prod: `manager.yourdomain.com`).
 
-### 5. Set up admin access
+### 5. Add your Stripe keys
+
+Stripe keys live in Secrets Manager (`yourapp/{stage}/stripe`), never in `.env`. Enter the secret key, webhook secret and price IDs on the admin panel's Billing page, and point a Stripe webhook at `https://<site>/api/webhooks/stripe`. Use sandbox keys on test.
+
+## Stages
+
+| | test | prod |
+|---|---|---|
+| Stack | `YourAppTestStack` (`-c stage=test`) | `YourAppStack` (default) |
+| Site | `test.yourdomain.com` | `yourdomain.com` |
+| Data | on-demand table, destroyed with the stack | provisioned table, retained, point-in-time recovery |
+| Sign-in | Cognito, or any username (no password) | Cognito |
+| Search engines | `noindex` | indexed |
+
+## Local Development
 
 ```bash
-./scripts/setup-admin.sh
+cd frontend && npm run dev          # no AWS needed: MOCK_AUTH signs you in with any email/password
+scripts/local-test.sh api           # API from your working tree on :3000, against the test stage's AWS resources
+scripts/local-test.sh web           # site on :5173 with hot reload, test login, proxying /api to :3000
 ```
-
-Creates an admin JWT secret in Secrets Manager. Admin panel is at `manager.yourdomain.com`.
 
 ## Architecture
 
@@ -106,9 +119,11 @@ yourdomain.com (CloudFront + S3)
     ├── /health — Lambda/DB status
     └── /config — Feature flags, plan limits
 
-API (Lambda Function URL — no API Gateway)
+API (Lambda Function URL behind CloudFront — no API Gateway; direct calls are refused)
 ├── GET/POST /api/items — CRUD for your entity
-├── GET/PUT /api/account — User profile
+├── GET/PUT /api/account — User profile (+ plan limits)
+├── GET /api/public-config — Maintenance/sign-up switches, plan limits (no auth)
+├── POST /api/test-login — Username login (test stage only)
 ├── POST /api/billing/checkout — Stripe checkout
 ├── POST /api/billing/portal — Stripe customer portal
 ├── POST /api/webhooks/stripe — Stripe webhook
@@ -117,7 +132,7 @@ API (Lambda Function URL — no API Gateway)
 DynamoDB (single-table design)
 ├── USER#{userId} | PROFILE — User + plan + Stripe IDs
 ├── USER#{userId} | ITEM#{itemId} — Your entity
-└── CONFIG | GLOBAL — Feature flags, plan limits
+└── CONFIG | GLOBAL — Feature flags, plan limits, job settings, email templates
 
 Scheduled Lambda (EventBridge, daily 8 AM UTC)
 └── lambdas/daily-job/handler.py — Add your scheduled logic here
@@ -133,7 +148,7 @@ The template uses a generic "Item" entity (name + status). To replace it with yo
 2. **Frontend:** Replace `ItemsPage`, `ItemsTable`, `AddItemForm` with your components
 3. **Types:** Update `frontend/src/types.ts` (Item → Link)
 4. **API client:** Update `frontend/src/api.ts` (fetchItems → fetchLinks, etc.)
-5. **DB helpers:** Update `api/lib/db.py` (get_items → get_links, ITEM_LIMITS → LINK_LIMITS, etc.)
+5. **DB helpers:** Update `api/lib/db.py` (get_items → get_links, increment_item_count → increment_link_count, etc.) and the limit wording in `api/lib/config.py`
 6. **Handler routing:** Update `api/handler.py` to route `/api/links` instead of `/api/items`
 7. **Tests:** Update `tests/test_api_items.py` → `tests/test_api_links.py`
 
@@ -159,52 +174,54 @@ cp lambdas/daily-job/handler.py lambdas/my-worker/handler.py
 Then add to `cdk/lib/yourapp-stack.ts`:
 ```typescript
 const myWorkerFn = new lambda.Function(this, 'MyWorkerFunction', {
-  functionName: 'yourapp-my-worker',
-  runtime: lambda.Runtime.PYTHON_3_12,
-  architecture: lambda.Architecture.ARM_64,
+  ...lambdaDefaults,
+  functionName: `${prefix}-my-worker`,          // yourapp-my-worker / yourapp-test-my-worker
   handler: 'handler.handler',
-  code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/my-worker')),
+  code: lambdaAsset('my-worker'),               // build/my-worker, from scripts/bundle-lambdas.sh
   timeout: cdk.Duration.minutes(5),
   memorySize: 256,
   logGroup: makeLogGroup('my-worker'),
   environment: {
     TABLE_NAME: mainTable.tableName,
     FROM_EMAIL: `noreply@${domainName}`,
+    STAGE: stage,
   },
 });
 mainTable.grantReadWriteData(myWorkerFn);
 
 new events.Rule(this, 'MyWorkerRule', {
+  ruleName: `${prefix}-my-worker`,
   schedule: events.Schedule.cron({ minute: '0', hour: '10' }),
   targets: [new eventsTargets.LambdaFunction(myWorkerFn)],
 });
 ```
 
+Put packages beyond boto3 in `lambdas/my-worker/requirements.txt`; the bundle script installs them. `STAGE=test scripts/deploy-lambdas.sh my-worker` updates just its code.
+
 ### Modify plan tiers
 
-Edit `api/lib/db.py`:
+Item limits per plan are admin-editable (admin panel → Plan Limits) and enforced by the API. Change the defaults for a fresh install in `api/lib/config.py`:
 ```python
-ITEM_LIMITS = {
-  "free": 10,      # Free plan
-  "starter": 100,  # Starter plan
-  "pro": float("inf"),  # Pro plan (unlimited)
-}
+DEFAULT_PLAN_LIMITS = {"free": 10, "starter": 100, "pro": None}  # None = unlimited
 ```
 
-Update pricing display in `frontend/src/pages/LandingPage.tsx` and the Stripe price IDs in `.env`.
+The frontend reads limits from the API; update prices and plan copy in `frontend/src/pages/LandingPage.tsx` and `frontend/src/pages/dashboard/SettingsPage.tsx`, and the Stripe price IDs on the admin Billing page.
 
 ## Running Tests
 
 ```bash
-python -m pytest tests/ -v
+python3 -m venv .venv
+.venv/bin/pip install -r api/requirements.txt
+.venv/bin/pip install -r tests/requirements-test.txt
+.venv/bin/python -m pytest tests/ -v
 ```
 
 All AWS services are mocked via [moto](https://github.com/getmoto/moto). No real AWS calls during tests.
 
 Run specific tests:
 ```bash
-python -m pytest tests/test_api_items.py -v
-python -m pytest tests/test_api_items.py::TestCreateItem::test_create_item -v
+.venv/bin/python -m pytest tests/test_api_items.py -v
+.venv/bin/python -m pytest tests/test_api_items.py::TestCreateItem::test_create_item -v
 ```
 
 ## Cost Estimate
