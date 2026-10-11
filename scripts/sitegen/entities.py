@@ -138,8 +138,7 @@ def _values_tree(e: Entity) -> dict:
 def site_tree(e: Entity) -> dict:
     one, many = humanize(e.name).lower(), humanize(e.Plural).lower()
     t = {"one": e.label, "many": e.labels, "count_one": f"{{{{count}}}} {one}", "count_other": f"{{{{count}}}} {many}",
-         "search": f"Search {many}", "empty": f"No {many} found.", "notFound": f"We couldn't find that {one}.",
-         "back": f"All {many}"}
+         "search": f"Search {many}", "empty": f"No {many} found.", "related": "Related"}
     if e.user_writes:
         t.update({"mine": f"My {many}", "new": f"New {one}", "edit": f"Edit {one}", "create": f"Create {one}",
                   "save": "Save changes", "delete": f"Delete {one}", "confirmDelete": f"Delete this {one}? This can't be undone."})

@@ -136,7 +136,9 @@ def test_entities_generated(site):
     assert "adminEntityRecipes.tab" in read(site, "admin/src/tabs/entities.gen.ts")
     texts = json.loads(read(site, "packages/shared/src/locales/en/entity-recipes.json"))["entityRecipes"]
     assert texts["fields"]["publishedAt"] == "Published at" and texts["values"]["difficulty"]["easy"] == "Easy"
-    assert "font-display" in read(site, "frontend/src/entities/recipes/RecipesListPage.tsx")
+    # generated pages are built on the archetypes (which carry font-display and the design tokens)
+    assert "/shared/archetypes'" in read(site, "frontend/src/entities/recipes/RecipesListPage.tsx")
+    assert "<Detail" in read(site, "frontend/src/entities/recipes/RecipeDetailPage.tsx")
 
 
 def test_new_entity_keeps_hand_edits(site):

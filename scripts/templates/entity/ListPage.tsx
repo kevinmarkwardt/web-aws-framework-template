@@ -1,14 +1,14 @@
-// __Entities__: the list page (search, filters, sort, pages; the state lives in the URL so a filtered list can be shared).
-// mine: the signed-in user's own __plural__ (owner user|both). Texts: locales/{lang}/entity-__plural__.json (__area__).
-// #if userWrites
-import { Link, useSearchParams } from 'react-router-dom';
-// #else
+// __Entities__: the list page, on the Browse archetype (search, filters, sort, grid/list, pages; the state lives in the
+// URL so a filtered list can be shared). Change the layout with Browse's props (filtersAt, columns, view) or the card
+// with EntityCard's (layout, imageRatio): the design direction picks them. mine: the signed-in user's own __plural__
+// (owner user|both). Texts: locales/{lang}/entity-__plural__.json (__area__).
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-// #endif
-import { Empty, FieldValue, ListToolbar, Loading, Notice, Pager, useLoad, useTranslation } from '@yourapp/shared';
-import type { ToolbarFilter } from '@yourapp/shared';
-import { __contract__, isSortable } from '@yourapp/shared/contracts';
-import { EntityCard, RefLink } from '../components';
+import { FieldValue, useLoad, useTranslation } from '@yourapp/shared';
+import { Browse, EntityCard, EntityRow } from '@yourapp/shared/archetypes';
+import type { BrowseView } from '@yourapp/shared/archetypes';
+import { __contract__, isSortable, titleOf } from '@yourapp/shared/contracts';
+import { RefLink } from '../components';
 import { entityHref } from '../paths';
 import { __Shell__ as Shell } from '../shell';
 import { __entities__Api } from './api';
@@ -19,10 +19,12 @@ const CARD_FIELDS = __contract__.fields
   .slice(0, 2);
 const FILTERS = __contract__.fields.filter((f) => f.type === 'enum' || f.type === 'bool');
 const SORTS = __contract__.fields.filter(isSortable);
+const IMAGE = __contract__.imageField;
 
 export default function __Entities__ListPage({ mine = false }: { mine?: boolean }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
+  const [view, setView] = useState<BrowseView>('grid');
   const q = params.get('q') ?? '';
   const sort = params.get('sort') ?? '';
   const page = Math.max(1, Number(params.get('page')) || 1);
@@ -40,60 +42,51 @@ export default function __Entities__ListPage({ mine = false }: { mine?: boolean 
     if (!('page' in changes)) next.delete('page');
     setParams(next);
   };
-  const toolbarFilters: ToolbarFilter[] = FILTERS.map((f) => ({
-    field: f.name, label: field(f.name), value: filters[f.name],
-    options: f.type === 'bool' ? [['true', t('common.list.yes')], ['false', t('common.list.no')]] : (f.values ?? []).map((v) => [v, value(f.name, v)]),
+  const meta = (r: Record<string, unknown>) => CARD_FIELDS.map((f) => ({
+    label: field(f.name),
+    value: <FieldValue field={f} value={r[f.name]} valueLabel={(v) => value(f.name, v)}
+      renderRef={(id) => <RefLink entity={f.ref ?? ''} id={id} plain />} />,
   }));
-  const filtered = !!(q || sort || Object.values(filters).some(Boolean));
 
   return (
     <Shell>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          {/* #if userWrites */}
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">{mine ? t('__area__.mine') : t('__area__.many')}</h1>
-          {/* #else */}
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">{t('__area__.many')}</h1>
-          {/* #endif */}
-          {data && <p className="mt-1 text-sm text-muted">{t('__area__.count', { count: data.total })}</p>}
-        </div>
-        {/* #if userWrites */}
-        {mine && (
-          <Link to={entityHref('__Entity__', 'create')} className="rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-700">
-            {t('__area__.new')}
-          </Link>
+      <Browse
+        // #if userWrites
+        title={mine ? t('__area__.mine') : t('__area__.many')}
+        // #else
+        title={t('__area__.many')}
+        // #endif
+        subtitle={data ? t('__area__.count', { count: data.total }) : undefined}
+        query={q} onQuery={(v) => set({ q: v })} searchPlaceholder={t('__area__.search')}
+        filters={FILTERS.map((f) => ({
+          id: f.name,
+          label: field(f.name),
+          value: filters[f.name] ? [filters[f.name]] : [],
+          onChange: (v: string[]) => set({ [f.name]: v[0] ?? '' }),
+          options: f.type === 'bool'
+            ? [{ value: 'true', label: t('common.list.yes') }, { value: 'false', label: t('common.list.no') }]
+            : (f.values ?? []).map((v) => ({ value: v, label: value(f.name, v) })),
+        }))}
+        sort={sort} onSort={(s) => set({ sort: s })}
+        sortOptions={SORTS.length ? [{ value: '', label: t('common.list.newest') }, ...SORTS.map((f) => ({ value: f.name, label: field(f.name) }))] : []}
+        view={view} onView={setView}
+        items={data?.items ?? []} itemKey={(r) => r.id}
+        renderCard={(r) => (
+          <EntityCard href={entityHref('__Entity__', 'detail', r.id)} title={titleOf(__contract__, r)}
+            image={IMAGE ? (r[IMAGE] as string | null) : undefined} meta={meta(r)} layout={IMAGE ? 'stacked' : 'text'} />
         )}
-        {/* #endif */}
-      </div>
-
-      <ListToolbar q={q} onSearch={(v) => set({ q: v })} placeholder={t('__area__.search')}
-        sort={sort} onSort={(s) => set({ sort: s })} sortFields={SORTS.map((f) => [f.name, field(f.name)])}
-        filters={toolbarFilters} onFilter={(f, v) => set({ [f]: v })}
-        onClear={filtered ? () => setParams(new URLSearchParams()) : undefined} />
-
-      <div className="mt-6">
-        {error && <Notice tone="danger">{error}</Notice>}
-        {!data && !error && <Loading />}
-        {data && data.items.length === 0 && <Empty>{t('__area__.empty')}</Empty>}
-        {data && data.items.length > 0 && (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {data.items.map((r) => (
-              <EntityCard key={r.id} contract={__contract__} record={r} to={entityHref('__Entity__', 'detail', r.id)}
-                details={CARD_FIELDS.length > 0 && (
-                  <span className="flex flex-wrap gap-x-3 gap-y-1">
-                    {CARD_FIELDS.map((f) => (
-                      <span key={f.name}>
-                        <FieldValue field={f} value={r[f.name]} valueLabel={(v) => value(f.name, v)}
-                          renderRef={(id) => <RefLink entity={f.ref ?? ''} id={id} plain />} />
-                      </span>
-                    ))}
-                  </span>
-                )} />
-            ))}
-          </div>
+        renderRow={(r) => (
+          <EntityRow href={entityHref('__Entity__', 'detail', r.id)} title={titleOf(__contract__, r)}
+            image={IMAGE ? (r[IMAGE] as string | null) : undefined} meta={meta(r)} />
         )}
-        {data && <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={(p) => set({ page: String(p) })} />}
-      </div>
+        total={data?.total} page={data?.page ?? page} pageSize={data?.pageSize} onPage={(p) => set({ page: String(p) })}
+        loading={!data && !error} error={error ?? undefined}
+        // #if userWrites
+        empty={{ title: t('__area__.empty'), action: mine ? { label: t('__area__.new'), href: entityHref('__Entity__', 'create') } : undefined }}
+        // #else
+        empty={{ title: t('__area__.empty') }}
+        // #endif
+      />
     </Shell>
   );
 }
