@@ -10,8 +10,12 @@ interface ImportMetaEnv {
   readonly VITE_TEST_LOGIN?: string;
   /** The user site: the admin site's URL, for the Admin link admins see */
   readonly VITE_ADMIN_URL?: string;
-  /** The admin site: the user site's URL */
+  /** The user site's URL (the admin site's "Open the site" link; the user site's sitemap.xml and robots.txt) */
   readonly VITE_SITE_URL?: string;
+  /** The user site's Google tags (frontend/site-plugins.ts): GA4 measurement id, AdSense client, consent regions */
+  readonly VITE_GA4_ID?: string;
+  readonly VITE_ADSENSE_CLIENT?: string;
+  readonly VITE_CONSENT_REGIONS?: string;
 }
 
 interface ImportMeta {

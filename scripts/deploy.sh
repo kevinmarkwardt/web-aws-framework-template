@@ -59,7 +59,7 @@ if [ "$MODE" != --infra-only ]; then
     echo "VITE_USER_POOL_ID=$POOL"
     echo "VITE_CLIENT_ID=$CLIENT"
   }
-  { common_env; [ "$STAGE" != test ] || echo "VITE_TEST_LOGIN=1"; echo "VITE_ADMIN_URL=$ADMIN_URL"; } \
+  { common_env; [ "$STAGE" != test ] || echo "VITE_TEST_LOGIN=1"; echo "VITE_ADMIN_URL=$ADMIN_URL"; echo "VITE_SITE_URL=$SITE_URL"; } \
     > "$ROOT/frontend/.env.production.local"
   { common_env; echo "VITE_SITE_URL=$SITE_URL"; } > "$ROOT/admin/.env.production.local"
 
