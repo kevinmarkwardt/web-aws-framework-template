@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect, useContext } from 'react';
+import { currentLanguage, languageChosen, LANGUAGE_CODES, switchLanguage, useTranslation } from '@yourapp/shared';
 import { getUser, logout } from './auth';
 import { AuthContext } from './auth-context';
 import type { User } from './types';
 import { ApiError, fetchAccount } from './api';
 
 import LandingPage from './pages/LandingPage';
+import LegalPage from './pages/LegalPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import VerifyPage from './pages/auth/VerifyPage';
@@ -19,6 +21,7 @@ import WalletPage from './pages/dashboard/WalletPage';
 import SupportPage from './pages/dashboard/SupportPage';
 
 function NoticePage({ message }: { message: string }) {
+  const { t } = useTranslation();
   const signOut = async () => {
     await logout().catch(() => {});
     window.location.assign('/');
@@ -27,7 +30,7 @@ function NoticePage({ message }: { message: string }) {
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
       <p className="text-lg text-gray-900">{message}</p>
       <button onClick={signOut} className="text-sm font-medium text-brand-600 hover:text-brand-500">
-        Sign out
+        {t('app.signOut')}
       </button>
     </div>
   );
@@ -35,9 +38,10 @@ function NoticePage({ message }: { message: string }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, notice } = useContext(AuthContext);
+  const { t } = useTranslation();
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen" aria-label={t('common.loading')}>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
@@ -58,6 +62,12 @@ async function loadAccount(): Promise<{ account: User | null; notice: string | n
   }
 }
 
+/** On a device where the visitor hasn't picked a language, the one saved on their profile wins (Settings). */
+function adoptProfileLanguage(account: User | null) {
+  const lang = account?.language;
+  if (lang && !languageChosen() && LANGUAGE_CODES.includes(lang) && lang !== currentLanguage()) switchLanguage(lang);
+}
+
 function UserApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +81,7 @@ function UserApp() {
 
   useEffect(() => {
     loadAccount().then((r) => {
+      adoptProfileLanguage(r.account);
       setUser(r.account);
       setNotice(r.notice);
       setLoading(false);
@@ -81,6 +92,8 @@ function UserApp() {
     <AuthContext.Provider value={{ user, loading, notice, refresh }}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/terms" element={<LegalPage doc="terms" />} />
+        <Route path="/privacy" element={<LegalPage doc="privacy" />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify" element={<VerifyPage />} />

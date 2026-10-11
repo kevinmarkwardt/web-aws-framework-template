@@ -174,11 +174,6 @@ def create_test_user(dynamodb_table):
             "createdAt": created_at,
             "listPk": "USER",
             **extra,
-            "settings": {
-                "alertsEnabled": True,
-                "digestEnabled": True,
-                "remindersEnabled": True,
-            },
         }
         # Only set Stripe IDs when non-empty (empty strings invalid for GSI keys)
         if stripe_customer_id:

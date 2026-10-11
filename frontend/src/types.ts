@@ -5,10 +5,18 @@ export type Plan = string;
 
 export type { AccountStatus, BillingMode };
 
-export interface UserSettings {
-  alertsEnabled: boolean;
-  digestEnabled: boolean;
-  remindersEnabled: boolean;
+/** Email switches (api/lib/prefs.NOTIFICATIONS); the Settings page's Notifications tab. */
+export interface Notifications {
+  emailSupport: boolean;
+  emailBilling: boolean;
+  emailNews: boolean;
+}
+
+/** PUT /api/account/settings: any of these; the API refuses unknown keys. */
+export interface SettingsUpdate {
+  name?: string;
+  language?: string;
+  notifications?: Partial<Notifications>;
 }
 
 export interface AutoReload {
@@ -40,12 +48,16 @@ export interface User {
   /** Every plan's item limit (null = unlimited), for the plan picker. */
   planLimits: Record<Plan, number | null>;
   createdAt?: string;
-  settings: UserSettings;
+  /** The profile's language (emails and alerts use it); one of packages/shared/src/i18n/languages.ts */
+  language: string;
+  notifications: Notifications;
   isAdmin?: boolean;
   status: AccountStatus;
   bannedUntil?: string | null;
   statusReason?: string | null;
   activeWarnings?: number;
+  /** config.ACCOUNT_RULES: the active warning that makes the account read-only */
+  warningsToBan?: number;
   billingMode: BillingMode;
   subscription?: SubscriptionState;
   // credits mode only

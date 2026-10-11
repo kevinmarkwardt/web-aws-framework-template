@@ -1,18 +1,17 @@
 """Account routes.
 
   GET  /api/account                     the profile (created on the first call), plan, standing, balance when credits are on
-  PUT  /api/account/name {name}
-  PUT  /api/account/settings {...}
+  PUT  /api/account/settings {name?, language?, notifications?: {key: bool}}   validated (lib/prefs.py); unknown keys -> 400
   GET  /api/account/notes               account alerts for the user menu (api/lib/notes.py)
   POST /api/account/notes/dismiss {id}
   POST /api/account/referral {code}     a new account records who invited it (credits mode, referrals on)
 """
 
 try:
-    from lib import accounts, autoreload, config, credits, db, notes, params, response, subscriptions
+    from lib import accounts, autoreload, config, credits, db, i18n, notes, params, prefs, response, subscriptions
     from lib.auth import get_token_claims
 except ImportError:
-    from api.lib import accounts, autoreload, config, credits, db, notes, params, response, subscriptions
+    from api.lib import accounts, autoreload, config, credits, db, i18n, notes, params, prefs, response, subscriptions
     from api.lib.auth import get_token_claims
 
 
@@ -27,6 +26,11 @@ def get_account(user_id: str, event: dict) -> dict:
         claims = get_token_claims(event)
         user = db.create_user(user_id, claims.get("email", ""), claims.get("name", ""))
 
+    # The profile's language (emails and alerts use it) starts as the site's language; the Settings page changes it.
+    if not user.get("language") and (lang := i18n.sent_language(event)):
+        prefs.save(user_id, {"language": lang})
+        user["language"] = lang
+
     if config.credits_on():  # the optional earning hooks (config.BILLING): each runs once, whatever the retries
         if "paidCredits" not in user:  # a new account (or one from before credits were on)
             credits.signup_gift(user_id)
@@ -39,16 +43,16 @@ def get_account(user_id: str, event: dict) -> dict:
     out = {
         "userId": user.get("userId"),
         "email": user.get("email"),
-        "name": user.get("name", ""),
         "plan": plan,  # the plan in effect (free after a failed renewal's grace period)
         "itemCount": user.get("itemCount", 0),
         "itemLimit": limits.get(plan, limits["free"]),  # None = unlimited
         "planLimits": limits,  # every plan's limit (the plan picker), from the admin config
         "createdAt": user.get("createdAt"),
-        "settings": user.get("settings", {}),
+        **prefs.view(user),  # name, language, notifications
         "isAdmin": user.get("isAdmin") is True,  # shows the Admin link; the admin API re-checks it on every call
         **accounts.standing(user),
         "activeWarnings": accounts.active_warnings(user_id),
+        "warningsToBan": int(config.ACCOUNT_RULES["warningsToBan"]),  # the banner: how many more make it read-only
         "billingMode": config.billing_mode(),
     }
     if config.subscriptions_on():
@@ -59,37 +63,18 @@ def get_account(user_id: str, event: dict) -> dict:
     return response.ok(out)
 
 
-def update_name(user_id: str, event: dict) -> dict:
-    body = params.body(event)
-    name = params.text(body, "name").strip()
-    if not name:
-        return response.error("Name cannot be empty.")
-    if len(name) > 100:
-        return response.error("Name must be 100 characters or less.")
-
-    user = db.get_user(user_id)
-    if not user:
-        return response.error("User not found", 404)
-
-    db.update_user_name(user_id, name)
-    return response.ok({"name": name})
-
-
 def update_settings(user_id: str, event: dict) -> dict:
+    """The Settings page: name, language and email notifications, all checked (lib/prefs.py). Allowed while banned:
+    they are the user's own preferences, not the app's records."""
     user = db.get_user(user_id)
     if not user:
         return response.error("User not found", 404)
-
-    body = params.body(event)
-    current = user.get("settings", {})
-
-    allowed = {"alertsEnabled", "digestEnabled", "remindersEnabled"}
-    for key in allowed:
-        if key in body:
-            current[key] = bool(body[key])
-
-    db.update_user_settings(user_id, current)
-    return response.ok({"settings": current})
+    try:
+        fields = prefs.validate(params.body(event), user)
+    except prefs.Invalid as e:
+        return response.error(i18n.message_of(e), 400)
+    prefs.save(user_id, fields)
+    return response.ok(prefs.view({**user, **fields}))
 
 
 def list_notes(user_id: str, event: dict) -> dict:
@@ -108,5 +93,5 @@ def set_referral(user_id: str, event: dict) -> dict:
     if not credits.referrals_on():
         return response.not_found("No route: POST /api/account/referral")
     code = params.text(params.body(event), "code").strip()
-    why = credits.set_referrer(user_id, code) if code else "Missing invite code"
+    why = credits.set_referrer(user_id, code) if code else i18n.Text("Missing invite code")
     return response.error(why, 400) if why else response.ok({"referred": True})

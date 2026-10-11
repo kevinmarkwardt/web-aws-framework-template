@@ -145,35 +145,12 @@ def create_user(user_id: str, email: str, name: str = "") -> dict:
         "itemCount": 0,
         "createdAt": now,
         "listPk": "USER",  # list-index: the admin Users tab
-        "settings": {
-            "alertsEnabled": True,
-            "digestEnabled": True,
-            "remindersEnabled": True,
-        },
+        # language and notifications are added by the Settings page (lib/prefs.py; defaults until then)
     }
     # Don't set stripeCustomerId/stripeSubscriptionId — they're set during plan upgrade.
     # Empty strings are invalid for GSI key attributes.
     table.put_item(Item=item)
     return item
-
-
-def update_user_name(user_id: str, name: str):
-    table = _get_table()
-    table.update_item(
-        Key={"pk": f"USER#{user_id}", "sk": "PROFILE"},
-        UpdateExpression="SET #n = :n",
-        ExpressionAttributeNames={"#n": "name"},
-        ExpressionAttributeValues={":n": name},
-    )
-
-
-def update_user_settings(user_id: str, settings: dict):
-    table = _get_table()
-    table.update_item(
-        Key={"pk": f"USER#{user_id}", "sk": "PROFILE"},
-        UpdateExpression="SET settings = :s",
-        ExpressionAttributeValues={":s": settings},
-    )
 
 
 def increment_item_count(user_id: str, delta: int = 1):

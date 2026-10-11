@@ -1,17 +1,17 @@
-import { ApiError, createApiClient, post } from '@yourapp/shared';
+import { ApiError, createApiClient, i18n, post, put } from '@yourapp/shared';
 import { getToken, MOCK_AUTH, mockUsername } from './auth';
 import type {
   AccountNote, AutoReload, ChargeResult, CreateItemRequest, Item, Plan, PublicConfig, RefundRow, SavedCard,
-  SupportRequest, UpdateItemRequest, User, UserSettings, Wallet,
+  Notifications, SettingsUpdate, SupportRequest, UpdateItemRequest, User, Wallet,
 } from './types';
 
 export { ApiError };
 
 /** Public, no sign-in: switches, plan limits and the billing modules that are on (GET /api/public-config). */
 export async function fetchPublicConfig(): Promise<PublicConfig> {
-  if (MOCK_AUTH) throw new ApiError('No API in MOCK_AUTH', 503);  // pages fall back to their defaults
+  if (MOCK_AUTH) throw new ApiError('No API in MOCK_AUTH', 503);  // pages fall back to their defaults (never shown)
   const res = await fetch('/api/public-config');
-  if (!res.ok) throw new ApiError(`Request failed (${res.status})`, res.status);
+  if (!res.ok) throw new ApiError(i18n.t('common.errors.requestFailed', { status: res.status }), res.status);
   return res.json();
 }
 
@@ -45,19 +45,27 @@ export const deleteItem = (itemId: string) =>
 // Account
 /** MOCK_AUTH (local dev, no backend): a made-up free account so the signed-in pages render. Other calls (billing)
  *  still go to /api and fail; use scripts/local-test.sh to run against a deployed stage. */
+let mockSettings: { name?: string; language: string; notifications: Notifications } = {
+  language: 'en',
+  notifications: { emailSupport: true, emailBilling: true, emailNews: false },
+};
+
 function mockAccount(): User {
   const email = mockUsername() || 'dev@localhost';
   return {
     userId: 'mock-user',
     email,
-    name: email.split('@')[0],
+    name: mockSettings.name ?? email.split('@')[0],
     plan: 'free',
     itemCount: 0,
     itemLimit: 10,
     planLimits: { free: 10, starter: 100, pro: null },  // mock data only; real limits come from the API
-    settings: { alertsEnabled: true, digestEnabled: true, remindersEnabled: true },
+    language: mockSettings.language,
+    notifications: mockSettings.notifications,
     isAdmin: true,  // shows the Admin link (the local admin site: cd admin && npm run dev)
     status: 'active',
+    activeWarnings: 0,
+    warningsToBan: 3,
     billingMode: 'both',
     credits: 0,
     paidCredits: 0,
@@ -66,9 +74,17 @@ function mockAccount(): User {
   };
 }
 
-/** MOCK_AUTH answers for the GETs the signed-in pages make on load (undefined: use the network). */
+/** MOCK_AUTH answers for the GETs the signed-in pages make on load, and the Settings page's saves (undefined: use the
+ *  network). */
 function mockApi(path: string, init: RequestInit): Promise<unknown> | undefined {
-  if (!MOCK_AUTH || (init.method && init.method !== 'GET')) return undefined;
+  if (!MOCK_AUTH) return undefined;
+  if (path === '/account/settings' && init.method === 'PUT') {
+    const body = JSON.parse(String(init.body)) as SettingsUpdate;
+    mockSettings = { ...mockSettings, ...body, notifications: { ...mockSettings.notifications, ...body.notifications } };
+    const { name, language, notifications } = mockAccount();
+    return Promise.resolve({ name, language, notifications });
+  }
+  if (init.method && init.method !== 'GET') return undefined;
   const answers: Record<string, () => unknown> = {
     '/account': mockAccount,
     '/account/notes': () => ({ notes: [] as AccountNote[] }),
@@ -80,17 +96,9 @@ function mockApi(path: string, init: RequestInit): Promise<unknown> | undefined 
 
 export const fetchAccount = () => apiFetch<User>('/account');
 
-export const updateSettings = (settings: Partial<UserSettings>) =>
-  apiFetch<User>('/account/settings', {
-    method: 'PUT',
-    body: JSON.stringify(settings),
-  });
-
-export const updateName = (name: string) =>
-  apiFetch<{ name: string }>('/account/name', {
-    method: 'PUT',
-    body: JSON.stringify({ name }),
-  });
+/** Name, language and email notifications (validated by the API: api/lib/prefs.py). */
+export const updateSettings = (settings: SettingsUpdate) =>
+  apiFetch<{ name: string; language: string; notifications: Notifications }>('/account/settings', put(settings));
 
 // Account alerts (user menu)
 export const fetchNotes = () => apiFetch<{ notes: AccountNote[] }>('/account/notes');
