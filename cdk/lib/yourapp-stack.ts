@@ -42,6 +42,15 @@ export class YourAppStack extends cdk.Stack {
     const disposable = isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
     // Runtime secrets, read by name; each stage's API can read only its own (yourapp/{stage}/*).
     const secretPrefix = `yourapp/${stage}`;
+    // Billing modules (cdk.json context billingMode, or -c billingMode=...): none | subscriptions | credits | both.
+    // The API reads it as BILLING_MODE; routes of a module that is off answer 404 (docs/payments.md).
+    const billingMode = String(this.node.tryGetContext('billingMode') ?? 'both');
+    if (!['none', 'subscriptions', 'credits', 'both'].includes(billingMode)) {
+      throw new Error(`context billingMode must be none, subscriptions, credits or both, not "${billingMode}"`);
+    }
+    const creditsOn = billingMode === 'credits' || billingMode === 'both';
+    // Where disputes, failed refunds and banned-card alerts go (api/lib/mail.py to_admin); empty = no admin email.
+    const adminEmail = String(this.node.tryGetContext('adminEmail') ?? '');
 
     // ========================================================================
     // Route53 Hosted Zone (lookup existing)
@@ -224,6 +233,8 @@ export class YourAppStack extends cdk.Stack {
         FRONTEND_URL: `https://${siteDomain}`,
         SES_FROM_EMAIL: `noreply@${domainName}`,
         ORIGIN_VERIFY: originVerify,
+        BILLING_MODE: billingMode,
+        ADMIN_EMAIL: adminEmail,
         // Secrets are read at runtime by name; the values never live in code, env vars or the repo.
         STRIPE_SECRET_NAME: `${secretPrefix}/stripe`,
         ADMIN_SECRET_NAME: `${secretPrefix}/admin-credentials`,
@@ -243,7 +254,22 @@ export class YourAppStack extends cdk.Stack {
       },
     });
 
-    // NOTE: Stripe webhooks are handled by the API handler at /api/webhooks/stripe.
+    // NOTE: Stripe webhooks are handled by the API handler at /api/webhooks/stripe (api/routes/webhooks.py).
+
+    // Card refunds Stripe hasn't confirmed yet (a refund request that died half way) are settled every 15 minutes by
+    // payments.sweep_pending, not only when that customer next opens the wallet. The API recognises exactly this event
+    // (handler._is_payments_sweep); a Function URL request can't produce its top-level keys. Credits modes only.
+    if (creditsOn) {
+      new events.Rule(this, 'PaymentsSweep', {
+        ruleName: `${prefix}-payments-sweep`,
+        schedule: events.Schedule.rate(cdk.Duration.minutes(15)),
+        targets: [new eventsTargets.LambdaFunction(apiHandler, {
+          event: events.RuleTargetInput.fromObject({
+            source: events.EventField.source, 'detail-type': events.EventField.detailType, app_task: 'payments-sweep',
+          }),
+        })],
+      });
+    }
 
     // ========================================================================
     // IAM Permissions
@@ -270,6 +296,17 @@ export class YourAppStack extends cdk.Stack {
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['ses:GetSendStatistics', 'ses:GetSendQuota'],
       resources: ['*'],
+    }));
+    // Account and admin email (api/lib/mail.py), only as noreply@ the domain. Email-address identities stay in the list
+    // because in the SES sandbox IAM also checks each (verified) recipient; the From condition still stops sending as
+    // them. (ses:FromAddress is the bare address; the second form is a fallback for "Name <address>".)
+    apiHandler.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ses:SendEmail'],
+      resources: [
+        `arn:aws:ses:${this.region}:${this.account}:identity/${domainName}`,
+        `arn:aws:ses:${this.region}:${this.account}:identity/*@*`,
+      ],
+      conditions: { StringLike: { 'ses:FromAddress': [`noreply@${domainName}`, `*<noreply@${domainName}>`] } },
     }));
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:DescribeTable'],
@@ -431,5 +468,6 @@ function handler(event) {
     output('DomainName', siteDomain, 'Site domain name');
     output('AdminDomain', adminDomain, 'Admin site domain name');
     output('SecretPrefix', secretPrefix, 'Secrets Manager prefix this stage reads');
+    output('BillingMode', billingMode, 'Billing modules on (none | subscriptions | credits | both)');
   }
 }
