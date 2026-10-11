@@ -1,10 +1,18 @@
-"""Account routes."""
+"""Account routes.
+
+  GET  /api/account                     the profile (created on the first call), plan, standing, balance when credits are on
+  PUT  /api/account/name {name}
+  PUT  /api/account/settings {...}
+  GET  /api/account/notes               account alerts for the user menu (api/lib/notes.py)
+  POST /api/account/notes/dismiss {id}
+  POST /api/account/referral {code}     a new account records who invited it (credits mode, referrals on)
+"""
 
 try:
-    from lib import config, db, params, response
+    from lib import accounts, autoreload, config, credits, db, notes, params, response, subscriptions
     from lib.auth import get_token_claims
 except ImportError:
-    from api.lib import config, db, params, response
+    from api.lib import accounts, autoreload, config, credits, db, notes, params, response, subscriptions
     from api.lib.auth import get_token_claims
 
 
@@ -17,23 +25,38 @@ def get_account(user_id: str, event: dict) -> dict:
             return response.error("New sign-ups are closed right now. Please try again later.", 403, "SIGNUPS_CLOSED")
         # Email and name come from the Bearer token (Function URLs don't populate requestContext.authorizer)
         claims = get_token_claims(event)
-        email = claims.get("email", "")
-        name = claims.get("name", "")
-        user = db.create_user(user_id, email, name)
+        user = db.create_user(user_id, claims.get("email", ""), claims.get("name", ""))
 
-    plan = user.get("plan", "free")
+    if config.credits_on():  # the optional earning hooks (config.BILLING): each runs once, whatever the retries
+        if "paidCredits" not in user:  # a new account (or one from before credits were on)
+            credits.signup_gift(user_id)
+        credits.daily_bonus(user_id, user)
+        credits.release_due(user_id)
+        user = db.get_user(user_id) or user
+
+    plan = subscriptions.effective_plan(user)
     limits = config.plan_limits()
-    return response.ok({
+    out = {
         "userId": user.get("userId"),
         "email": user.get("email"),
         "name": user.get("name", ""),
-        "plan": plan,
+        "plan": plan,  # the plan in effect (free after a failed renewal's grace period)
         "itemCount": user.get("itemCount", 0),
         "itemLimit": limits.get(plan, limits["free"]),  # None = unlimited
         "planLimits": limits,  # every plan's limit (the plan picker), from the admin config
         "createdAt": user.get("createdAt"),
         "settings": user.get("settings", {}),
-    })
+        "isAdmin": user.get("isAdmin") is True,  # shows the Admin link; the admin API re-checks it on every call
+        **accounts.standing(user),
+        "activeWarnings": accounts.active_warnings(user_id),
+        "billingMode": config.billing_mode(),
+    }
+    if config.subscriptions_on():
+        out["subscription"] = subscriptions.state(user)
+    if config.credits_on():
+        out.update(credits.balance(user), creditName=credits.unit_name(), autoReload=autoreload.settings(user),
+                   hasToppedUp=bool(user.get("hasToppedUp")))
+    return response.ok(out)
 
 
 def update_name(user_id: str, event: dict) -> dict:
@@ -67,3 +90,23 @@ def update_settings(user_id: str, event: dict) -> dict:
 
     db.update_user_settings(user_id, current)
     return response.ok({"settings": current})
+
+
+def list_notes(user_id: str, event: dict) -> dict:
+    return response.ok({"notes": notes.visible(user_id)})
+
+
+def dismiss_note(user_id: str, event: dict) -> dict:
+    note_id = params.text(params.body(event), "id")
+    if not notes.dismiss(user_id, note_id):
+        return response.not_found("Alert not found")
+    return response.ok({"dismissed": True})
+
+
+def set_referral(user_id: str, event: dict) -> dict:
+    """A new account records who invited it (rewards on hold after its first top-up; credits.pay_referral)."""
+    if not credits.referrals_on():
+        return response.not_found("No route: POST /api/account/referral")
+    code = params.text(params.body(event), "code").strip()
+    why = credits.set_referrer(user_id, code) if code else "Missing invite code"
+    return response.error(why, 400) if why else response.ok({"referred": True})

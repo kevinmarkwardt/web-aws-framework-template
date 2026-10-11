@@ -9,7 +9,7 @@ import pytest
 
 import api.handler as handler
 from api.lib import config
-from api.routes import account, admin, items, billing
+from api.routes import account, admin, items, billing, webhooks
 from tests.conftest import make_api_event
 
 
@@ -98,8 +98,7 @@ class TestPlanLimits:
         resp = items.create_item("user-123", make_api_event("POST", "/api/items", {"name": "more"}))
         assert resp["statusCode"] == 201
 
-    @patch("api.routes.billing._ensure_stripe_key")
-    def test_cancel_checks_the_configured_free_limit(self, _key, dynamodb_table, create_test_user):
+    def test_cancel_checks_the_configured_free_limit(self, dynamodb_table, create_test_user):
         config.save_site_config({"planLimits": {"free": 1}})
         create_test_user(plan="starter", item_count=2)
         resp = billing.cancel_plan("user-123", make_api_event("POST", "/api/billing/cancel"))
@@ -115,8 +114,10 @@ class TestPlanLimits:
 
     def test_public_config_shows_the_limits(self, dynamodb_table):
         body = _json(_call("GET", "/api/public-config"))
-        assert body == {"maintenanceMode": False, "signupsEnabled": True,
-                        "planLimits": {"free": 10, "starter": 100, "pro": None}}
+        assert {k: body[k] for k in ("maintenanceMode", "signupsEnabled", "planLimits", "billingMode")} == {
+            "maintenanceMode": False, "signupsEnabled": True, "planLimits": {"free": 10, "starter": 100, "pro": None},
+            "billingMode": "both"}
+        assert [(p["id"], p["limits"]["items"]) for p in body["plans"]] == [("free", 10), ("starter", 100), ("pro", None)]
 
 
 class TestMaintenanceMode:
@@ -132,9 +133,9 @@ class TestMaintenanceMode:
         _store(dynamodb_table, maintenanceMode=True)
         assert _call("GET", "/api/admin/config")["statusCode"] == 200
         assert _json(_call("GET", "/api/public-config"))["maintenanceMode"] is True
-        for mod in (billing, sys.modules.get("routes.billing")):
+        for mod in (webhooks, sys.modules.get("routes.webhooks")):
             if mod:
-                monkeypatch.setattr(mod, "handle_webhook", lambda event: {"statusCode": 200, "body": "{}"})
+                monkeypatch.setattr(mod, "handle", lambda event: {"statusCode": 200, "body": "{}"})
         assert _call("POST", "/api/webhooks/stripe", "{}")["statusCode"] == 200
 
     def test_off_by_default(self, dynamodb_table, create_test_user, signed_in):

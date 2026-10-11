@@ -9,9 +9,9 @@ from __future__ import annotations
 import ulid
 
 try:
-    from lib import config, db, params, response
+    from lib import accounts, config, db, params, response, subscriptions
 except ImportError:
-    from api.lib import config, db, params, response
+    from api.lib import accounts, config, db, params, response, subscriptions
 
 
 def list_items(user_id: str, event: dict) -> dict:
@@ -20,13 +20,21 @@ def list_items(user_id: str, event: dict) -> dict:
     return response.ok(result)
 
 
+def _read_only(user_id: str, user: dict | None = None) -> dict | None:
+    """A banned account is read-only (api/lib/accounts.py): the 403 for writes, or None."""
+    ok, why = accounts.can_write(user_id, user)
+    return None if ok else response.error(why, 403, "ACCOUNT_RESTRICTED")
+
+
 def create_item(user_id: str, event: dict) -> dict:
     """POST /api/items — create a new item."""
     user = db.get_user(user_id)
     if not user:
         return response.error("User not found", 404)
+    if refused := _read_only(user_id, user):
+        return refused
 
-    plan = user.get("plan", "free")
+    plan = subscriptions.effective_plan(user)  # free once a failed renewal's grace has run out
     current_count = int(user.get("itemCount", 0))
     limit = config.plan_limit(plan)  # admin-editable (CONFIG | GLOBAL planLimits); None = unlimited
 
@@ -56,6 +64,8 @@ def update_item(user_id: str, item_id: str, event: dict) -> dict:
     existing = db.get_item(user_id, item_id)
     if not existing:
         return response.not_found("Item not found")
+    if refused := _read_only(user_id):
+        return refused
 
     body = params.body(event)
     updates = {}
@@ -77,6 +87,8 @@ def delete_item(user_id: str, item_id: str, event: dict) -> dict:
     existing = db.get_item(user_id, item_id)
     if not existing:
         return response.not_found("Item not found")
+    if refused := _read_only(user_id):
+        return refused
 
     db.delete_item(user_id, item_id)
     db.increment_item_count(user_id, -1)

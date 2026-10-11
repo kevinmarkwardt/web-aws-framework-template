@@ -7,10 +7,14 @@ from datetime import datetime, timezone
 
 import boto3
 from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.types import TypeSerializer
+from botocore.exceptions import ClientError
 
 TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
 
 _table = None
+_client = None
+_ser = TypeSerializer()
 
 
 def _get_table():
@@ -19,6 +23,96 @@ def _get_table():
         dynamodb = boto3.resource("dynamodb")
         _table = dynamodb.Table(TABLE_NAME)
     return _table
+
+
+def client():
+    """The low-level DynamoDB client (typed values; transactions), made once per Lambda container."""
+    global _client
+    if _client is None:
+        _client = boto3.client("dynamodb", region_name=_get_table().meta.client.meta.region_name)
+    return _client
+
+
+def query_all(**kwargs) -> list[dict]:
+    """Every item a query matches, following LastEvaluatedKey."""
+    table, out = _get_table(), []
+    while True:
+        page = table.query(**kwargs)
+        out += page.get("Items", [])
+        if "LastEvaluatedKey" not in page:
+            return out
+        kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
+def batch_get(keys: list[dict]) -> list[dict]:
+    """Items by {pk, sk} key, in no particular order (100 per request, retrying unprocessed keys)."""
+    table = _get_table()
+    keys = list({(k["pk"], k["sk"]): k for k in keys}.values())
+    out: list[dict] = []
+    for i in range(0, len(keys), 100):
+        req = {table.name: {"Keys": keys[i:i + 100]}}
+        while req:
+            resp = table.meta.client.batch_get_item(RequestItems=req)
+            out += resp["Responses"].get(table.name, [])
+            req = resp.get("UnprocessedKeys") or None
+    return out
+
+
+# --- Conditional writes and transactions ---
+
+def condition_failed(e: Exception) -> bool:
+    """A single conditional write was refused (its ConditionExpression didn't hold)."""
+    return isinstance(e, ClientError) and e.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+
+
+def conditional(call, **kwargs) -> bool:
+    """Run one conditional write (e.g. `conditional(table.put_item, Item=..., ConditionExpression=...)`): True when it
+    was written, False when its condition failed. Any other error raises."""
+    try:
+        call(**kwargs)
+        return True
+    except ClientError as e:
+        if condition_failed(e):
+            return False
+        raise
+
+
+def tx_cancelled(e: Exception) -> list[str] | None:
+    """For a cancelled transaction: one cancellation code per item, in order ("ConditionalCheckFailed", "None", ...).
+    None for any other error."""
+    if not isinstance(e, ClientError) or e.response.get("Error", {}).get("Code") != "TransactionCanceledException":
+        return None
+    return [r.get("Code", "") for r in e.response.get("CancellationReasons", [])]
+
+
+def low(d: dict) -> dict:
+    """A record (or key, or expression values) in the low-level typed format transactions use; None values left out."""
+    return {k: _ser.serialize(v) for k, v in d.items() if v is not None}
+
+
+def _tx_cond(cond: str | None, names: dict | None, values: dict | None) -> dict:
+    return {**({"ConditionExpression": cond} if cond else {}), **({"ExpressionAttributeNames": names} if names else {}),
+            **({"ExpressionAttributeValues": low(values)} if values else {})}
+
+
+def tx_put(item: dict, cond: str | None = None, names: dict | None = None, values: dict | None = None) -> dict:
+    """A transaction Put of a plain-valued record into this stage's table."""
+    return {"Put": {"TableName": _get_table().name, "Item": low(item), **_tx_cond(cond, names, values)}}
+
+
+def tx_update(key: dict, expr: str, values: dict | None = None, cond: str | None = None, names: dict | None = None) -> dict:
+    """A transaction Update (plain values) of the item at `key` in this stage's table."""
+    return {"Update": {"TableName": _get_table().name, "Key": low(key), "UpdateExpression": expr,
+                       **_tx_cond(cond, names, values)}}
+
+
+def tx_delete(key: dict, cond: str | None = None, names: dict | None = None, values: dict | None = None) -> dict:
+    """A transaction Delete of the item at `key` in this stage's table."""
+    return {"Delete": {"TableName": _get_table().name, "Key": low(key), **_tx_cond(cond, names, values)}}
+
+
+def transact(items: list[dict]) -> None:
+    client().transact_write_items(TransactItems=items)
 
 
 # --- Users ---

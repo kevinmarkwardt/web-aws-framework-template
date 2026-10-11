@@ -30,6 +30,9 @@ os.environ["FRONTEND_URL"] = "https://yourapp.com"
 os.environ["STAGE"] = "prod"
 os.environ.pop("ORIGIN_VERIFY", None)  # no CloudFront in tests: tests/test_origin_verify.py sets it where needed
 os.environ.pop("TEST_LOGIN", None)
+os.environ["BILLING_MODE"] = "both"  # tests/test_billing_modes.py switches it per test
+os.environ["ALLOW_NO_VIEWER_COUNTRY"] = "1"  # no CloudFront in tests (api/lib/regions.py)
+os.environ.pop("ADMIN_EMAIL", None)
 
 
 def _both(name: str):
@@ -50,8 +53,20 @@ def _reset_module_state():
         m._cache = None
     for m in _both("lib.admin_auth"):
         m._secret_cache = None
-    for m in _both("routes.billing"):
-        m.invalidate_caches()
+    for m in _both("lib.stripe_config"):
+        m.reset_cache()
+        m._http.clear()
+    for m in _both("lib.subscriptions"):
+        m.reset_cache()
+    for m in _both("lib.fx"):
+        m._mem.clear()
+
+
+@pytest.fixture(autouse=True)
+def no_refund_hold(monkeypatch):
+    """Top-ups in tests are made "now"; the one-hour refund hold is tested on its own (test_api_wallet)."""
+    for m in _both("lib.credits"):
+        monkeypatch.setattr(m, "REFUND_HOLD_MINUTES", 0)
 
 
 @pytest.fixture(autouse=True)
@@ -207,3 +222,62 @@ def make_authed_event(method, path, body=None, user_id="user-123"):
     # We'll patch get_user_id to return the user_id directly in tests
     event["_test_user_id"] = user_id
     return event
+
+
+# ---- payments fixtures (tests/stripe_fake.py)
+
+@pytest.fixture
+def stripe_fake(dynamodb_table, monkeypatch):
+    """A FakeStripe behind stripe_config.client() (both module copies) and a test secret with a webhook secret."""
+    import api.handler  # noqa: F401  (loads the handler's lib.* copies so both get patched)
+    from tests.stripe_fake import WHSEC, FakeStripe
+
+    fake = FakeStripe()
+    for m in _both("lib.stripe_config"):
+        monkeypatch.setattr(m, "_cache", {"at": time.time(), "value": {"secretKey": "sk_test_x", "webhookSecret": WHSEC}})
+        monkeypatch.setattr(m, "client", lambda: fake)
+    return fake
+
+
+@pytest.fixture
+def who(monkeypatch):
+    """The signed-in user for handler requests: who["uid"] (change it mid-test to switch users)."""
+    import api.handler as handler
+
+    current = {"uid": "u1"}
+    monkeypatch.setattr(handler, "get_user_id", lambda event: current["uid"])
+    monkeypatch.setattr(handler, "get_token_claims", lambda event: {"email": f"{current['uid']}@example.com"})
+    for m in _both("routes.account"):
+        monkeypatch.setattr(m, "get_token_claims", lambda event: {"email": f"{current['uid']}@example.com"})
+    return current
+
+
+def call(path, method="GET", body=None, status=200, headers=None):
+    """A request through api.handler; asserts the status and returns the JSON body."""
+    import api.handler as handler
+
+    event = {"requestContext": {"http": {"method": method, "path": path}}, "headers": headers or {},
+             "body": json.dumps(body) if body is not None else None}
+    resp = handler.lambda_handler(event, None)
+    assert resp["statusCode"] == status, resp
+    return json.loads(resp["body"])
+
+
+def profile(table, uid="u1"):
+    return table.get_item(Key={"pk": f"USER#{uid}", "sk": "PROFILE"}).get("Item") or {}
+
+
+@pytest.fixture
+def billing_cfg(monkeypatch):
+    """set(**kw): change config.BILLING keys (both module copies) for this test."""
+    def _set(**kw):
+        for m in _both("lib.config"):
+            for k, v in kw.items():
+                monkeypatch.setitem(m.BILLING, k, v)
+    return _set
+
+
+@pytest.fixture
+def billing_mode(monkeypatch):
+    """set("credits") etc.: BILLING_MODE for this test."""
+    return lambda mode: monkeypatch.setenv("BILLING_MODE", mode)

@@ -75,7 +75,7 @@ def get_overview(event: dict) -> dict:
     users = scan_all_users()
     items = scan_all_items()
 
-    plan_counts = {"free": 0, "starter": 0, "pro": 0}
+    plan_counts = {plan: 0 for plan in config.PLANS}
     for u in users:
         plan = u.get("plan", "free")
         plan_counts[plan] = plan_counts.get(plan, 0) + 1
@@ -85,7 +85,7 @@ def get_overview(event: dict) -> dict:
         s = item.get("status", "ACTIVE")
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    mrr = plan_counts.get("starter", 0) * 9 + plan_counts.get("pro", 0) * 19
+    mrr = sum(plan_counts.get(p["id"], 0) * p["monthlyUsd"] for p in config.PAID_PLANS)  # list prices (config.py)
 
     return ok({
         "totalUsers": len(users),
@@ -137,7 +137,7 @@ def update_user(event: dict, user_id: str) -> dict:
         return not_found("User not found")
     body = _parse_body(event)
     new_plan = body.get("plan")
-    if new_plan and new_plan in ("free", "starter", "pro"):
+    if new_plan and new_plan in config.PLANS:
         update_user_plan(user_id, new_plan)
     return ok({"updated": True})
 

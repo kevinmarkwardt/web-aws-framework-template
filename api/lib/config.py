@@ -11,6 +11,8 @@ Lambda containers pick it up within CACHE_TTL seconds.
 from __future__ import annotations
 
 import copy
+import logging
+import os
 import time
 from decimal import Decimal
 
@@ -24,9 +26,47 @@ except ImportError:
 CONFIG_KEY = "GLOBAL"  # pk=CONFIG, sk=GLOBAL
 CACHE_TTL = 30  # seconds
 
-PLANS = ("free", "starter", "pro")
+# ---- Billing (code config; the AI site builder fills it from site.spec modules.billing, ai/site.spec.schema.json) ----
+# The mode itself comes from the stack (cdk.json context billingMode -> BILLING_MODE): billing_mode() below.
+
+BILLING_MODES = ("none", "subscriptions", "credits", "both")
+
+# Subscription tiers (spec `plans[]`); "free" is implicit and always first. `limits`: limit name -> max (None =
+# unlimited); "items" is the template entity's limit, which the admin site can override per plan (planLimits).
+# scripts/stripe-setup.py creates one monthly price per paid plan (lookup_key yourapp_plan_{id}).
+FREE_PLAN: dict = {"id": "free", "name": "Free", "monthlyUsd": 0, "limits": {"items": 10},
+                   "features": ["Daily processing", "Instant alerts", "Weekly digest"]}
+PAID_PLANS: list[dict] = [
+    {"id": "starter", "name": "Starter", "monthlyUsd": 9, "limits": {"items": 100},
+     "features": ["Daily processing", "Advanced features"]},
+    {"id": "pro", "name": "Pro", "monthlyUsd": 19, "limits": {"items": None},
+     "features": ["Hourly processing", "AI scoring", "Monthly reports"]},
+]
+
+# Credits wallet (spec creditName, packs, creditCosts, signupGift, regions; the rest are template knobs). 100 units = $1:
+# one paid unit is one cent paid. docs/payments.md has the rules.
+BILLING: dict = {
+    "creditName": "credits",
+    "packs": [{"usd": 5, "bonusPct": 0}, {"usd": 10, "bonusPct": 0}, {"usd": 20, "bonusPct": 10}, {"usd": 50, "bonusPct": 20}],
+    "custom": {"minUsd": 5, "maxUsd": 500},     # any whole-dollar amount in this range, no bonus; None: packs only
+    "creditCosts": {"example_action": 10},      # action -> units, for credits.spend(user, action, ...)
+    "signupGift": 0,                            # bonus units for a new account (0: off)
+    "dailyBonus": 0,                            # bonus units once a day for accounts with a paid top-up (0: off)
+    "referral": {"referrer": 0, "referred": 0},  # bonus units, on hold until the friend's first top-up clears (0: off)
+    "regions": [],                              # ISO countries allowed to pay; [] = no gating (api/lib/regions.py)
+    "localPrices": False,                       # approximate local-currency hints on the wallet (api/lib/fx.py)
+    "refundDays": 14,                           # paid units go back to the card up to this long after their top-up
+    "refundHoldMinutes": 60,                    # and only after this long (the payment clears first)
+    "autoReload": {"maxPerDay": 3, "defaultBelow": 200},
+    "graceDays": 7,                             # subscriptions: a failed renewal keeps the plan this long
+}
+
+# Trust and safety (api/lib/accounts.py): warnings expire, the Nth active one bans read-only for banDays.
+ACCOUNT_RULES: dict = {"warningDays": 90, "warningsToBan": 3, "banDays": 365}
+
+PLANS = ("free", *(p["id"] for p in PAID_PLANS))
 # Max items per plan; None = unlimited.
-DEFAULT_PLAN_LIMITS: dict[str, int | None] = {"free": 10, "starter": 100, "pro": None}
+DEFAULT_PLAN_LIMITS: dict[str, int | None] = {p["id"]: p["limits"].get("items") for p in (FREE_PLAN, *PAID_PLANS)}
 
 TOGGLES = ("maintenanceMode", "signupsEnabled", "jobsEnabled", "alertsEnabled")
 
@@ -157,3 +197,63 @@ def plan_limit(plan: str) -> int | None:
     """Max items for `plan` (None = unlimited); an unknown plan gets the free plan's limit."""
     limits = plan_limits()
     return limits.get(plan, limits["free"])
+
+
+# ---- Billing accessors
+
+def billing_mode() -> str:
+    """BILLING_MODE (cdk.json context billingMode, set on the API Lambda): none | subscriptions | credits | both. An
+    unknown value turns billing off rather than guessing."""
+    mode = os.environ.get("BILLING_MODE", "both").strip().lower()
+    if mode not in BILLING_MODES:
+        logging.getLogger("yourapp.config").error("BILLING_MODE=%r is not one of %s: billing is off", mode, BILLING_MODES)
+        return "none"
+    return mode
+
+
+def subscriptions_on() -> bool:
+    return billing_mode() in ("subscriptions", "both")
+
+
+def credits_on() -> bool:
+    return billing_mode() in ("credits", "both")
+
+
+def billing() -> dict:
+    return copy.deepcopy(BILLING)
+
+
+def pack_id(usd) -> str:
+    return "p" + f"{float(usd):g}".replace(".", "_")
+
+
+def packs() -> list[dict]:
+    """The credit packs: id, what the card pays (payCents) and the units it buys (paid part = payCents, plus bonus)."""
+    out = []
+    for p in BILLING["packs"]:
+        pay = int(round(float(p["usd"]) * 100))
+        bonus = int(pay * float(p.get("bonusPct", 0)) // 100)
+        out.append({"id": pack_id(p["usd"]), "usd": p["usd"], "payCents": pay, "bonus": bonus, "credits": pay + bonus,
+                    "bonusPct": p.get("bonusPct", 0)})
+    return out
+
+
+def pack(pid: str) -> dict | None:
+    return next((p for p in packs() if p["id"] == pid), None)
+
+
+def credit_cost(action: str) -> int | None:
+    cost = BILLING["creditCosts"].get(action)
+    return None if cost is None else int(cost)
+
+
+def plans() -> list[dict]:
+    """Every plan, free first, with the effective item limit (admin planLimits override) in limits.items."""
+    limits = plan_limits()
+    return [{**copy.deepcopy(p), "limits": {**p.get("limits", {}), "items": limits.get(p["id"])}}
+            for p in (FREE_PLAN, *PAID_PLANS)]
+
+
+def plan_rank(plan: str) -> int:
+    """free = 0, then PAID_PLANS in order; an unknown plan ranks as free."""
+    return PLANS.index(plan) if plan in PLANS else 0
