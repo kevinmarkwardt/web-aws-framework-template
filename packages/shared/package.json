@@ -7,6 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
+    "./contracts": "./src/contracts/index.ts",
+    "./mocks": "./src/mocks/browser.ts",
     "./i18n/site": "./src/i18n/site.ts",
     "./i18n/admin": "./src/i18n/admin.ts"
   },
@@ -32,6 +34,7 @@
   "dependencies": {
     "i18next": "^25.10.10",
     "i18next-browser-languagedetector": "^8.2.1",
+    "msw": "^2.15.0",
     "react-i18next": "^15.7.4",
     "uqr": "0.1.3"
   }

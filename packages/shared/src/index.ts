@@ -1,7 +1,7 @@
 // @yourapp/shared: what the user site (frontend/) and the admin site (admin/) both use. Imported as TypeScript source;
 // each app's Vite build compiles it. The theme tokens are src/theme.css (each app's index.css imports it). Texts are
 // src/locales/{lang}/{area}.json (CLAUDE.md, "i18n").
-export { ApiError, ErrorCodes, createApiClient, del, post, put, qs } from './api';
+export { ApiError, ErrorCodes, createApiClient, del, post, publicGet, put, qs, readJson } from './api';
 export type { ApiClientOptions, ApiFetch } from './api';
 export { MOCK_AUTH, createAuth } from './auth';
 export type { Auth, AuthOptions } from './auth';
@@ -23,3 +23,11 @@ export { Trans, useTranslation } from 'react-i18next';
 // MFA (TOTP): required for admins when the stack's adminMfa flag is on
 export { TOTP_SIGN_IN_STEP, confirmTotpSignIn, disableTotp, finishTotpSetup, startTotpSetup, totpEnabled } from './mfa';
 export { QrCode, TotpCodeForm, TotpSetup } from './totp';
+// Entities (site.spec.yaml -> scripts/new-entity.py): the contracts are '@yourapp/shared/contracts'; the browser mocks
+// '@yourapp/shared/mocks' (dev and test builds only). Here: the API client, page building blocks and mock state.
+export { entityApi } from './entities/client';
+export type { EntityApi, EntityApiOptions } from './entities/client';
+export { EntityImage, FieldInput, FieldValue, ListToolbar, Pager } from './entities/ui';
+export type { ToolbarFilter } from './entities/ui';
+export { mockedEntities, mocksOn, resetDemoData } from './mocks/state';
+export { ResetDemoData } from './mocks/ResetDemoData';

@@ -59,19 +59,33 @@ export function createApiClient(opts: ApiClientOptions): ApiFetch {
         'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Language': currentLanguage(), ...init.headers,
       },
     });
-    const body = await res.json().catch(() => ({}));
-    if (res.status === 401) {
-      opts.onUnauthorized?.();
-      throw new ApiError(body.message || body.error || i18n.t('common.errors.sessionExpired'), 401, body.code ?? ErrorCodes.SIGNED_OUT);
-    }
-    if (!res.ok) {
-      const message = body.message || body.error;
-      if (message) throw new ApiError(message, res.status, body.code, body.outcome);
-      if (res.status >= 500) throw new ApiError(i18n.t('common.errors.server'), res.status);
-      throw new ApiError(i18n.t('common.errors.requestFailed', { status: res.status }), res.status);
-    }
-    return body as T;
+    return readJson<T>(res, opts.onUnauthorized);
   };
+}
+
+/** A fetch Response -> its JSON body, or the ApiError for the API's error shape. */
+export async function readJson<T>(res: Response, onUnauthorized?: () => void): Promise<T> {
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    onUnauthorized?.();
+    throw new ApiError(body.message || body.error || i18n.t('common.errors.sessionExpired'), 401, body.code ?? ErrorCodes.SIGNED_OUT);
+  }
+  if (!res.ok) {
+    const message = body.message || body.error;
+    if (message) throw new ApiError(message, res.status, body.code, body.outcome);
+    if (res.status >= 500) throw new ApiError(i18n.t('common.errors.server'), res.status);
+    throw new ApiError(i18n.t('common.errors.requestFailed', { status: res.status }), res.status);
+  }
+  return body as T;
+}
+
+/** A GET anyone may make (public pages): the token when signed in, none otherwise. */
+export async function publicGet<T>(path: string, getToken: () => Promise<string | null>, base = '/api'): Promise<T> {
+  const token = await getToken().catch(() => null);
+  const res = await fetch(`${base}${path}`, {
+    headers: { 'X-Language': currentLanguage(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  return readJson<T>(res);
 }
 
 /** RequestInit helpers: post(body), put(body), del(body). */

@@ -1,5 +1,6 @@
 // MOCK_AUTH (local dev with no Cognito pool and no API): canned answers for the admin API so every tab renders.
 // Writes answer { ok: true } and change nothing. Never part of a production build (api.ts only uses it when MOCK_AUTH).
+import { CONTRACTS } from '@yourapp/shared/contracts';
 import { mockUsername } from './auth';
 import type {
   AdminItem, AdminMe, AdminUser, AuditRow, Health, Overview, Payment, PaymentDetail, SiteConfig, StripeCall, Ticket, UserDetail,
@@ -159,10 +160,19 @@ const items: AdminItem[] = users.slice(0, 8).map((u, i) => ({
     'Price list', 'Team roster', 'Launch plan', 'Bug triage', 'Release notes'][i], status: i % 3 ? 'ACTIVE' : 'INACTIVE', createdAt: iso(400 * (i + 1)),
 }));
 
-export function mockAdminApi(path: string, init: RequestInit): Promise<unknown> {
+/** The admin paths of the app's entities (/admin/<plural>...): never answered here. They go to the network, where the
+ *  browser mocks (MSW, packages/shared/src/mocks) answer while the entity is mocked. */
+const entityPath = (p: string) =>
+  CONTRACTS.some((c) => {
+    const base = c.adminPath.replace(/^\/api/, '');
+    return p === base || p.startsWith(`${base}/`);
+  });
+
+export function mockAdminApi(path: string, init: RequestInit): Promise<unknown> | undefined {
   const url = new URL(path, 'http://mock');
   const p = url.pathname;
   const q = url.searchParams;
+  if (entityPath(p)) return undefined;
   const method = init.method ?? 'GET';
   let out: unknown = { ok: true };
   if (method === 'GET') {

@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useState } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { Badge, Loading, useTranslation } from '@yourapp/shared';
+import { Badge, Loading, ResetDemoData, useTranslation } from '@yourapp/shared';
 import { Icon } from './icons';
 import { siteUrl, useMe } from './session';
 import { SECTIONS, visibleTabs } from './tabs/registry';
@@ -89,6 +89,8 @@ export default function Layout({ onSignOut }: { onSignOut: () => void }) {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted sm:inline">{me.email}</span>
+            {/* dev and test builds while an entity is mocked: forget local changes to the mock data */}
+            <ResetDemoData className="rounded-lg px-2 py-1.5 text-sm text-muted hover:bg-raised hover:text-ink" />
             <button onClick={onSignOut} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted hover:bg-raised hover:text-ink">
               <Icon name="logout" className="h-4 w-4" /> {t('admin.actions.signOut')}
             </button>

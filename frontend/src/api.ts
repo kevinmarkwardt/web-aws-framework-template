@@ -15,8 +15,9 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
   return res.json();
 }
 
-/** The shared fetch core (packages/shared/src/api.ts): Bearer token, JSON, ApiError; signed out -> the login page. */
-const apiFetch = createApiClient({
+/** The shared fetch core (packages/shared/src/api.ts): Bearer token, JSON, ApiError; signed out -> the login page.
+ *  Entity pages use it through entities/client.ts. */
+export const apiFetch = createApiClient({
   getToken,
   onUnauthorized: () => {
     if (window.location.pathname !== '/login') window.location.href = '/login';

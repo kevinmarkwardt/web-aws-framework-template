@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useTranslation } from '@yourapp/shared';
+import { ResetDemoData, useTranslation } from '@yourapp/shared';
+import { dashboardEntityNav } from '../../entities/routes.gen';
 import { AuthContext } from '../../auth-context';
 import { logout } from '../../auth';
 import { updateSettings } from '../../api';
@@ -43,7 +44,8 @@ export default function DashboardLayout() {
 
   // Billing pages appear only for the modules that are on (the API answers 404 for the others)
   const navItems = [
-    { to: '/dashboard', label: t('app.nav.items'), end: true },
+    { to: '/dashboard', label: t('app.nav.items'), end: true }, // example:items
+    ...dashboardEntityNav.map((n) => ({ to: n.to, label: t(n.label), end: false })),
     ...(subscriptionsOn(mode) ? [{ to: '/dashboard/plans', label: t('app.nav.plans') }] : []),
     ...(creditsOn(mode) ? [{ to: '/dashboard/wallet', label: t('app.nav.wallet') }] : []),
     { to: '/dashboard/settings', label: t('app.nav.settings') },
@@ -139,6 +141,8 @@ export default function DashboardLayout() {
                         {t('app.menu.admin')}
                       </a>
                     )}
+                    {/* dev and test builds while an entity is mocked: forget local changes to the mock data */}
+                    <ResetDemoData className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" />
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"

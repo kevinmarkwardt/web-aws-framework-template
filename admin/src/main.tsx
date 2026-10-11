@@ -7,13 +7,23 @@ import './tabs/builtin';
 import './tabs/app';
 import App from './App';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    {/* a language other than English loads before the first render */}
-    <Suspense fallback={null}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </Suspense>
-  </StrictMode>
-);
+async function boot() {
+  // Dev and test builds: mocked entities are answered in the browser (MSW; packages/shared/src/mocks), the same
+  // handlers and fixtures as the user site's. A production bundle doesn't contain the mocks at all.
+  if (import.meta.env.VITE_STAGE !== 'prod') {
+    const { startMocks } = await import('@yourapp/shared/mocks');
+    await startMocks().catch((e) => console.error('[mocks] did not start', e));
+  }
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      {/* a language other than English loads before the first render */}
+      <Suspense fallback={null}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </Suspense>
+    </StrictMode>
+  );
+}
+
+void boot();

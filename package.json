@@ -13,5 +13,11 @@
     "i18n:check": "node scripts/i18n-check.mjs",
     "dev": "npm run dev -w frontend",
     "dev:admin": "npm run dev -w admin"
+  },
+  "msw": {
+    "workerDirectory": [
+      "frontend/public",
+      "admin/public"
+    ]
   }
 }

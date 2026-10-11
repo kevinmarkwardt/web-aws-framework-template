@@ -52,6 +52,14 @@
       "needsAnotherStep": "This account needs another step to sign in. Finish signing in on the main site first, then come back.",
       "failed": "Sign-in failed"
     },
+    "entities": {
+      "id": "ID",
+      "owner": "Owner",
+      "site": "The site",
+      "created": "Created",
+      "updated": "Updated",
+      "edit": "Edit"
+    },
     "mfa": {
       "codeTitle": "Two-step sign-in",
       "setupTitle": "Set up two-step sign-in",

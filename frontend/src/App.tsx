@@ -13,7 +13,8 @@ import SignupPage from './pages/auth/SignupPage';
 import VerifyPage from './pages/auth/VerifyPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
-import ItemsPage from './pages/dashboard/ItemsPage';
+import ItemsPage from './pages/dashboard/ItemsPage'; // example:items (scripts/init.py removes these lines once the spec has entities)
+import { dashboardEntityRoutes, publicEntityRoutes } from './entities/routes.gen';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
 import PlansPage from './pages/dashboard/PlansPage';
@@ -98,6 +99,8 @@ function UserApp() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        {/* the spec's entities (scripts/new-entity.py): public list and detail pages */}
+        {publicEntityRoutes}
         <Route
           path="/dashboard"
           element={
@@ -106,7 +109,9 @@ function UserApp() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ItemsPage />} />
+          <Route index element={<ItemsPage />} /> {/* example:items */}
+          {/* the spec's entities: my records, forms, signed-in-only entities (and the index once Items is gone) */}
+          {dashboardEntityRoutes}
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           {/* billing pages; hidden from the nav when their module is off (the API answers 404 then) */}

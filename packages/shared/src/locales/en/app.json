@@ -36,6 +36,10 @@
       "readOnly": "Your account is read-only until {{date}}, so this is turned off. You can still sign in and view your data.",
       "paymentsPaused": "Payments are paused on this account while we look into an issue, so this is turned off. Contact support if you think this is a mistake."
     },
+    "public": {
+      "signIn": "Sign in",
+      "account": "Your account"
+    },
     "footer": {
       "label": "Site",
       "copyright": "© {{year}} {{name}}",

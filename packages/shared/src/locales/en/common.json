@@ -33,6 +33,29 @@
       "openInApp": "open in an app on this device",
       "codeFromApp": "Code from the app",
       "turnOn": "Turn on"
+    },
+    "list": {
+      "search": "Search",
+      "allOf": "{{name}}: all",
+      "sort": "Sort",
+      "sortDefault": "Default order",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "sortAsc": "{{name}} ↑",
+      "sortDesc": "{{name}} ↓",
+      "clear": "Clear",
+      "choose": "Choose…",
+      "none": "—",
+      "yes": "Yes",
+      "no": "No",
+      "pages": "Pages",
+      "prev": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{pages}}"
+    },
+    "demo": {
+      "reset": "Reset demo data",
+      "resetConfirm": "Put every mocked list back to its demo data? Changes you made in this browser are lost."
     }
   }
 }
