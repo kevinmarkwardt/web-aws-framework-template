@@ -329,7 +329,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-medium text-gray-900">Status change alerts</p>
               <p className="text-xs text-gray-500">
-                Get emailed when a link changes status
+                Get emailed when an item changes status
               </p>
             </div>
             <input

@@ -1,4 +1,4 @@
-import { getToken } from './auth';
+import { getToken, MOCK_AUTH, mockUsername } from './auth';
 import type { Item, CreateItemRequest, UpdateItemRequest, PublicConfig, User, UserSettings } from './types';
 
 /** An API refusal with the server's machine-readable code (MAINTENANCE, SIGNUPS_CLOSED, PLAN_LIMIT, ...). */
@@ -74,7 +74,23 @@ export const deleteItem = (itemId: string) =>
   apiFetch<void>(`/items/${itemId}`, { method: 'DELETE' });
 
 // Account
-export const fetchAccount = () => apiFetch<User>('/account');
+/** MOCK_AUTH (local dev, no backend): a made-up free account so the signed-in pages render. Data calls (items, billing)
+ *  still go to /api and fail unless a local API is running (scripts/local-test.sh). */
+function mockAccount(): User {
+  const email = mockUsername() || 'dev@localhost';
+  return {
+    userId: 'mock-user',
+    email,
+    name: email.split('@')[0],
+    plan: 'free',
+    itemCount: 0,
+    itemLimit: 10,
+    planLimits: { free: 10, starter: 100, pro: null },  // mock data only; real limits come from the API
+    settings: { alertsEnabled: true, digestEnabled: true, remindersEnabled: true },
+  };
+}
+
+export const fetchAccount = () => (MOCK_AUTH ? Promise.resolve(mockAccount()) : apiFetch<User>('/account'));
 
 export const updateSettings = (settings: Partial<UserSettings>) =>
   apiFetch<User>('/account/settings', {

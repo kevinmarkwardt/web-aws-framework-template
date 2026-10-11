@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { register } from '../../auth';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { register, TEST_LOGIN } from '../../auth';
 import { fetchPublicConfig } from '../../api';
 
 export default function SignupPage() {
@@ -42,6 +42,9 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  // the test stage has no sign-up: any username signs in (and gets an account) on the login page
+  if (TEST_LOGIN) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
