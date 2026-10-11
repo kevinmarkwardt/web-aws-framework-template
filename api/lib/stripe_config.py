@@ -75,5 +75,5 @@ def idem(*parts) -> str:
 
 
 def reset_cache() -> None:
-    """Forget the cached secret (tests; the admin Billing page after saving new keys)."""
+    """Forget the cached secret (tests)."""
     _cache.update(value=None, at=0.0)

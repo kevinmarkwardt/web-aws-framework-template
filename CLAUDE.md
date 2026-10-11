@@ -4,8 +4,12 @@
 
 A reusable AWS SaaS starter built from a working production app. Clone via GitHub template, run `./scripts/init.sh`, and you have a deployable SaaS with auth, billing, admin, email and AI, in two stages (test and prod).
 
-Roadmap: [docs/plans/2026-10-11-template-v2-plan.md](docs/plans/2026-10-11-template-v2-plan.md) (phases 0-2 are done: clean
-foundation, payments core, billing modules).
+Roadmap: [docs/plans/2026-10-11-template-v2-plan.md](docs/plans/2026-10-11-template-v2-plan.md) (phases 0-3 are done: clean
+foundation, payments core, billing modules, the separate admin site).
+
+Layout: npm workspaces at the root: `packages/shared` (code both sites use), `frontend/` (the user site), `admin/` (the
+admin site). `api/` is one Python bundle deployed as two Lambdas (`handler.py`: the user API, `admin_handler.py`: the
+admin API). `cdk/` has its own npm package.
 
 ## Placeholder Values
 
@@ -15,8 +19,7 @@ All project-specific values use these placeholders (replaced by `init.sh`):
 |-------------|--------------|
 | `yourapp` | Project name (lowercase) |
 | `YourApp` | Display name (title case) |
-| `yourapp.com` | Your domain |
-| `manager.yourapp.com` | Admin subdomain |
+| `yourapp.com` | Your domain (the admin site is `admin.` in front of the site's host) |
 | `YOUR_AWS_ACCOUNT_ID` | AWS account ID |
 
 To find all placeholder occurrences:
@@ -29,7 +32,7 @@ grep -r "yourapp" --include="*.ts" --include="*.py" --include="*.json" --include
 | | prod | test |
 |---|---|---|
 | CDK | `-c stage=prod` (default) → `YourAppStack` | `-c stage=test` → `YourAppTestStack` |
-| Site / admin | `yourapp.com` (+ `www.`) / `manager.yourapp.com` | `test.yourapp.com` / `manager.test.yourapp.com` |
+| Site / admin site | `yourapp.com` (+ `www.`) / `admin.yourapp.com` | `test.yourapp.com` / `admin.test.yourapp.com` |
 | Resource names | original (`yourapp`, `yourapp-api`, ...) | `-test` suffix (`yourapp-test`, `yourapp-test-api`, ...) |
 | DynamoDB / removal | provisioned 25/25, RETAIN, PITR | on demand, DESTROY |
 | Secrets | `yourapp/prod/*` | `yourapp/test/*` (+ `yourapp/test/test-login`, generated) |
@@ -37,17 +40,19 @@ grep -r "yourapp" --include="*.ts" --include="*.py" --include="*.json" --include
 | Search engines | indexed | `X-Robots-Tag: noindex` |
 | Outputs file | `cdk-outputs-prod.json` | `cdk-outputs-test.json` |
 
-Each stage's API role can read only its own `yourapp/{stage}/*` secrets.
+Each stage's API role can read only its own `yourapp/{stage}/*` secrets; the admin role only `yourapp/{stage}/stripe`.
 
 ## Commands
 
-### Frontend
+### Frontend (npm workspaces, run from the repo root)
 
 ```bash
-cd frontend
-npm run dev         # Vite dev server (proxies /api/* to localhost:3000); MOCK_AUTH when no Cognito pool is configured
-npm run build       # TypeScript check + Vite build
-npm run lint        # ESLint (must stay clean)
+npm install            # once: one lockfile and node_modules for packages/shared, frontend/ and admin/
+npm run dev            # user site on :5173 (proxies /api/* to localhost:3000); MOCK_AUTH when no Cognito pool is set
+npm run dev:admin      # admin site on :5174; MOCK_AUTH = a mock admin, the admin API answered by admin/src/mock.ts
+npm run build          # every workspace: shared typecheck, then TypeScript check + Vite build of both sites
+npm run lint           # ESLint in every workspace (must stay clean)
+npm run build -w admin # one workspace
 ```
 
 ### Backend Tests
@@ -64,19 +69,21 @@ Two separate `pip install` calls: `api/requirements.txt` is hash-locked and pip 
 ### Deploy (STAGE is required)
 
 ```bash
-STAGE=test ./scripts/deploy.sh                 # Lambdas + CDK + site + CloudFront invalidation
+STAGE=test ./scripts/deploy.sh                 # Lambdas + CDK + both sites + both CloudFront invalidations
 STAGE=test ./scripts/deploy.sh --infra-only    # Lambdas + CDK only
-STAGE=test ./scripts/deploy-frontend.sh        # site only (same as --site-only)
-STAGE=test ./scripts/deploy-lambdas.sh [api]   # Lambda code only (no CDK)
+STAGE=test ./scripts/deploy-frontend.sh        # both sites only (same as --site-only)
+STAGE=test ./scripts/deploy-lambdas.sh [api]   # Lambda code only (no CDK); "api" (or "admin") updates both API Lambdas
 STAGE=prod ./scripts/deploy.sh                 # asks you to type "prod" (YES=1 skips, for CI)
-STAGE=test ./scripts/setup-admin.sh you@example.com   # admin login for manager.test.yourapp.com
+.venv/bin/python scripts/make-admin.py test you@example.com [--revoke]   # Cognito group "admins" + isAdmin
 ```
 
 ### Local loop against a deployed stage
 
 ```bash
-scripts/local-test.sh api     # API from the working tree on 127.0.0.1:3000 (restarts on save), test stage's AWS resources
-scripts/local-test.sh web     # Vite on localhost:5173 with the test stage's Cognito ids + test login
+scripts/local-test.sh api     # both APIs from the working tree on 127.0.0.1:3000 (/api/admin/* -> admin_handler.py;
+                              # restarts on save), test stage's AWS resources
+scripts/local-test.sh web     # user site on localhost:5173 with the test stage's Cognito ids + test login
+scripts/local-test.sh admin   # admin site on localhost:5174 (sign in with a Cognito account made admin by make-admin.py)
 ```
 
 `STAGE=prod` works for both but reads and writes prod data.
@@ -86,6 +93,7 @@ scripts/local-test.sh web     # Vite on localhost:5173 with the test stage's Cog
 ```bash
 scripts/bundle-lambdas.sh               # build/api and build/<worker> (synth needs them)
 cd cdk
+npx tsc --noEmit                        # typecheck the stack
 npx cdk synth -c stage=test             # needs AWS credentials: the hosted-zone lookup
 npx cdk diff -c stage=prod
 ```
@@ -98,17 +106,17 @@ Edit `api/requirements.in`, then `scripts/lock-api-deps.sh` rewrites `api/requir
 
 **Lambda Function URLs instead of API Gateway:** Avoids $3.50/million request overhead. CORS is handled manually in `api/lib/response.py` (origin = the stage's `FRONTEND_URL`). Both Lambda Function URL and API Gateway v1 event formats are supported.
 
-**X-Origin-Verify:** The Function URL is public. CloudFront adds `X-Origin-Verify` (the stack id, never in the repo) to every `/api/*` request, and `api/lib/params.from_cloudfront` refuses requests without it (403). Unset locally and in tests, so everything passes there.
+**X-Origin-Verify:** The Function URLs are public. The site's CloudFront adds `X-Origin-Verify` (the stack id, never in the repo) to every `/api/*` request, and `api/lib/params.from_cloudfront` refuses requests without it (403). The admin distribution sends its own, different value to the admin Lambda. Unset locally and in tests, so everything passes there.
 
-**CloudFront:** `/api/*` uses a cache policy keyed on `Authorization` with TTL 0 (nothing is cached unless the API sends `Cache-Control`). No distribution-wide error pages: the viewer-request function rewrites extensionless paths to `/index.html`, so API 403/404 JSON reaches the client unchanged.
+**CloudFront:** two distributions per stage: the site (`/api/*` → API Lambda) and the admin site (`/api/admin/*` → admin Lambda; nothing else of the API). `/api/*` uses a cache policy keyed on `Authorization` with TTL 0 (nothing is cached unless the API sends `Cache-Control`). No distribution-wide error pages: the viewer-request function rewrites extensionless paths to `/index.html`, so API 403/404 JSON reaches the client unchanged.
 
-**DynamoDB single-table design:** Everything in one table with `pk`/`sk` composite keys. Prefixes: `USER#`, `ITEM#`, `CONFIG`, and the payments records (`PAY#`, `PAYDAY#`, `CARDFP#`, `BANNED#CARD`, `REFUNDPENDING`, `REFCODE#`, `STRIPELOG#`, `STRIPEEVT#`, `AUDIT#`; [docs/payments.md](docs/payments.md)). One GSI (`stripe-customer-index`). Add GSIs when you need to query by non-key attributes. Money writes are conditional DynamoDB transactions (`db.tx_put` / `tx_update` / `tx_delete`, `db.transact`).
+**DynamoDB single-table design:** Everything in one table with `pk`/`sk` composite keys. Prefixes: `USER#`, `ITEM#`, `CONFIG`, `SUPPORT#` / `SUPPORTQ#` (support requests), and the payments records (`PAY#`, `PAYDAY#`, `CARDFP#`, `BANNED#CARD`, `REFUNDPENDING`, `REFCODE#`, `STRIPELOG#`, `STRIPEEVT#`, `AUDIT#`; [docs/payments.md](docs/payments.md)). GSIs: `stripe-customer-index`, and `list-index` (KEYS_ONLY, `listPk` + `createdAt`): records that set `listPk` (`USER`, `ITEM`, yours) can be listed newest first across users with `db.list_page` / `db.list_all` / `db.count`, so the admin site never scans the table. Add GSIs when you need to query by other non-key attributes. Money writes are conditional DynamoDB transactions (`db.tx_put` / `tx_update` / `tx_delete`, `db.transact`).
 
 **Cognito ID token (not Access token):** The frontend sends the ID token as `Bearer`. `verify_token` accepts only tokens for this app client (`aud` for ID tokens, `client_id` for access tokens).
 
-**Dual-app single bundle:** User app + admin app in one React build, split by hostname (`manager.*` → admin). Admin pages are lazy-loaded. (Phase 3 of the plan moves admin to its own site and Lambda.)
+**Separate admin site:** `admin/` is its own Vite app, S3 bucket and CloudFront distribution on `admin.<site host>`; no admin code ships to users. The admin API is its own Lambda (`api/admin_handler.py`, same code bundle) with its own IAM role (table, the stage's Stripe secret, the pool's group calls, Health reads, invoking the daily job) and its own X-Origin-Verify. The user API answers 404 for every `/api/admin/*` path. Both sites share `packages/shared` (fetch core, auth, UI kit, `theme.css` tokens).
 
-**Admin auth is separate from Cognito:** Admin JWT (HS256) secret lives in Secrets Manager `yourapp/{stage}/admin-credentials`, read through a 5-minute cache. (Phase 3 retires this.)
+**Admin access = Cognito group AND profile flag:** an admin is in the user pool's `admins` group and has `isAdmin: true` on `USER#uid / PROFILE`. `api/lib/admins.check` re-checks both on every admin request (the group in the ID token and live via `AdminListGroupsForUser`, the flag in DynamoDB) and fails closed. Same user pool, separate sign-in on the admin site; test-login accounts are never admins. `scripts/make-admin.py <stage> <email> [--revoke]` and the Users tab's admin action set or clear both. Every admin action takes a reason and writes an audit row with actor `admin:{uid}` (never an email: audit rows hold no personal data).
 
 **ARM64 Lambda:** All Lambdas run on Graviton (ARM64). `scripts/bundle-lambdas.sh` installs `manylinux2014_aarch64` wheels into `build/`, which is what CDK deploys; a pip error stops the deploy.
 
@@ -117,7 +125,7 @@ Edit `api/requirements.in`, then `scripts/lock-api-deps.sh` rewrites `api/requir
 `CONFIG | GLOBAL` holds feature toggles, plan limits, job settings and email templates. `api/lib/config.py` merges it over `DEFAULT_CONFIG`, validates admin saves (merging one section at a time) and caches it 30 s per Lambda container.
 
 - **Plan limits** (`planLimits`, `null` = unlimited) are the only source: item create and billing downgrade/cancel enforce them; the frontend reads them from `GET /api/account` (`itemLimit`, `planLimits`) or `GET /api/public-config`. Never hardcode limits in the frontend.
-- **`maintenanceMode`**: every user route answers 503 `{"code": "MAINTENANCE"}`. Admin routes, `/api/public-config`, `/api/test-login` and Stripe webhooks keep working.
+- **`maintenanceMode`**: every user route answers 503 `{"code": "MAINTENANCE"}`. The admin API, `/api/public-config`, `/api/test-login` and Stripe webhooks keep working.
 - **`signupsEnabled: false`**: `GET /api/account` refuses to create profiles for new accounts (403 `SIGNUPS_CLOSED`); existing users are unaffected.
 - **`jobsEnabled: false`**: `lambdas/daily-job` skips its run.
 
@@ -125,14 +133,15 @@ Edit `api/requirements.in`, then `scripts/lock-api-deps.sh` rewrites `api/requir
 
 When replacing "items" with your domain entity (e.g., "orders"):
 
-1. **`api/lib/db.py`** — Add `get_orders()`, `create_order()`, `update_order()`, `delete_order()` using an `ORDER#` prefix, and a counter like `increment_item_count()`.
+1. **`api/lib/db.py`** — Add `get_orders()`, `create_order()`, `update_order()`, `delete_order()` using an `ORDER#` prefix, and a counter like `increment_item_count()`. Give new records `listPk: "ORDER"` (and `createdAt`) to list them on the admin site.
 2. **`api/lib/config.py`** — Rename/add the limit in `DEFAULT_PLAN_LIMITS` if the entity is plan-limited.
 3. **`api/routes/orders.py`** — Copy `api/routes/items.py`; parse bodies with `lib/params.py` (bad input → 400).
 4. **`api/handler.py`** — Add `from routes import orders` and route `/api/orders` in `_route()`.
 5. **`frontend/src/types.ts`**, **`frontend/src/api.ts`** — Add the type and client functions.
 6. **`frontend/src/pages/dashboard/OrdersPage.tsx`**, **`frontend/src/components/OrdersTable.tsx`** — Page and table.
 7. **`frontend/src/App.tsx`** and **`DashboardLayout.tsx`** — Route and nav item.
-8. **`tests/test_api_orders.py`** — Write tests first. Add a `create_test_order` fixture to `conftest.py`.
+8. **Admin tab** — routes in `api/routes/admin.py` + `ROUTES` in `api/admin_handler.py` (copy the items ones); a tab component in `admin/src/tabs/`, registered in `admin/src/tabs/app.ts` (`registerTab({id, label, icon, section, component})`).
+9. **`tests/test_api_orders.py`** — Write tests first. Add a `create_test_order` fixture to `conftest.py`; admin routes go through `admin_call` with the `admin_who` fixture.
 
 ## How to Add New Lambda Workers
 
@@ -157,7 +166,7 @@ Full design and decisions: [docs/payments.md](docs/payments.md).
 - **Prices and webhook:** `.venv/bin/python scripts/stripe-setup.py <stage> [--apply]` (dry run by default): plan
   prices `yourapp_plan_{id}` and pack prices `yourapp_credits_{packId}` by lookup key, and the webhook
   `https://<site>/api/webhooks/stripe` for exactly the mode's events (`api/routes/webhooks.events_for`). Optional plan
-  price overrides: `CONFIG | STRIPE` `{plan}PriceId` (admin Billing page).
+  price overrides: `CONFIG | STRIPE` `{plan}PriceId` (admin site, Config tab).
 - **Rules that keep money safe** (don't undo them):
   - every Stripe create sends a deterministic idempotency key (`stripe_config.idem`)
   - every webhook event is claimed once (`logs.claim_event`; a stuck `processing` claim is taken over after 3 min)
@@ -168,9 +177,25 @@ Full design and decisions: [docs/payments.md](docs/payments.md).
   `BILLING["creditCosts"]`) and give them back with `credits.refund_spend(user_id, action, ref)`.
 - **Account standing** (`api/lib/accounts.py`): suspended or banned accounts can't pay or spend; banned is read-only
   (`accounts.can_write`: use it in your entity's write routes, as `items.py` does).
-- **Admin operations** for phase 3 live in `api/lib` (`payments.adjust_balance`, `payments.refund_to_card`,
-  `accounts.ban` / `set_status` / `add_warning`, `payments.by_day` / `detail`, `logs.stripe_calls` / `webhooks` /
-  `audits`): the table in docs/payments.md.
+- **Admin operations** live in `api/lib` (`payments.adjust_balance`, `payments.refund_to_card`, `accounts.ban` /
+  `set_status` / `add_warning`, `admins.set_admin`, `payments.by_day` / `detail`, `logs.stripe_calls` / `webhooks` /
+  `audits`); `api/routes/admin.py` is a thin layer over them (the table in docs/payments.md).
+
+## Admin site (`admin/`, `admin.<site host>`)
+
+- **Tabs:** Overview (money by kind, fees, refunds, disputes, balances held, users, subscriptions — by billing mode),
+  Users (search + detail drawer: ban / unban / suspend / warn / remove warning / adjust balance / refund to card /
+  admin, each with a required reason), Payments, Stripe log (calls + webhooks), Audit, Support, Health (Lambda, DynamoDB,
+  SES from the stack's resource names; run the daily job or the refund sweep), Config, Items (the example entity).
+- **Tab registry:** `admin/src/tabs/registry.ts`. Built-ins in `tabs/builtin.ts`; your app's tabs in `tabs/app.ts`:
+  `registerTab({ id, label, icon, section, component: lazy(() => import('./MyTab')), billing?, visible?, order? })`.
+  `billing: 'any' | 'credits' | 'subscriptions'` hides a tab per billing mode. Call your admin routes with `apiFetch`
+  from `admin/src/api.ts`.
+- **Access:** `GET /api/admin/me` decides: 401 → sign-in page, 403 `NOT_ADMIN` → not-authorized page.
+- **Support requests:** `api/routes/support.py`; the user site's Support page writes in, the Support tab answers (the
+  customer gets an account alert and an email). Topics and limits: `config.SUPPORT`.
+- **Design:** Tailwind with the tokens in `packages/shared/src/theme.css` (`brand-*`, `ink`, `muted`, `line`, `panel`,
+  `chrome`, ...), shared by both sites; UI primitives in `packages/shared/src/ui.tsx`.
 
 ## Key Patterns
 
@@ -194,13 +219,13 @@ Importing `api.handler` puts `api/` on `sys.path`, so the handler's modules are 
 
 No explicit user creation endpoint. `GET /api/account` auto-creates the profile on first call from the token's `email`/`name` claims (unless `signupsEnabled` is off).
 
-### Auth modes in the frontend (`frontend/src/auth.ts`)
+### Auth modes in the frontends (`packages/shared/src/auth.ts` `createAuth`)
 
-- **Cognito** — deployed sites.
-- **TEST_LOGIN** — `VITE_TEST_LOGIN=1` (test stage only, written by the deploy/local scripts): username → `POST /api/test-login`. The API serves it only when `STAGE=test` and `TEST_LOGIN=1`.
-- **MOCK_AUTH** — `npm run dev` with no `VITE_USER_POOL_ID`: any email/password, mock account, no backend.
+- **Cognito** — deployed sites. The admin site has its own session (another origin) on the same pool.
+- **TEST_LOGIN** — user site only, `VITE_TEST_LOGIN=1` (test stage only, written by the deploy/local scripts): username → `POST /api/test-login`. The API serves it only when `STAGE=test` and `TEST_LOGIN=1`. The admin site never offers it, and the admin Lambda refuses test tokens.
+- **MOCK_AUTH** — `npm run dev` / `npm run dev:admin` with no `VITE_USER_POOL_ID`: any email/password, no backend. The user site gets a mock account (an admin, so the Admin link shows); the admin site a mock admin with data from `admin/src/mock.ts`.
 
-TEST_LOGIN and MOCK_AUTH are constant `false` in prod builds, so that code is compiled out.
+MOCK_AUTH is constant `false` in production builds (`import.meta.env.DEV`), so it never ships.
 
 ## Key File Map
 
@@ -208,12 +233,15 @@ TEST_LOGIN and MOCK_AUTH are constant `false` in prod builds, so that code is co
 |------|---------|
 | `cdk/bin/yourapp.ts` | Picks the stage (`-c stage=`) and stack |
 | `cdk/lib/yourapp-stack.ts` | All AWS infrastructure, per stage |
-| `api/handler.py` | Lambda entry point: origin check, maintenance gate, routing |
+| `api/handler.py` | User API Lambda entry point: origin check, maintenance gate, routing (404 for `/api/admin/*`) |
+| `api/admin_handler.py` | Admin API Lambda entry point: its own origin check, the admin check, `ROUTES` |
+| `api/lib/admins.py` | Who is an admin (Cognito group + profile flag, every request); grant/revoke |
+| `api/routes/admin.py` | Admin endpoints: overview, users + actions, payments, logs, health, config, items |
+| `api/routes/support.py` | Support requests (user and admin sides) |
 | `api/lib/config.py` | Site config defaults, validation, plan limits |
 | `api/lib/params.py` | Body parsing, `from_cloudfront` |
 | `api/lib/auth.py` | Cognito JWT + test-login tokens |
-| `api/lib/admin_auth.py` | Admin HS256 login (Secrets Manager) |
-| `api/lib/db.py` | DynamoDB helpers + entity functions |
+| `api/lib/db.py` | DynamoDB helpers + entity functions; `list_page` / `list_all` / `count` on list-index |
 | `api/routes/items.py` | CRUD for your main entity |
 | `api/routes/billing.py` | Subscription routes: Checkout, portal, change plan, cancel |
 | `api/routes/wallet.py` | Credits wallet: balance, on-site charge + 3-D Secure, auto reload, refunds |
@@ -230,21 +258,26 @@ TEST_LOGIN and MOCK_AUTH are constant `false` in prod builds, so that code is co
 | `api/lib/regions.py`, `api/lib/fx.py` | Optional country gating; optional local price hints |
 | `scripts/stripe-secret.sh`, `scripts/stripe-setup.py` | Stripe key into Secrets Manager; prices + webhook per stage |
 | `docs/payments.md` | Payments design and decisions |
-| `api/routes/admin.py` | Admin endpoints |
 | `lambdas/daily-job/handler.py` | Example scheduled worker |
-| `frontend/src/App.tsx` | React router (user + admin apps) |
-| `frontend/src/auth.ts` | Cognito / test login / mock auth |
-| `frontend/src/api.ts` | API client functions |
+| `packages/shared/src/` | `api.ts` (fetch core, `ApiError`), `auth.ts` (`createAuth`), `ui.tsx`, `format.ts`, `hooks.ts` (`useLoad`), `theme.css` |
+| `frontend/src/App.tsx` | React router (the user site) |
+| `frontend/src/auth.ts` | The user site's `createAuth` (Cognito / test login / mock auth) |
+| `frontend/src/api.ts` | User API client functions (+ MOCK_AUTH answers) |
+| `frontend/src/pages/dashboard/SupportPage.tsx` | Support requests (user side) |
+| `admin/src/App.tsx`, `Layout.tsx` | Admin access gate (sign-in / not authorized) and the sidebar layout |
+| `admin/src/tabs/registry.ts`, `builtin.ts`, `app.ts` | The tab registry, the platform tabs, your app's tabs |
+| `admin/src/api.ts`, `mock.ts`, `types.ts` | Admin API client, MOCK_AUTH data, response types |
 | `frontend/src/types.ts` | TypeScript interfaces |
 | `frontend/src/billing.ts` | Billing mode helpers, `usePublicConfig`, money formatting |
 | `frontend/src/pages/dashboard/WalletPage.tsx`, `PlansPage.tsx` | Credits wallet; subscription plans |
-| `tests/conftest.py` | pytest fixtures + moto setup (`stripe_fake`, `who`, `billing_cfg`, `billing_mode`) |
+| `tests/conftest.py` | pytest fixtures + moto setup (`stripe_fake`, `who`, `admin_who` + `admin_call`, `billing_cfg`, `billing_mode`) |
 | `tests/stripe_fake.py` | Offline Stripe stand-in + signed webhook events |
-| `scripts/deploy.sh` | Per-stage deployment |
+| `scripts/deploy.sh` | Per-stage deployment (both sites) |
+| `scripts/make-admin.py` | Grant / revoke admin (Cognito group + isAdmin) |
 | `scripts/bundle-lambdas.sh` | Builds `build/<lambda>` |
-| `scripts/local-test.sh` | Local API + site against a deployed stage |
+| `scripts/local-test.sh`, `scripts/local-api.py` | Local APIs + both sites against a deployed stage |
 | `scripts/lib/stage.sh`, `scripts/lib/outputs.sh` | Stage → stack/prefix; reading stack outputs |
 
 ## Environment Variables
 
-Lambda environment variables are set by CDK (`cdk/lib/yourapp-stack.ts`) — do not set them manually. The frontend's `VITE_*` values are written by `scripts/deploy.sh` (`frontend/.env.production.local`) and `scripts/local-test.sh`; see `frontend/.env.example`. The root `.env.example` lists the shell settings the scripts use (`STAGE`, `AWS_REGION`, `YES`). No secrets go in any `.env` file.
+Lambda environment variables are set by CDK (`cdk/lib/yourapp-stack.ts`) — do not set them manually. The sites' `VITE_*` values are written by `scripts/deploy.sh` (`frontend/.env.production.local`, `admin/.env.production.local`) and `scripts/local-test.sh`; see `frontend/.env.example` and `admin/.env.example` (declared once in `packages/shared/src/env.d.ts`). The root `.env.example` lists the shell settings the scripts use (`STAGE`, `AWS_REGION`, `YES`). No secrets go in any `.env` file.

@@ -50,7 +50,7 @@ Lambda as `BILLING_MODE`. Default in the template: `both`.
    - It creates or updates the webhook endpoint for exactly `webhooks.events_for(mode)`, in the API version of the
      pinned SDK (A17). It stores the signing secret in the stage's secret.
    - It refuses a live/test mismatch.
-3. Optional admin overrides of plan price ids: `CONFIG | STRIPE` `{plan}PriceId` (the admin Billing page).
+3. Optional admin overrides of plan price ids: `CONFIG | STRIPE` `{plan}PriceId` (the admin site's Config tab).
 
 At runtime (`api/lib/stripe_config.py`):
 - The secret is cached for 5 minutes, so a rotated key needs no deploy.
@@ -241,10 +241,11 @@ customer.
 - **`fx.py`** (`BILLING.localPrices`, off by default): an approximate local price next to the dollar price, from a
   free daily feed cached in `CONFIG / FX`. Any failure shows nothing extra.
 
-## For the admin site (phase 3)
+## For the admin site
 
-The operations live in `api/lib`, so phase 3 only adds routes (each re-checks `isAdmin`, takes a reason and is
-audited):
+The operations live in `api/lib`; the admin API (`api/admin_handler.py` → `api/routes/admin.py`, its own Lambda on
+`admin.<site host>`) only adds routes. Every request re-checks the caller (Cognito group `admins` and `isAdmin`), every
+user action takes a reason and is audited with actor `admin:{uid}`:
 
 | Operation | Function |
 |---|---|
@@ -252,7 +253,7 @@ audited):
 | Refund to card | `payments.refund_to_card(uid, amount or None, reason, actor, policy="all" or "window", forfeit_bonus=False)` and `payments.refundable(uid, policy)` |
 | Ban / unban / suspend | `accounts.ban(uid, reason, actor, days=None)`, `accounts.set_status(uid, "active" or "suspended", reason, actor)` |
 | Warnings | `accounts.add_warning(uid, reason, actor, ref="")`, `accounts.remove_warning(uid, warn_sk, actor, reason)`, `accounts.warnings(uid)` |
-| Admin flag | `accounts.set_admin(uid, flag, actor, reason)` |
+| Admin flag | `admins.set_admin(uid, flag, actor, reason)`: the Cognito group and `accounts.set_admin` together |
 | Payments | `payments.by_day(day)`, `payments.for_user(uid)`, `payments.detail(pi)`, `payments.breakdown(uid)` |
 | Logs | `logs.stripe_calls(day, user_id=, failures_only=)`, `logs.webhooks(day, failures_only=)`, `logs.webhook(evt)`, `logs.audits(day, actor=, target=)` |
 | Subscriptions | `subscriptions.state(profile)`, `subscriptions.cancel_now(uid, actor, reason)` |
@@ -270,7 +271,8 @@ audited):
    scheduled sweep reconciles any that were left pending.
 4. **Log retention:** the Stripe call, webhook and audit logs are kept 18 months and hold no personal data.
 5. **Billing config:** it lives in code (`api/lib/config.py`), filled from the site spec, not in the admin-editable
-   `CONFIG | GLOBAL` record (except item `planLimits`). A phase 3 Billing config tab would have to merge stored
-   overrides into what `config.BILLING`, `config.packs()` and `config.plans()` return.
+   `CONFIG | GLOBAL` record (except item `planLimits` and the plan price overrides). The admin Config tab shows it
+   read-only; making it editable would mean merging stored overrides into what `config.BILLING`, `config.packs()` and
+   `config.plans()` return.
 6. **Subscription cancel:** a cancel is immediate. Switch to `cancel_at_period_end` in `subscriptions.cancel_now` if
    the app prefers.

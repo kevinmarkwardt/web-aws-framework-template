@@ -3,7 +3,7 @@
   USER#uid / PROFILE   plan (free | a config.PAID_PLANS id), stripeCustomerId, stripeSubscriptionId,
                        subscriptionStatus (Stripe's: active, past_due, ...), paymentFailedAt (first failed renewal
                        of the current problem), lastFailedInvoice
-  CONFIG / STRIPE      optional {planId}PriceId overrides (admin Billing page); otherwise prices are found by lookup_key
+  CONFIG / STRIPE      optional {planId}PriceId overrides (admin site, Config tab); otherwise prices are found by lookup_key
                        yourapp_plan_{id}, which scripts/stripe-setup.py creates
 
 Grace: a failed renewal (invoice.payment_failed) keeps the plan for config.BILLING["graceDays"]; effective_plan() is

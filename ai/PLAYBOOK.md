@@ -65,7 +65,7 @@ Show the user 5 sample records per entity.
 
 ## 6. Build
 1. Run `python3 scripts/init.py --spec site.spec.yaml`. It is idempotent: it applies names, domain, modules and stages.
-2. Run `python3 scripts/new-entity.py <entity>` for each spec entity. This writes the contract, MSW handler, API client, list/detail pages and an admin tab.
+2. Run `python3 scripts/new-entity.py <entity>` for each spec entity. This writes the contract, MSW handler, API client, list/detail pages and an admin tab (registered in `admin/src/tabs/app.ts`).
 3. Build every page from the spec on the approved design, using the archetypes as a starting point. Adjust them freely to fit the design.
 4. Wire the user journeys end to end, including the empty, loading and error states.
 5. If more languages are enabled, add `locales/<lang>/` and run `node scripts/i18n-check.mjs`.
@@ -89,11 +89,11 @@ Go through `ai/checklists/deploy-prereqs.md` with the user:
 - Stripe sandbox keys. **The user pastes them** with `scripts/stripe-secret.sh test`; never type keys yourself.
 - `scripts/stripe-setup.py test`
 - SES identity
-- an admin email, so you can run `scripts/make-admin.py test <email>` after the user signs up
+- an admin email, so you can run `.venv/bin/python scripts/make-admin.py test <email>` after the user signs up on the site (it adds the Cognito group `admins` and sets `isAdmin`; test-login usernames can't be admins)
 
 Then:
 - deploy with `STAGE=test scripts/deploy.sh`
-- smoke-test `https://test.<domain>` and `https://test.admin.<domain>`: load, sign up, sign in, one journey, and an admin page
+- smoke-test `https://test.<domain>` and `https://admin.test.<domain>`: load, sign up, sign in, one journey, and an admin page
 
 **Never deploy prod in this playbook.**
 

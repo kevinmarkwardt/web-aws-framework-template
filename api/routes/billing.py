@@ -204,9 +204,3 @@ def cancel_plan(user_id: str, event: dict) -> dict:
         logger.error("Stripe cancel failed for user=%s: %s", user_id, e)
         return response.error(BILLING_ERROR_MSG, 502)
     return response.ok({"action": "done", "plan": "free"})
-
-
-def invalidate_caches() -> None:
-    """Forget cached keys and prices (the admin Billing page after saving)."""
-    stripe_config.reset_cache()
-    subscriptions.reset_cache()

@@ -5,8 +5,11 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 **What's included out of the box:**
 - User auth (sign up, log in, email verification, forgot password) via Cognito
 - Protected dashboard with generic CRUD (replace "items" with your entity)
-- Admin panel with user management, billing overview, feature toggles, plan limits (enforced by the API)
-- Two stages: `test.yourdomain.com` (disposable, noindex, username test login) and `yourdomain.com`
+- A separate admin site (`admin.yourdomain.com`, its own Lambda): overview, users with audited actions (ban, suspend,
+  warn, balance, refunds, admin), payments, Stripe log, audit log, support tickets, health, config; apps add tabs
+- Support requests: a Support page for users, answered from the admin site
+- Two stages: `test.yourdomain.com` (disposable, noindex, username test login) and `yourdomain.com`, each with its
+  admin site (`admin.test.yourdomain.com`, `admin.yourdomain.com`)
 - Billing modules, chosen per app (`billingMode`: none, subscriptions, credits or both):
   - Stripe subscriptions (Checkout + Customer Portal, plan changes, grace period on failed renewals)
   - a credits wallet (packs, saved cards, 3-D Secure, auto reload, 14-day refunds, `credits.spend` for your features)
@@ -21,7 +24,7 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19 + TypeScript + Vite + Tailwind CSS 4 |
+| Frontend | React 19 + TypeScript + Vite + Tailwind CSS 4; npm workspaces (`packages/shared`, `frontend/`, `admin/`) |
 | Backend | Python 3.12 + AWS Lambda (ARM64) |
 | Infrastructure | AWS CDK v2 (TypeScript) |
 | Auth | AWS Cognito (user pool + JWT) |
@@ -64,25 +67,30 @@ This prompts for your project name, display name, domain, and AWS account ID —
 ### 3. Deploy the test stage, then prod
 
 ```bash
-STAGE=test ./scripts/deploy.sh     # https://test.yourdomain.com
-STAGE=prod ./scripts/deploy.sh     # https://yourdomain.com (asks you to type "prod")
+STAGE=test ./scripts/deploy.sh     # https://test.yourdomain.com + https://admin.test.yourdomain.com
+STAGE=prod ./scripts/deploy.sh     # https://yourdomain.com + https://admin.yourdomain.com (asks you to type "prod")
 ```
 
 Each run:
 1. Bundles the Lambdas into `build/` (Linux ARM64 wheels, hash-checked API dependencies)
 2. Deploys the stage's CDK stack (DynamoDB, Cognito, Lambda, CloudFront, Route53, ...) → `cdk-outputs-{stage}.json`
-3. Writes the site's Cognito ids to `frontend/.env.production.local` and builds the React app
-4. Uploads it to S3 (hashed assets cached for a year, `index.html` revalidated every visit) and invalidates CloudFront
+3. Writes both sites' settings (`frontend/.env.production.local`, `admin/.env.production.local`) and builds them
+4. Uploads each to its bucket (hashed assets cached for a year, `index.html` revalidated every visit) and invalidates both
+   distributions
 
 `--infra-only` and `--site-only` run half of it.
 
-### 4. Set up admin access
+### 4. Make yourself an admin
+
+Sign up on the site, sign in once, then:
 
 ```bash
-STAGE=test ./scripts/setup-admin.sh you@example.com
+.venv/bin/python scripts/make-admin.py test you@example.com     # --revoke takes it away
 ```
 
-Stores the admin login in Secrets Manager (`yourapp/test/admin-credentials`). The admin panel is at `manager.test.yourdomain.com` (prod: `manager.yourdomain.com`).
+That adds you to the user pool's `admins` group and sets `isAdmin` on your profile; the admin API checks both on every
+request. Sign in at `https://admin.test.yourdomain.com` (prod: `admin.yourdomain.com`) with the same account.
+Accounts that aren't admins get a "not authorized" page; the site's user menu shows an Admin link to admins.
 
 ### 5. Add your Stripe keys
 
@@ -103,6 +111,7 @@ packs and costs in `api/lib/config.py` before deploying. Set `adminEmail` there 
 |---|---|---|
 | Stack | `YourAppTestStack` (`-c stage=test`) | `YourAppStack` (default) |
 | Site | `test.yourdomain.com` | `yourdomain.com` |
+| Admin site | `admin.test.yourdomain.com` | `admin.yourdomain.com` |
 | Data | on-demand table, destroyed with the stack | provisioned table, retained, point-in-time recovery |
 | Sign-in | Cognito, or any username (no password) | Cognito |
 | Search engines | `noindex` | indexed |
@@ -110,9 +119,13 @@ packs and costs in `api/lib/config.py` before deploying. Set `adminEmail` there 
 ## Local Development
 
 ```bash
-cd frontend && npm run dev          # no AWS needed: MOCK_AUTH signs you in with any email/password
-scripts/local-test.sh api           # API from your working tree on :3000, against the test stage's AWS resources
-scripts/local-test.sh web           # site on :5173 with hot reload, test login, proxying /api to :3000
+npm install                         # once, at the repo root (npm workspaces)
+npm run dev                         # user site, no AWS needed: MOCK_AUTH signs you in with any email/password
+npm run dev:admin                   # admin site on :5174, no AWS needed: a mock admin with sample data
+scripts/local-test.sh api           # both APIs from your working tree on :3000, against the test stage's AWS resources
+scripts/local-test.sh web           # user site on :5173 with hot reload, test login, proxying /api to :3000
+scripts/local-test.sh admin         # admin site on :5174 against the test stage (sign in as a Cognito admin)
+npm run lint && npm run build       # every workspace
 ```
 
 ## Architecture
@@ -126,12 +139,14 @@ yourdomain.com (CloudFront + S3)
 │   ├── /dashboard/plans — Subscription plans (subscriptions mode)
 │   ├── /dashboard/wallet — Credits wallet, saved cards, refunds (credits mode)
 │   ├── /dashboard/settings — User settings
-│   └── /dashboard/reports — Reports (Pro)
-└── manager.yourdomain.com — Admin panel
-    ├── /users — All users
-    ├── /billing — Revenue overview
-    ├── /health — Lambda/DB status
-    └── /config — Feature flags, plan limits
+│   ├── /dashboard/reports — Reports (Pro)
+│   └── /dashboard/support — Support requests
+
+admin.yourdomain.com (its own CloudFront + S3 + Lambda; same Cognito pool, separate sign-in)
+├── /overview, /users, /support — money and users at a glance; user detail and audited actions; tickets
+├── /payments, /stripe-log — by UTC day (billing modes only)
+├── /audit, /health, /config — audit log; Lambda/DynamoDB/SES; switches, plan limits, Stripe price overrides
+└── /items — the example entity (your app's tabs register in admin/src/tabs/app.ts)
 
 API (Lambda Function URL behind CloudFront — no API Gateway; direct calls are refused)
 ├── GET/POST /api/items — CRUD for your entity
@@ -142,8 +157,11 @@ API (Lambda Function URL behind CloudFront — no API Gateway; direct calls are 
 ├── POST /api/billing/{checkout,portal,change-plan,cancel} — Subscriptions
 ├── /api/wallet, /api/wallet/{charge,auto-reload,refunds,refund} — Credits wallet
 ├── /api/account/cards — Saved cards
-├── POST /api/webhooks/stripe — Stripe webhook (exactly once per event)
-└── /api/admin/* — Admin endpoints
+├── /api/support — Support requests
+└── POST /api/webhooks/stripe — Stripe webhook (exactly once per event)
+
+Admin API (its own Lambda, only behind the admin distribution; admin = Cognito group "admins" + isAdmin, every request)
+└── /api/admin/* — me, overview, users (+ actions), payments, stripe-log, webhooks, audit, support, health, config, items
 
 DynamoDB (single-table design)
 ├── USER#{userId} | PROFILE — User, plan, balance, standing, Stripe IDs
@@ -221,7 +239,17 @@ Put packages beyond boto3 in `lambdas/my-worker/requirements.txt`; the bundle sc
 Plans (`FREE_PLAN`, `PAID_PLANS`: name, monthly price, limits, features), credit packs, custom amounts, `creditCosts`
 and the earning hooks are in `api/lib/config.py`; the frontend reads them from `GET /api/public-config`. After
 changing prices, run `.venv/bin/python scripts/stripe-setup.py <stage> --apply`. Item limits per plan are also
-admin-editable (admin panel → Plan Limits) and enforced by the API.
+admin-editable (admin site → Config) and enforced by the API.
+
+### Add an admin tab
+
+Write the tab component in `admin/src/tabs/` and register it in `admin/src/tabs/app.ts`:
+
+```ts
+registerTab({ id: 'orders', label: 'Orders', icon: 'items', section: 'Data', component: lazy(() => import('./OrdersTab')) });
+```
+
+Add its API routes to `api/routes/admin.py` and `ROUTES` in `api/admin_handler.py` (the admin check has already run).
 
 ## Running Tests
 

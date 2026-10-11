@@ -6,7 +6,7 @@ Built from web-aws-framework-template on {{date}}. The spec is in `site.spec.yam
 | | URL |
 |---|---|
 | Test site | https://test.{{domain}} |
-| Test admin | https://test.admin.{{domain}} |
+| Test admin | https://admin.test.{{domain}} |
 | Prod | not deployed yet. Run `STAGE=prod scripts/deploy.sh` when ready, after `docs/launch-checklist.md` |
 
 ## Run locally
