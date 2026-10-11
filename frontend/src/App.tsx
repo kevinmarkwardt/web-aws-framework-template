@@ -1,10 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, useContext, lazy, Suspense } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { getUser, logout } from './auth';
 import { AuthContext } from './auth-context';
 import type { User } from './types';
 import { ApiError, fetchAccount } from './api';
-import { hasAdminToken } from './admin-api';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
@@ -17,19 +16,7 @@ import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
 import PlansPage from './pages/dashboard/PlansPage';
 import WalletPage from './pages/dashboard/WalletPage';
-
-// Admin pages — lazy loaded (only fetched on manager.yourapp.com)
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
-const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
-const AdminOverview = lazy(() => import('./pages/admin/OverviewPage'));
-const AdminUsers = lazy(() => import('./pages/admin/UsersPage'));
-const AdminHealth = lazy(() => import('./pages/admin/HealthPage'));
-const AdminBilling = lazy(() => import('./pages/admin/BillingPage'));
-const AdminItems = lazy(() => import('./pages/admin/data/ItemsPage'));
-const AdminFeatureToggles = lazy(() => import('./pages/admin/config/FeatureTogglesPage'));
-const AdminPlanLimits = lazy(() => import('./pages/admin/config/PlanLimitsPage'));
-const AdminJobSettings = lazy(() => import('./pages/admin/config/JobSettingsPage'));
-const AdminEmailTemplates = lazy(() => import('./pages/admin/config/EmailTemplatesPage'));
+import SupportPage from './pages/dashboard/SupportPage';
 
 function NoticePage({ message }: { message: string }) {
   const signOut = async () => {
@@ -39,7 +26,7 @@ function NoticePage({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
       <p className="text-lg text-gray-900">{message}</p>
-      <button onClick={signOut} className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+      <button onClick={signOut} className="text-sm font-medium text-brand-600 hover:text-brand-500">
         Sign out
       </button>
     </div>
@@ -51,46 +38,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
   if (!user && notice) return <NoticePage message={notice} />;
   if (!user) return <Navigate to="/login" />;
   return <>{children}</>;
-}
-
-const isManagerHost = window.location.hostname.startsWith('manager.');
-
-function AdminApp() {
-  const [authenticated, setAuthenticated] = useState(hasAdminToken());
-
-  if (!authenticated) {
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-900"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400" /></div>}>
-        <AdminLogin onLogin={() => setAuthenticated(true)} />
-      </Suspense>
-    );
-  }
-
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}>
-      <Routes>
-        <Route element={<AdminLayout />}>
-          <Route index element={<AdminOverview />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="billing" element={<AdminBilling />} />
-          <Route path="health" element={<AdminHealth />} />
-          <Route path="data/items" element={<AdminItems />} />
-          <Route path="config/features" element={<AdminFeatureToggles />} />
-          <Route path="config/plans" element={<AdminPlanLimits />} />
-          <Route path="config/jobs" element={<AdminJobSettings />} />
-          <Route path="config/email" element={<AdminEmailTemplates />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Suspense>
-  );
 }
 
 /** The signed-in account, or why there is none to show (maintenance mode, sign-ups closed). */
@@ -145,12 +99,14 @@ function UserApp() {
           {/* billing pages; hidden from the nav when their module is off (the API answers 404 then) */}
           <Route path="plans" element={<PlansPage />} />
           <Route path="wallet" element={<WalletPage />} />
+          <Route path="support" element={<SupportPage />} />
         </Route>
       </Routes>
     </AuthContext.Provider>
   );
 }
 
+/** The user site. The admin site is its own app (admin/) on admin.<domain>, with its own sign-in. */
 export default function App() {
-  return isManagerHost ? <AdminApp /> : <UserApp />;
+  return <UserApp />;
 }

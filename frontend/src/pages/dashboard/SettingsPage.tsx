@@ -77,12 +77,12 @@ export default function SettingsPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') { setEditingName(false); setNameValue(user?.name || ''); setNameError(''); } }}
                   maxLength={100}
                   autoFocus
-                  className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64"
+                  className="text-sm text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent w-64"
                 />
                 <button
                   onClick={handleSaveName}
                   disabled={savingName}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 transition-colors"
+                  className="px-3 py-1.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-colors"
                 >
                   {savingName ? 'Saving...' : 'Save'}
                 </button>
@@ -98,7 +98,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-900">{user?.name || '—'}</p>
                 <button
                   onClick={() => { setEditingName(true); setNameValue(user?.name || ''); setNameError(''); }}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium"
                 >
                   Edit
                 </button>
@@ -122,13 +122,13 @@ export default function SettingsPage() {
             {subscriptionsOn(user?.billingMode) && (
               <p>
                 Plan: <span className="font-medium capitalize">{user?.plan}</span>.{' '}
-                <Link to="/dashboard/plans" className="text-indigo-600 hover:text-indigo-700 font-medium">Change plan</Link>
+                <Link to="/dashboard/plans" className="text-brand-600 hover:text-brand-700 font-medium">Change plan</Link>
               </p>
             )}
             {creditsOn(user?.billingMode) && (
               <p>
                 Balance: <span className="font-medium">{units(user?.credits ?? 0, user?.creditName)}</span>.{' '}
-                <Link to="/dashboard/wallet" className="text-indigo-600 hover:text-indigo-700 font-medium">Wallet, cards and refunds</Link>
+                <Link to="/dashboard/wallet" className="text-brand-600 hover:text-brand-700 font-medium">Wallet, cards and refunds</Link>
               </p>
             )}
           </div>
@@ -150,7 +150,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={alerts}
               onChange={(e) => setAlerts(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+              className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 h-4 w-4"
             />
           </label>
           <label className="flex items-center justify-between">
@@ -162,7 +162,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={digest}
               onChange={(e) => setDigest(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+              className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 h-4 w-4"
             />
           </label>
           <label className="flex items-center justify-between">
@@ -176,7 +176,7 @@ export default function SettingsPage() {
               type="checkbox"
               checked={reminders}
               onChange={(e) => setReminders(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+              className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 h-4 w-4"
             />
           </label>
         </div>
@@ -184,7 +184,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving...' : 'Save Preferences'}
           </button>

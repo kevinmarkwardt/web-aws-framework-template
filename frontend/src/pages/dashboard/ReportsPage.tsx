@@ -24,7 +24,7 @@ export default function ReportsPage() {
         </p>
         <button
           onClick={handleUpgrade}
-          className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+          className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
         >
           See the Pro plan
         </button>

@@ -79,7 +79,7 @@ export default function LandingPage() {
       <nav className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <svg className="w-7 h-7 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg className="w-7 h-7 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
             <span className="text-xl font-bold text-gray-900">YourApp</span>
@@ -90,7 +90,7 @@ export default function LandingPage() {
             </Link>
             <Link
               to="/signup"
-              className="text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors"
+              className="text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 px-4 py-2 rounded-lg transition-colors"
             >
               Get Started Free
             </Link>
@@ -103,7 +103,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
             Track Everything.<br />
-            <span className="text-indigo-600">Know When It Changes.</span>
+            <span className="text-brand-600">Know When It Changes.</span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
             Monitor your items on a schedule. Get instant alerts when status changes.
@@ -112,7 +112,7 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/signup"
-              className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm"
+              className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-sm"
             >
               Start Monitoring Free
             </Link>
@@ -143,7 +143,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature) => (
               <div key={feature.title} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
+                <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center mb-4">
                   {feature.icon}
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
@@ -177,7 +177,7 @@ export default function LandingPage() {
               },
             ].map((item) => (
               <div key={item.step} className="flex gap-6 items-start">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold shrink-0">
                   {item.step}
                 </div>
                 <div>
@@ -201,19 +201,19 @@ export default function LandingPage() {
             {plans.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                 {plans.map((plan, i) => (
-                  <div key={plan.id} className={`rounded-2xl p-8 flex flex-col bg-white ${i === 1 ? 'ring-2 ring-indigo-600 shadow-lg' : 'border border-gray-200 shadow-sm'}`}>
+                  <div key={plan.id} className={`rounded-2xl p-8 flex flex-col bg-white ${i === 1 ? 'ring-2 ring-brand-600 shadow-lg' : 'border border-gray-200 shadow-sm'}`}>
                     <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
                     <div className="mt-4 flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-gray-900">${plan.monthlyUsd}</span>
                       <span className="text-gray-500">/month</span>
                     </div>
-                    <Link to="/signup" className="mt-6 block text-center py-2.5 px-4 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">
+                    <Link to="/signup" className="mt-6 block text-center py-2.5 px-4 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700">
                       {plan.monthlyUsd === 0 ? 'Start free' : `Choose ${plan.name}`}
                     </Link>
                     <ul className="mt-8 space-y-3 flex-1">
                       {[itemsLabel(plan.limits.items ?? null), ...(plan.features ?? [])].map((f) => (
                         <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <svg className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                           </svg>
                           {f}
@@ -254,7 +254,7 @@ export default function LandingPage() {
           </p>
           <Link
             to="/signup"
-            className="mt-8 inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm"
+            className="mt-8 inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-sm"
           >
             Get Started Free
           </Link>
@@ -265,7 +265,7 @@ export default function LandingPage() {
       <footer className="border-t border-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <svg className="w-5 h-5 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
             </svg>
             <span className="text-sm text-gray-500">YourApp</span>

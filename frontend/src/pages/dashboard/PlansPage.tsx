@@ -101,9 +101,9 @@ export default function PlansPage() {
             const overLimit = limit !== null && itemCount > limit;
             const busy = loadingPlan !== null;
             return (
-              <div key={plan.id} className={`relative rounded-xl border-2 p-5 ${isCurrent ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-white'}`}>
+              <div key={plan.id} className={`relative rounded-xl border-2 p-5 ${isCurrent ? 'border-brand-500 bg-brand-50/50' : 'border-gray-200 bg-white'}`}>
                 {isCurrent && (
-                  <span className="absolute -top-3 left-4 bg-indigo-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">Current plan</span>
+                  <span className="absolute -top-3 left-4 bg-brand-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">Current plan</span>
                 )}
                 <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
                 <p className="text-2xl font-bold text-gray-900 mt-1">${plan.monthlyUsd}<span className="text-sm font-normal text-gray-500">/month</span></p>
@@ -113,7 +113,7 @@ export default function PlansPage() {
                 <div className="mt-5">
                   {isCurrent ? null : higher ? (
                     <button onClick={() => go(plan.id)} disabled={busy || restricted}
-                      className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50">
+                      className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50">
                       {loadingPlan === plan.id ? 'Working...' : 'Upgrade'}
                     </button>
                   ) : (
@@ -135,7 +135,7 @@ export default function PlansPage() {
       )}
 
       {sub?.hasSubscription && (
-        <button onClick={portal} className="mt-6 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+        <button onClick={portal} className="mt-6 text-sm text-brand-600 hover:text-brand-700 font-medium">
           Cards and invoices (Stripe billing portal) &rarr;
         </button>
       )}

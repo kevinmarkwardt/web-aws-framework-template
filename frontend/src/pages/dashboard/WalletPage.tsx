@@ -12,7 +12,7 @@ import type { RefundRow, SavedCard, Wallet } from '../../types';
 // api/lib/payments.py, docs/payments.md.
 
 const card = 'bg-white rounded-xl border border-gray-200 p-6 mb-6';
-const btn = 'px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50';
+const btn = 'px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50';
 const btnLight = 'px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg disabled:opacity-50';
 
 const newRequestId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -152,7 +152,7 @@ export default function WalletPage() {
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {wallet.packs.map((p) => (
-                <button key={p.id} className="border border-gray-200 rounded-lg p-3 text-left hover:border-indigo-400 disabled:opacity-50"
+                <button key={p.id} className="border border-gray-200 rounded-lg p-3 text-left hover:border-brand-400 disabled:opacity-50"
                   disabled={busy || !wallet.canPay || restricted} onClick={() => buy({ packId: p.id })}>
                   <span className="block font-semibold text-gray-900">{usd(p.payCents)}</span>
                   <span className="block text-sm text-gray-600">{units(p.credits, name)}</span>
@@ -247,7 +247,7 @@ function CardsSection({ cards, setCards, onAdd, canAdd, setMessage }: {
           <li key={c.id} className="flex items-center justify-between text-sm">
             <span className="text-gray-800">
               {c.brand} •••• {c.last4} <span className="text-gray-500">exp {c.expMonth}/{c.expYear}</span>
-              {c.isDefault && <span className="ml-2 text-xs text-indigo-700">default</span>}
+              {c.isDefault && <span className="ml-2 text-xs text-brand-700">default</span>}
               {!c.accepted && <span className="ml-2 text-xs text-amber-700">not accepted here</span>}
             </span>
             <span className="flex gap-2">

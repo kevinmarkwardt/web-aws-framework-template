@@ -19,16 +19,16 @@ export default function UpgradeBanner({ user, itemCount = user.itemCount }: Upgr
   const nextLimit = user.planLimits[next] ?? null;
 
   return (
-    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
-        <p className="text-sm font-medium text-indigo-900">
+        <p className="text-sm font-medium text-brand-900">
           You've reached your plan's limit of {itemsLabel(user.itemLimit).toLowerCase()}
         </p>
-        <p className="text-sm text-indigo-700 mt-0.5">
+        <p className="text-sm text-brand-700 mt-0.5">
           The {next} plan allows {nextLimit === null ? 'unlimited items' : `up to ${itemsLabel(nextLimit).toLowerCase()}`}.
         </p>
       </div>
-      <Link to="/dashboard/plans" className="shrink-0 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">
+      <Link to="/dashboard/plans" className="shrink-0 px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">
         See plans
       </Link>
     </div>

@@ -7,7 +7,10 @@ import { useAccountNotes } from '../../notes';
 import AccountBanner from '../../components/AccountBanner';
 
 const badgeClass = (plan: string) =>
-  plan === 'free' ? 'bg-gray-100 text-gray-700' : 'bg-indigo-100 text-indigo-700';
+  plan === 'free' ? 'bg-gray-100 text-gray-700' : 'bg-brand-100 text-brand-700';
+
+/** The admin site (admin.<domain>; written by scripts/deploy.sh from the stack's AdminUrl). Locally: admin/ on :5174. */
+const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 export default function DashboardLayout() {
   const { user, refresh } = useContext(AuthContext);
@@ -32,11 +35,12 @@ export default function DashboardLayout() {
     ...(creditsOn(mode) ? [{ to: '/dashboard/wallet', label: 'Wallet' }] : []),
     { to: '/dashboard/settings', label: 'Settings' },
     { to: '/dashboard/reports', label: 'Reports' },
+    { to: '/dashboard/support', label: 'Support' },
   ];
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-      isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+      isActive ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
     }`;
 
   return (
@@ -48,7 +52,7 @@ export default function DashboardLayout() {
             {/* Logo + Nav */}
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
-                <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <svg className="w-6 h-6 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
                 </svg>
                 <span className="text-lg font-bold text-gray-900">YourApp</span>
@@ -107,6 +111,12 @@ export default function DashboardLayout() {
                         <p className="text-[11px] text-gray-400 mt-1">{shortDate(n.createdAt)}</p>
                       </div>
                     ))}
+                    {user?.isAdmin && ADMIN_URL && (
+                      // the admin site re-checks the Cognito group and the profile flag on every request
+                      <a href={ADMIN_URL} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        Admin
+                      </a>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"

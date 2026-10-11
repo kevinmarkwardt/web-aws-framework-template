@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { fetchPublicConfig } from './api';
-import type { BillingMode, PublicConfig } from './types';
+import type { PublicConfig } from './types';
 
 /** Which billing modules are on (the API's BILLING_MODE, from cdk.json context billingMode). Pages and nav items of a
- *  module that is off are hidden; its API routes answer 404 anyway. */
-export const subscriptionsOn = (mode?: BillingMode) => mode === 'subscriptions' || mode === 'both';
-export const creditsOn = (mode?: BillingMode) => mode === 'credits' || mode === 'both';
+ *  module that is off are hidden; its API routes answer 404 anyway. Money formatting is shared with the admin site. */
+export { creditsOn, shortDate, subscriptionsOn, units, usd } from '@yourapp/shared';
 
 let pending: Promise<PublicConfig> | null = null;
 
@@ -32,10 +31,3 @@ export function usePublicConfig(): PublicConfig | null {
   }, []);
   return config;
 }
-
-export const usd = (cents: number) => `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-/** "1,250 credits" (the unit name is config creditName). */
-export const units = (n: number, name = 'credits') => `${n.toLocaleString()} ${name}`;
-
-export const shortDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '');

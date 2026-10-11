@@ -1,8 +1,9 @@
+import type { AccountStatus, BillingMode } from '@yourapp/shared';
+
 /** A plan id: "free" or one of api/lib/config.PAID_PLANS (the API's public-config lists them). */
 export type Plan = string;
 
-export type BillingMode = 'none' | 'subscriptions' | 'credits' | 'both';
-export type AccountStatus = 'active' | 'suspended' | 'banned';
+export type { AccountStatus, BillingMode };
 
 export interface UserSettings {
   alertsEnabled: boolean;
@@ -187,4 +188,21 @@ export interface CreateItemRequest {
 export interface UpdateItemRequest {
   name?: string;
   status?: string;
+}
+
+export interface SupportReply {
+  at: string;
+  by: 'customer' | 'support';
+  text: string;
+}
+
+export interface SupportRequest {
+  id: string;
+  topic: string;
+  topicLabel: string;
+  message: string;
+  status: 'open' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+  replies: SupportReply[];
 }

@@ -1,1 +1,4 @@
 @import "tailwindcss";
+/* the design tokens both sites share (brand, ink, line, ...): a reskin starts there */
+@import "../../packages/shared/src/theme.css";
+@source "../../packages/shared/src";

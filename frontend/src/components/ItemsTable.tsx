@@ -41,7 +41,7 @@ export default function ItemsTable({ items, onDelete, onEdit }: Props) {
               <td className="px-4 py-3 flex gap-2">
                 <button
                   onClick={() => onEdit(item)}
-                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                  className="text-brand-600 hover:text-brand-800 text-sm font-medium"
                 >
                   Edit
                 </button>

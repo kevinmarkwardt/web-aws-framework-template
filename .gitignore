@@ -36,3 +36,6 @@ Thumbs.db
 
 # Python virtualenvs (.venv: tests; .venv-deploy/-local/-lock: scripts/)
 .venv*/
+
+# Workspace build output
+admin/dist/

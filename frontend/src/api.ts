@@ -1,67 +1,28 @@
+import { ApiError, createApiClient, post } from '@yourapp/shared';
 import { getToken, MOCK_AUTH, mockUsername } from './auth';
 import type {
   AccountNote, AutoReload, ChargeResult, CreateItemRequest, Item, Plan, PublicConfig, RefundRow, SavedCard,
-  UpdateItemRequest, User, UserSettings, Wallet,
+  SupportRequest, UpdateItemRequest, User, UserSettings, Wallet,
 } from './types';
 
-/** An API refusal with the server's machine-readable code (MAINTENANCE, SIGNUPS_CLOSED, PLAN_LIMIT, REGION, ...) and,
- *  for a card charge, its outcome ("unknown": resend with the same requestId; "declined": nothing was charged). */
-export class ApiError extends Error {
-  status: number;
-  code?: string;
-  outcome?: 'unknown' | 'declined';
-  constructor(message: string, status: number, code?: string, outcome?: 'unknown' | 'declined') {
-    super(message);
-    this.status = status;
-    this.code = code;
-    this.outcome = outcome;
-  }
-}
+export { ApiError };
 
 /** Public, no sign-in: switches, plan limits and the billing modules that are on (GET /api/public-config). */
 export async function fetchPublicConfig(): Promise<PublicConfig> {
+  if (MOCK_AUTH) throw new ApiError('No API in MOCK_AUTH', 503);  // pages fall back to their defaults
   const res = await fetch('/api/public-config');
   if (!res.ok) throw new ApiError(`Request failed (${res.status})`, res.status);
   return res.json();
 }
 
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await getToken();
-  if (!token) {
-    window.location.href = '/login';
-    throw new Error('Not authenticated');
-  }
-
-  const res = await fetch(`/api${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-
-  if (res.status === 401) {
-    window.location.href = '/login';
-    throw new Error('Session expired');
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const message = body.error || body.message;
-    if (message) {
-      throw new ApiError(message, res.status, body.code, body.outcome);
-    }
-    if (res.status >= 500) {
-      throw new ApiError('Something went wrong on our end. Please try again in a few minutes.', res.status);
-    }
-    throw new ApiError(`Request failed (${res.status})`, res.status);
-  }
-
-  return res.json();
-}
-
-const post = (body?: unknown): RequestInit => ({ method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) });
+/** The shared fetch core (packages/shared/src/api.ts): Bearer token, JSON, ApiError; signed out -> the login page. */
+const apiFetch = createApiClient({
+  getToken,
+  onUnauthorized: () => {
+    if (window.location.pathname !== '/login') window.location.href = '/login';
+  },
+  mock: (path, init) => mockApi(path, init),
+});
 
 // Items
 export const fetchItems = () => apiFetch<Item[]>('/items');
@@ -82,8 +43,8 @@ export const deleteItem = (itemId: string) =>
   apiFetch<void>(`/items/${itemId}`, { method: 'DELETE' });
 
 // Account
-/** MOCK_AUTH (local dev, no backend): a made-up free account so the signed-in pages render. Data calls (items, billing)
- *  still go to /api and fail unless a local API is running (scripts/local-test.sh). */
+/** MOCK_AUTH (local dev, no backend): a made-up free account so the signed-in pages render. Other calls (billing)
+ *  still go to /api and fail; use scripts/local-test.sh to run against a deployed stage. */
 function mockAccount(): User {
   const email = mockUsername() || 'dev@localhost';
   return {
@@ -95,6 +56,7 @@ function mockAccount(): User {
     itemLimit: 10,
     planLimits: { free: 10, starter: 100, pro: null },  // mock data only; real limits come from the API
     settings: { alertsEnabled: true, digestEnabled: true, remindersEnabled: true },
+    isAdmin: true,  // shows the Admin link (the local admin site: cd admin && npm run dev)
     status: 'active',
     billingMode: 'both',
     credits: 0,
@@ -104,7 +66,19 @@ function mockAccount(): User {
   };
 }
 
-export const fetchAccount = () => (MOCK_AUTH ? Promise.resolve(mockAccount()) : apiFetch<User>('/account'));
+/** MOCK_AUTH answers for the GETs the signed-in pages make on load (undefined: use the network). */
+function mockApi(path: string, init: RequestInit): Promise<unknown> | undefined {
+  if (!MOCK_AUTH || (init.method && init.method !== 'GET')) return undefined;
+  const answers: Record<string, () => unknown> = {
+    '/account': mockAccount,
+    '/account/notes': () => ({ notes: [] as AccountNote[] }),
+    '/items': () => [] as Item[],
+    '/support': () => ({ requests: [] as SupportRequest[], topics: [{ id: 'other', label: 'Something else' }], maxOpen: 3 }),
+  };
+  return answers[path] ? Promise.resolve(answers[path]()) : undefined;
+}
+
+export const fetchAccount = () => apiFetch<User>('/account');
 
 export const updateSettings = (settings: Partial<UserSettings>) =>
   apiFetch<User>('/account/settings', {
@@ -119,8 +93,7 @@ export const updateName = (name: string) =>
   });
 
 // Account alerts (user menu)
-export const fetchNotes = () =>
-  MOCK_AUTH ? Promise.resolve({ notes: [] as AccountNote[] }) : apiFetch<{ notes: AccountNote[] }>('/account/notes');
+export const fetchNotes = () => apiFetch<{ notes: AccountNote[] }>('/account/notes');
 export const dismissNote = (id: string) => apiFetch<{ dismissed: boolean }>('/account/notes/dismiss', post({ id }));
 
 // Subscriptions (billing mode subscriptions | both)
@@ -159,3 +132,9 @@ export const makeDefaultCard = (id: string) => apiFetch<{ cards: SavedCard[] }>(
 export const cardRemovalCheck = (id: string) =>
   apiFetch<{ refundable: RefundRow[]; totalCents: number }>(`/account/cards/${id}/removal-check`);
 export const removeCard = (id: string) => apiFetch<{ cards: SavedCard[] }>(`/account/cards/${id}`, { method: 'DELETE' });
+
+// Support requests (answered on the admin site's Support tab)
+export const fetchSupport = () =>
+  apiFetch<{ requests: SupportRequest[]; topics: { id: string; label: string }[]; maxOpen: number }>('/support');
+export const createSupportRequest = (topic: string, message: string) => apiFetch<SupportRequest>('/support', post({ topic, message }));
+export const addToSupportRequest = (id: string, message: string) => apiFetch<SupportRequest>(`/support/${id}`, post({ message }));

@@ -1,0 +1,42 @@
+/* Design tokens shared by the user site (frontend/) and the admin site (admin/). Each app's index.css imports Tailwind,
+   then this file, then names packages/shared/src as a source. Tailwind 4 turns every token into utilities:
+   --color-brand-600 -> bg-brand-600, text-brand-600, border-brand-600, ...; --color-ink -> text-ink, and so on.
+   A reskin starts here: change the values, keep the names. */
+@theme {
+  /* brand (the template ships indigo) */
+  --color-brand-50: oklch(96.2% 0.018 272.314);
+  --color-brand-100: oklch(93% 0.034 272.788);
+  --color-brand-200: oklch(87% 0.065 274.039);
+  --color-brand-300: oklch(78.5% 0.115 274.713);
+  --color-brand-400: oklch(67.3% 0.182 276.935);
+  --color-brand-500: oklch(58.5% 0.233 277.117);
+  --color-brand-600: oklch(51.1% 0.262 276.966);
+  --color-brand-700: oklch(45.7% 0.24 277.023);
+  --color-brand-800: oklch(39.8% 0.195 277.366);
+  --color-brand-900: oklch(35.9% 0.144 278.697);
+  --color-brand-950: oklch(25.7% 0.09 281.288);
+
+  /* neutrals by role */
+  --color-ink: oklch(21% 0.034 264.665);        /* body text, headings */
+  --color-muted: oklch(44.6% 0.03 256.802);     /* secondary text */
+  --color-faint: oklch(55.1% 0.027 264.364);    /* hints, timestamps */
+  --color-line: oklch(92.8% 0.006 264.531);     /* borders, dividers */
+  --color-surface: oklch(98.5% 0.002 247.839);  /* page background */
+  --color-panel: oklch(100% 0 0);               /* cards, tables, dialogs */
+  --color-raised: oklch(96.7% 0.003 264.542);   /* hover and selected rows */
+
+  /* states: text color and a soft background each */
+  --color-ok: oklch(52.7% 0.154 150.069);
+  --color-ok-soft: oklch(96.2% 0.044 156.743);
+  --color-warn: oklch(55.5% 0.163 48.998);
+  --color-warn-soft: oklch(98.7% 0.022 95.277);
+  --color-danger: oklch(57.7% 0.245 27.325);
+  --color-danger-soft: oklch(97.1% 0.013 17.38);
+
+  /* the admin sidebar */
+  --color-chrome: oklch(21% 0.034 264.665);
+  --color-chrome-ink: oklch(87.2% 0.01 258.338);
+  --color-chrome-active: oklch(27.8% 0.033 256.848);
+
+  --radius-card: 0.75rem;
+}
