@@ -8,6 +8,14 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 - A separate admin site (`admin.yourdomain.com`, its own Lambda): overview, users with audited actions (ban, suspend,
   warn, balance, refunds, admin), payments, Stripe log, audit log, support tickets, health, config; apps add tabs
 - Support requests: a Support page for users, answered from the admin site
+- Account standing everywhere it matters: warnings, suspension and read-only bans in a banner and the alerts menu, and
+  the actions they turn off are disabled with an explanation
+- A Settings page (Profile, Payment, Notifications) stored on the server, with per-kind email switches
+- Built-in i18n: i18next on both sites and translated API messages and emails (ships in English; adding a language
+  is a folder and a file, checked by `npm run i18n:check` and the tests)
+- Terms of Service and Privacy Policy skeleton pages (`/terms`, `/privacy`)
+- Optional Google Analytics 4 and AdSense with EEA/UK/CH consent-mode defaults, and generated `robots.txt`,
+  `sitemap.xml` and `ads.txt`
 - Two stages: `test.yourdomain.com` (disposable, noindex, username test login) and `yourdomain.com`, each with its
   admin site (`admin.test.yourdomain.com`, `admin.yourdomain.com`)
 - Billing modules, chosen per app (`billingMode`: none, subscriptions, credits or both):

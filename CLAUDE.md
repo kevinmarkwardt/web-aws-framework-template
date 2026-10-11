@@ -51,7 +51,8 @@ npm install            # once: one lockfile and node_modules for packages/shared
 npm run dev            # user site on :5173 (proxies /api/* to localhost:3000); MOCK_AUTH when no Cognito pool is set
 npm run dev:admin      # admin site on :5174; MOCK_AUTH = a mock admin, the admin API answered by admin/src/mock.ts
 npm run build          # every workspace: shared typecheck, then TypeScript check + Vite build of both sites
-npm run lint           # ESLint in every workspace (must stay clean)
+npm run lint           # ESLint in every workspace, then the i18n check (must stay clean)
+npm run i18n:check     # site texts only: every language complete, every key used (scripts/i18n-check.mjs)
 npm run build -w admin # one workspace
 ```
 
@@ -197,6 +198,87 @@ Full design and decisions: [docs/payments.md](docs/payments.md).
 - **Design:** Tailwind with the tokens in `packages/shared/src/theme.css` (`brand-*`, `ink`, `muted`, `line`, `panel`,
   `chrome`, ...), shared by both sites; UI primitives in `packages/shared/src/ui.tsx`.
 
+## i18n (both sites and the API)
+
+The template ships in English with translation built in: every user-visible string goes through i18next on the sites
+and through `api/lib/i18n.py` in the API.
+
+- **Languages:** one list, `packages/shared/src/i18n/languages.ts` (`LANGUAGES`; `init.sh` writes it from
+  `ai/site.spec.json` `modules.i18n.languages`, default `['en']`). The language picker (`LanguagePicker`, in the site
+  footer) and the Settings page's Language field appear only once there are two or more.
+- **Site texts:** `packages/shared/src/locales/{lang}/{area}.json`, each file shaped `{ "area": { ... } }`; components
+  call `t('area.key')` (`useTranslation` / `Trans` / `i18n` re-exported from `@yourapp/shared`). Interpolation is
+  `{{name}}`, plurals `key_one` / `key_other` with `count`. Each site loads only its own areas
+  (`packages/shared/src/i18n/site.ts`: everything but `admin*.json`; `admin.ts`: `common.json` + `admin*.json`), so the
+  user site never ships admin texts. English is bundled; other languages load when chosen. The visitor's choice is kept
+  in localStorage, else the browser's language; signed-in users' profile language wins on a new device.
+- **Admin site:** English only, but its strings are in `admin.json` / `admin-users.json` and go through `t()`. Tab
+  labels and sections in the tab registry are i18n keys.
+- **`npm run i18n:check`** (`scripts/i18n-check.mjs`, also the last step of `npm run lint`): every language has
+  English's keys with the same placeholders, every `t('...')` key exists, each site uses only the areas it loads, and
+  no English key is unused (a literal key anywhere in the source, a `` t(`area.${x}`) `` prefix or a `returnObjects`
+  subtree counts as a use). `--literals` lists JSX text that looks untranslated.
+- **API:** the sites send `X-Language` on every call (`packages/shared/src/api.ts`); `handler.py` calls `i18n.use(event)`.
+  Error answers are `{"error": English, "message": translated, "code": ...}`; the sites show `message`. Catalogs are
+  keyed by the English text: `api/locales/{lang}.json`. `en.json` lists every message (value = key) and is rewritten by
+  `.venv/bin/python scripts/api-messages.py --write-en`. Messages with values are templates:
+  `response.error("You have {n} open requests...", 429, "TOO_MANY_OPEN", n=3)`; a reason returned or raised from a
+  helper is an `i18n.Text("...{x}...", x=...)` so it is still translated later (`i18n.message_of(e)` keeps it).
+  The admin API is English-only. If you ever cache a translated `/api/*` answer, add `X-Language` to the cache key.
+- **Emails and account alerts** use the recipient's saved language: `i18n.t(text, lang=i18n.user_language(uid), ...)`.
+  The profile's `language` is set by the Settings page, or from the site's language on the first `GET /api/account`.
+- **Tests:** `tests/test_api_messages.py` (every message in every catalog, placeholders intact, `en.json` exactly the
+  messages, templates translated after being raised) and `tests/test_language_sync.py` (`languages.ts`, the locale
+  folders and `api/locales/` list the same languages; every language has the same files).
+
+**Add a language** (say Spanish):
+1. Add `{ code: 'es', name: 'Español' }` to `packages/shared/src/i18n/languages.ts`.
+2. Copy `packages/shared/src/locales/en/` to `locales/es/` and translate the values (keep keys, `{{placeholders}}`
+   and `<tags>`; add the plural forms Spanish needs).
+3. Copy `api/locales/en.json` to `api/locales/es.json` and translate the values (keep `{placeholders}`).
+4. `npm run i18n:check` and `.venv/bin/python -m pytest tests/test_api_messages.py tests/test_language_sync.py`.
+
+**Add a string:** put it in the right `locales/en/{area}.json` and use `t('area.key')`; for the API, write the English
+message in the code, then run `scripts/api-messages.py --write-en` (and `--missing` to see what other languages lack).
+
+## Settings and account standing (user site)
+
+- **Settings page** (`frontend/src/pages/dashboard/SettingsPage.tsx`, `?tab=profile|payment|notifications`): Profile
+  (name, language), Payment (links to Plans / Wallet by billing mode; hidden when `billingMode` is `none`),
+  Notifications (email switches). Everything is stored on the profile through `PUT /api/account/settings`
+  `{name?, language?, notifications?: {key: bool}}`, validated in `api/lib/prefs.py` (unknown keys, wrong types or an
+  unlisted language: 400, nothing written). Nothing account-related lives only in localStorage.
+- **Email switches:** `prefs.NOTIFICATIONS` (`emailSupport`, `emailBilling`, `emailNews`) with defaults; send with
+  `mail.to_user(uid, subject, text, pref="emailSupport")` and the mail is skipped when that switch is off. Mail about
+  the account's standing (warnings, bans) always goes out. Add a key there (and its label in `settings.json`) to give
+  your own emails a switch.
+- **Standing in the UI:** `AccountBanner` (above every signed-in page: read-only ban with its reason and end date,
+  suspension, active warnings with how many more make the account read-only, a failed renewal), the alerts list in
+  the user menu (`api/lib/notes.py`), and `frontend/src/standing.ts` (`canPay`, `canWrite`) +
+  `components/RestrictedNote.tsx`: put `<RestrictedNote need="pay" | "write" />` beside buy, top-up, card, plan or
+  create buttons and disable them with `canPay(user)` / `canWrite(user)`. The API enforces the same
+  (`accounts.can_spend` / `can_write`); Support and Settings stay usable while banned.
+
+## Legal pages, Google tags, SEO files (user site)
+
+- **Terms and Privacy:** `/terms` and `/privacy` (`frontend/src/pages/LegalPage.tsx`), text in
+  `packages/shared/src/locales/{lang}/legal.json` (`title`, `intro[]`, `sections[{h, p[]}]`; lines starting `- ` become
+  lists; emails and URLs become links). `{{displayName}}`, `{{domain}}` and `{{contactEmail}}` come from
+  `frontend/src/site.ts` (`SITE`, also the "last updated" date). The skeletons have `[TODO: ...]` markers (legal entity
+  name and address, minimum age, governing law, retention, billing terms): fill them in and have them reviewed before
+  launch. Linked from `SiteFooter` (every page).
+- **Google tags:** `googleTags()` in `frontend/site-plugins.ts` (a Vite plugin) adds GA4 (`VITE_GA4_ID`) and AdSense
+  (`VITE_ADSENSE_CLIENT`) with consent-mode defaults: ads and analytics storage "denied" in `VITE_CONSENT_REGIONS`
+  (default: the EEA, the UK and Switzerland) until the visitor answers the consent message (set up AdSense's
+  certified CMP in the AdSense console). Production builds only, never for `VITE_STAGE=test` or the dev server;
+  nothing when both ids are unset. The ids are not secret: keep them in a committed `frontend/.env.production`
+  (init writes it from `modules.googleTags`). The consent defaults are an inline script: a Content-Security-Policy
+  must allow it (hash or nonce) and Google's tag hosts.
+- **SEO files:** `seoFiles()` (same file) writes `robots.txt` (test stage: `Disallow: /`; otherwise the private paths
+  and the sitemap), `sitemap.xml` (the public pages under `VITE_SITE_URL`, which `deploy.sh` writes per stage) and
+  `ads.txt` (only with `VITE_ADSENSE_CLIENT`) into `frontend/dist` at build time. Pages and private paths are listed in
+  `frontend/src/seo.ts`: add a public page to `PUBLIC_PAGES` when you add its route.
+
 ## Key Patterns
 
 ### Python Import Duality
@@ -213,7 +295,7 @@ Importing `api.handler` puts `api/` on `sys.path`, so the handler's modules are 
 
 ### Response Format
 
-`lib/response.py`: `ok(body, status)`, `error(message, status, code=None)`, `not_found`, `unauthorized`, `forbidden`, `unavailable`. Returns `{"statusCode": N, "headers": {CORS}, "body": JSON string}`; `code` is a machine-readable reason the frontend branches on.
+`lib/response.py`: `ok(body, status)`, `error(message, status, code=None, **values)`, `not_found`, `unauthorized`, `forbidden`, `unavailable`. Returns `{"statusCode": N, "headers": {CORS}, "body": JSON string}`; an error body is `{"error": English, "message": in the request's language, "code"?}` (see "i18n"); `code` is a machine-readable reason the frontend branches on.
 
 ### User Auto-Provisioning
 
