@@ -12,45 +12,45 @@
 
 :root {
   /* tokens:begin */
-  --brand-50: oklch(96.2% 0.018 272.314);
-  --brand-100: oklch(93% 0.034 272.788);
-  --brand-200: oklch(87% 0.065 274.039);
-  --brand-300: oklch(78.5% 0.115 274.713);
-  --brand-400: oklch(67.3% 0.182 276.935);
-  --brand-500: oklch(58.5% 0.233 277.117);
-  --brand-600: oklch(51.1% 0.262 276.966);
-  --brand-700: oklch(45.7% 0.24 277.023);
-  --brand-800: oklch(39.8% 0.195 277.366);
-  --brand-900: oklch(35.9% 0.144 278.697);
-  --brand-950: oklch(25.7% 0.09 281.288);
-  --brand-ink: oklch(100% 0 0);
+  --brand-50: color-mix(in oklch, oklch(52% 0.11 215), white 92%);
+  --brand-100: color-mix(in oklch, oklch(52% 0.11 215), white 84%);
+  --brand-200: color-mix(in oklch, oklch(52% 0.11 215), white 68%);
+  --brand-300: color-mix(in oklch, oklch(52% 0.11 215), white 50%);
+  --brand-400: color-mix(in oklch, oklch(52% 0.11 215), white 32%);
+  --brand-500: color-mix(in oklch, oklch(52% 0.11 215), white 15%);
+  --brand-600: oklch(52% 0.11 215);
+  --brand-700: color-mix(in oklch, oklch(52% 0.11 215), black 14%);
+  --brand-800: color-mix(in oklch, oklch(52% 0.11 215), black 28%);
+  --brand-900: color-mix(in oklch, oklch(52% 0.11 215), black 42%);
+  --brand-950: color-mix(in oklch, oklch(52% 0.11 215), black 58%);
+  --brand-ink: oklch(99% 0 0);
 
-  --ink: oklch(21% 0.034 264.665);
-  --muted: oklch(44.6% 0.03 256.802);
-  --faint: oklch(55.1% 0.027 264.364);
-  --line: oklch(92.8% 0.006 264.531);
-  --line-strong: oklch(76% 0.012 264);
-  --surface: oklch(98.5% 0.002 247.839);
+  --ink: oklch(22% 0.012 255);
+  --muted: oklch(46% 0.014 255);
+  --faint: color-mix(in oklch, oklch(46% 0.014 255) 72%, oklch(98.6% 0.003 255));
+  --line: oklch(91.5% 0.007 255);
+  --line-strong: color-mix(in oklch, oklch(22% 0.012 255) 30%, oklch(91.5% 0.007 255));
+  --surface: oklch(98.6% 0.003 255);
   --panel: oklch(100% 0 0);
-  --raised: oklch(96.7% 0.003 264.542);
+  --raised: color-mix(in oklch, oklch(22% 0.012 255) 5%, oklch(100% 0 0));
 
-  --ok: oklch(52.7% 0.154 150.069);
-  --ok-soft: oklch(96.2% 0.044 156.743);
+  --ok: oklch(46% 0.11 150);
+  --ok-soft: color-mix(in oklch, oklch(46% 0.11 150) 10%, oklch(100% 0 0));
   --warn: oklch(55.5% 0.163 48.998);
   --warn-soft: oklch(98.7% 0.022 95.277);
-  --danger: oklch(57.7% 0.245 27.325);
-  --danger-soft: oklch(97.1% 0.013 17.38);
+  --danger: oklch(52% 0.18 27);
+  --danger-soft: color-mix(in oklch, oklch(52% 0.18 27) 10%, oklch(100% 0 0));
 
-  --chrome: oklch(21% 0.034 264.665);
+  --chrome: oklch(22% 0.012 255);
   --chrome-ink: oklch(87.2% 0.01 258.338);
   --chrome-active: oklch(27.8% 0.033 256.848);
 
-  --typeface-display: ui-sans-serif, system-ui, sans-serif;
-  --typeface-body: ui-sans-serif, system-ui, sans-serif;
-  --typeface-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --typeface-display: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --typeface-body: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --typeface-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --corner-card: 0.75rem;
-  --corner-control: 0.5rem;
+  --corner-card: 0.375rem;
+  --corner-control: 0.25rem;
   --density: 1;
   /* tokens:end */
   color-scheme: light;
@@ -59,22 +59,32 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     /* dark:begin */
-    --ink: oklch(94% 0.006 264.5);
-    --muted: oklch(76% 0.015 260);
-    --faint: oklch(64% 0.02 262);
-    --line: oklch(32% 0.02 264);
-    --line-strong: oklch(46% 0.02 264);
-    --surface: oklch(17% 0.02 266);
-    --panel: oklch(21% 0.022 266);
-    --raised: oklch(26% 0.024 266);
-    --ok-soft: oklch(30% 0.06 155);
+    --ink: oklch(94.5% 0.005 255);
+    --muted: oklch(74% 0.012 255);
+    --faint: color-mix(in oklch, oklch(74% 0.012 255) 72%, oklch(16.5% 0.008 255));
+    --line: oklch(29% 0.011 255);
+    --line-strong: color-mix(in oklch, oklch(94.5% 0.005 255) 30%, oklch(29% 0.011 255));
+    --surface: oklch(16.5% 0.008 255);
+    --panel: oklch(20% 0.009 255);
+    --raised: color-mix(in oklch, oklch(94.5% 0.005 255) 5%, oklch(20% 0.009 255));
+    --ok-soft: color-mix(in oklch, oklch(76% 0.12 150) 10%, oklch(20% 0.009 255));
     --warn-soft: oklch(32% 0.06 70);
-    --danger-soft: oklch(30% 0.07 25);
-    --brand-50: oklch(28% 0.07 277);
-    --brand-100: oklch(32% 0.09 277);
-    --brand-200: oklch(40% 0.12 277);
-    --brand-600: oklch(60% 0.22 277);
-    --brand-700: oklch(66% 0.2 277);
+    --danger-soft: color-mix(in oklch, oklch(64% 0.17 27) 10%, oklch(20% 0.009 255));
+    --brand-50: color-mix(in oklch, oklch(74% 0.1 210) 18%, oklch(16.5% 0.008 255));
+    --brand-100: color-mix(in oklch, oklch(74% 0.1 210) 26%, oklch(16.5% 0.008 255));
+    --brand-200: color-mix(in oklch, oklch(74% 0.1 210) 40%, oklch(16.5% 0.008 255));
+    --brand-600: oklch(74% 0.1 210);
+    --brand-700: color-mix(in oklch, oklch(74% 0.1 210) 82%, white);
+    --chrome: oklch(94.5% 0.005 255);
+    --brand-300: color-mix(in oklch, oklch(74% 0.1 210) 58%, oklch(16.5% 0.008 255));
+    --brand-400: color-mix(in oklch, oklch(74% 0.1 210) 76%, oklch(16.5% 0.008 255));
+    --brand-500: color-mix(in oklch, oklch(74% 0.1 210) 90%, oklch(16.5% 0.008 255));
+    --brand-800: color-mix(in oklch, oklch(74% 0.1 210) 70%, white);
+    --brand-900: color-mix(in oklch, oklch(74% 0.1 210) 58%, white);
+    --brand-950: color-mix(in oklch, oklch(74% 0.1 210) 46%, white);
+    --brand-ink: oklch(18% 0.02 215);
+    --danger: oklch(64% 0.17 27);
+    --ok: oklch(76% 0.12 150);
     /* dark:end */
     color-scheme: dark;
   }
@@ -82,22 +92,32 @@
 
 :root[data-theme="dark"] {
   /* dark:begin */
-  --ink: oklch(94% 0.006 264.5);
-  --muted: oklch(76% 0.015 260);
-  --faint: oklch(64% 0.02 262);
-  --line: oklch(32% 0.02 264);
-  --line-strong: oklch(46% 0.02 264);
-  --surface: oklch(17% 0.02 266);
-  --panel: oklch(21% 0.022 266);
-  --raised: oklch(26% 0.024 266);
-  --ok-soft: oklch(30% 0.06 155);
+  --ink: oklch(94.5% 0.005 255);
+  --muted: oklch(74% 0.012 255);
+  --faint: color-mix(in oklch, oklch(74% 0.012 255) 72%, oklch(16.5% 0.008 255));
+  --line: oklch(29% 0.011 255);
+  --line-strong: color-mix(in oklch, oklch(94.5% 0.005 255) 30%, oklch(29% 0.011 255));
+  --surface: oklch(16.5% 0.008 255);
+  --panel: oklch(20% 0.009 255);
+  --raised: color-mix(in oklch, oklch(94.5% 0.005 255) 5%, oklch(20% 0.009 255));
+  --ok-soft: color-mix(in oklch, oklch(76% 0.12 150) 10%, oklch(20% 0.009 255));
   --warn-soft: oklch(32% 0.06 70);
-  --danger-soft: oklch(30% 0.07 25);
-  --brand-50: oklch(28% 0.07 277);
-  --brand-100: oklch(32% 0.09 277);
-  --brand-200: oklch(40% 0.12 277);
-  --brand-600: oklch(60% 0.22 277);
-  --brand-700: oklch(66% 0.2 277);
+  --danger-soft: color-mix(in oklch, oklch(64% 0.17 27) 10%, oklch(20% 0.009 255));
+  --brand-50: color-mix(in oklch, oklch(74% 0.1 210) 18%, oklch(16.5% 0.008 255));
+  --brand-100: color-mix(in oklch, oklch(74% 0.1 210) 26%, oklch(16.5% 0.008 255));
+  --brand-200: color-mix(in oklch, oklch(74% 0.1 210) 40%, oklch(16.5% 0.008 255));
+  --brand-600: oklch(74% 0.1 210);
+  --brand-700: color-mix(in oklch, oklch(74% 0.1 210) 82%, white);
+  --chrome: oklch(94.5% 0.005 255);
+  --brand-300: color-mix(in oklch, oklch(74% 0.1 210) 58%, oklch(16.5% 0.008 255));
+  --brand-400: color-mix(in oklch, oklch(74% 0.1 210) 76%, oklch(16.5% 0.008 255));
+  --brand-500: color-mix(in oklch, oklch(74% 0.1 210) 90%, oklch(16.5% 0.008 255));
+  --brand-800: color-mix(in oklch, oklch(74% 0.1 210) 70%, white);
+  --brand-900: color-mix(in oklch, oklch(74% 0.1 210) 58%, white);
+  --brand-950: color-mix(in oklch, oklch(74% 0.1 210) 46%, white);
+  --brand-ink: oklch(18% 0.02 215);
+  --danger: oklch(64% 0.17 27);
+  --ok: oklch(76% 0.12 150);
   /* dark:end */
   color-scheme: dark;
 }

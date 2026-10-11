@@ -35,6 +35,8 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.0.0",
+    "@fontsource-variable/geist-mono": "^5.0.0",
     "i18next": "^25.10.10",
     "i18next-browser-languagedetector": "^8.2.1",
     "msw": "^2.15.0",
