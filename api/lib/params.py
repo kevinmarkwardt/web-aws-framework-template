@@ -6,7 +6,9 @@ The helpers raise BadRequest; handler.py turns it into a 400 with the message, s
 from __future__ import annotations
 
 import base64
+import hmac
 import json
+import os
 
 
 class BadRequest(Exception):
@@ -43,3 +45,12 @@ def header(event: dict | None, name: str) -> str:
     """A request header's value, "" when absent (header names match in any case)."""
     name = name.lower()
     return next((str(v) for k, v in ((event or {}).get("headers") or {}).items() if k.lower() == name), "")
+
+
+def from_cloudfront(event: dict | None) -> bool:
+    """The Function URL is public. CloudFront adds X-Origin-Verify = ORIGIN_VERIFY (set by the CDK stack: the stack's
+    own id, never in the repo) to every /api/* request it forwards, the Stripe webhook's too. A request without it went
+    around CloudFront (its cache policy, any WAF, the security headers). Compared in constant time.
+    No ORIGIN_VERIFY (local API, tests): every request passes."""
+    secret = os.environ.get("ORIGIN_VERIFY", "")
+    return not secret or hmac.compare_digest(header(event, "x-origin-verify").encode(), secret.encode())

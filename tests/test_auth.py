@@ -113,3 +113,35 @@ class TestVerifyToken:
 
             with pytest.raises(ValueError, match="Token signature verification failed"):
                 verify_token("header.payload.signature")
+
+
+class TestAudience:
+    """Only this site's app client: an ID token's aud, an access token's client_id."""
+
+    def _verify(self, claims):
+        jwks = {"keys": [{"kid": "test-kid", "kty": "RSA", "n": "abc", "e": "AQAB"}]}
+        base = {"sub": "user-123", "exp": int(time.time()) + 3600,
+                "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_TestPool"}
+        with patch("api.lib.auth._get_jwks", return_value=jwks), \
+             patch("api.lib.auth.jwt.get_unverified_headers", return_value={"kid": "test-kid"}), \
+             patch("api.lib.auth.jwk.construct") as mock_construct, \
+             patch("api.lib.auth.base64url_decode", return_value=b"sig"), \
+             patch("api.lib.auth.jwt.get_unverified_claims", return_value={**base, **claims}):
+            mock_construct.return_value = MagicMock(verify=MagicMock(return_value=True))
+            return verify_token("header.payload.signature")
+
+    def test_id_token_for_this_client(self):
+        assert self._verify({"token_use": "id", "aud": "test-client-id"})["sub"] == "user-123"
+
+    def test_access_token_for_this_client(self):
+        assert self._verify({"token_use": "access", "client_id": "test-client-id"})["sub"] == "user-123"
+
+    @pytest.mark.parametrize("claims", [
+        {"token_use": "id", "aud": "other-client"},
+        {"token_use": "access", "client_id": "other-client"},
+        {"token_use": "access"},
+        {"aud": "test-client-id"},
+    ])
+    def test_other_clients_are_refused(self, claims):
+        with pytest.raises(ValueError, match="audience"):
+            self._verify(claims)

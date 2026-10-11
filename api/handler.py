@@ -18,13 +18,13 @@ if _dir not in sys.path:
 
 try:
     from lib.auth import get_user_id
-    from lib.response import ok, unauthorized, not_found, error, unavailable
-    from lib import config, params
+    from lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
+    from lib import auth, config, params
     from routes import items, account, billing, admin
 except ImportError:
     from api.lib.auth import get_user_id
-    from api.lib.response import ok, unauthorized, not_found, error, unavailable
-    from api.lib import config, params
+    from api.lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
+    from api.lib import auth, config, params
     from api.routes import items, account, billing, admin
 
 MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
@@ -32,6 +32,8 @@ MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
 
 def lambda_handler(event, context):
     """Main API handler routed via CloudFront /api/* -> Function URL."""
+    if not params.from_cloudfront(event):  # went around CloudFront (the Function URL itself is public)
+        return forbidden()
     try:
         return _dispatch(event)
     except params.BadRequest as e:  # malformed body or field (lib/params.py)
@@ -56,6 +58,10 @@ def _dispatch(event: dict) -> dict:
     if method == "POST" and path == "/api/webhooks/stripe":
         return billing.handle_webhook(event)
 
+    # Test stage only: username login, no password or email (lib/auth.py); 404 everywhere else
+    if method == "POST" and path == "/api/test-login":
+        return _test_login(event)
+
     # Admin routes — use separate auth (Secrets Manager JWT); never blocked by maintenance mode
     if path.startswith("/api/admin/"):
         return _admin_route(method, path, event)
@@ -75,6 +81,15 @@ def _dispatch(event: dict) -> dict:
         return unauthorized()
 
     return _route(method, path, user_id, event)
+
+
+def _test_login(event: dict) -> dict:
+    if not auth.TEST_LOGIN:
+        return not_found("No route: POST /api/test-login")
+    username = params.text(params.body(event), "username").strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,31}", username):
+        return error("Use 2-32 letters, numbers, - or _", 400)
+    return ok(auth.issue_test_token(username))
 
 
 def _route(method: str, path: str, user_id: str, event: dict) -> dict:
