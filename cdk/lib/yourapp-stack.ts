@@ -21,7 +21,8 @@ import { Construct } from 'constructs';
 export type Stage = 'prod' | 'test';
 
 export interface YourAppStackProps extends cdk.StackProps {
-  /** The apex domain (its Route53 hosted zone must exist). Prod serves it; test serves test.<domain>. */
+  /** The apex domain (its Route53 hosted zone must exist). Prod serves it (+ www. and admin.); test serves
+   *  test.<domain> and admin.test.<domain>. */
   domainName: string;
   stage: Stage;
 }
@@ -36,9 +37,9 @@ export class YourAppStack extends cdk.Stack {
     // a -test suffix, on-demand billing and DESTROY policies, so a test stack can be torn down and rebuilt freely.
     const prefix = isProd ? 'yourapp' : 'yourapp-test';
     const siteDomain = isProd ? domainName : `test.${domainName}`;
-    // Admin host (same bundle, split by hostname in frontend/src/App.tsx). Phase 3 replaces it with admin.<domain>.
-    const adminDomain = `manager.${siteDomain}`;
-    const siteAliases = isProd ? [domainName, `www.${domainName}`, adminDomain] : [siteDomain, adminDomain];
+    // The admin site (admin/) is its own bucket, distribution and Lambda: admin.<domain> / admin.test.<domain>.
+    const adminDomain = `admin.${siteDomain}`;
+    const siteAliases = isProd ? [domainName, `www.${domainName}`] : [siteDomain];
     const disposable = isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
     // Runtime secrets, read by name; each stage's API can read only its own (yourapp/{stage}/*).
     const secretPrefix = `yourapp/${stage}`;
@@ -62,9 +63,10 @@ export class YourAppStack extends cdk.Stack {
     // ========================================================================
     // ACM Certificate (us-east-1 for CloudFront)
     // ========================================================================
+    // One certificate for both distributions: the site's names and the admin host.
     const certificate = new acm.Certificate(this, 'Certificate', {
       domainName: siteDomain,
-      subjectAlternativeNames: siteAliases.filter((d) => d !== siteDomain),
+      subjectAlternativeNames: [...siteAliases.filter((d) => d !== siteDomain), adminDomain],
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
@@ -89,6 +91,16 @@ export class YourAppStack extends cdk.Stack {
       indexName: 'stripe-customer-index',
       partitionKey: { name: 'stripeCustomerId', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
+      ...(isProd ? { readCapacity: 2, writeCapacity: 2 } : {}),
+    });
+
+    // GSI: list a record type across users, newest first (admin Users and Items tabs; api/lib/db.list_page), never a
+    // table scan. KEYS_ONLY: only creating a profile or item writes it, later updates (balances, settings) never do.
+    mainTable.addGlobalSecondaryIndex({
+      indexName: 'list-index',
+      partitionKey: { name: 'listPk', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
       ...(isProd ? { readCapacity: 2, writeCapacity: 2 } : {}),
     });
 
@@ -123,11 +135,27 @@ export class YourAppStack extends cdk.Stack {
       preventUserExistenceErrors: true,
     });
 
+    // Admins: this group AND isAdmin on the profile, both re-checked by the admin Lambda on every request
+    // (api/lib/admins.py). scripts/make-admin.py <stage> <email> [--revoke] sets both.
+    new cognito.CfnUserPoolGroup(this, 'AdminsGroup', {
+      userPoolId: userPool.userPoolId,
+      groupName: 'admins',
+      description: 'Admin site access (with isAdmin on the profile)',
+    });
+
     // ========================================================================
     // S3 — SPA hosting bucket (rebuilt from the repo on every deploy)
     // ========================================================================
     const spaBucket = new s3.Bucket(this, 'SpaBucket', {
       bucketName: `${prefix}-spa-${this.account}`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
+    // The admin site's own bucket (admin/ build): no admin code is ever served from the user site.
+    const adminBucket = new s3.Bucket(this, 'AdminSiteBucket', {
+      bucketName: `${prefix}-admin-${this.account}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -215,6 +243,8 @@ export class YourAppStack extends cdk.Stack {
     // CloudFront sends this to the API as X-Origin-Verify, and the API refuses requests without it
     // (api/lib/params.from_cloudfront): the Function URL is public. The stack's own id, never in the repo.
     const originVerify = cdk.Fn.select(2, cdk.Fn.split('/', this.stackId));
+    // The admin distribution sends its own value to the admin Lambda, so the user site's header can't open it.
+    const adminOriginVerify = cdk.Fn.join('-', ['admin', originVerify]);
 
     // --- API Handler (main CRUD Lambda, exposed via Function URL) ---
     const apiHandler = new lambda.Function(this, 'ApiHandler', {
@@ -237,8 +267,6 @@ export class YourAppStack extends cdk.Stack {
         ADMIN_EMAIL: adminEmail,
         // Secrets are read at runtime by name; the values never live in code, env vars or the repo.
         STRIPE_SECRET_NAME: `${secretPrefix}/stripe`,
-        ADMIN_SECRET_NAME: `${secretPrefix}/admin-credentials`,
-        DAILY_JOB_FUNCTION: dailyJobFn.functionName,
         ...(isProd ? {} : { TEST_LOGIN: '1', TEST_LOGIN_SECRET_NAME: testLoginSecretName }),
       },
     });
@@ -247,7 +275,7 @@ export class YourAppStack extends cdk.Stack {
     const apiUrl = apiHandler.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
       cors: {
-        allowedOrigins: [`https://${siteDomain}`, `https://${adminDomain}`, 'http://localhost:5173'],
+        allowedOrigins: [`https://${siteDomain}`, 'http://localhost:5173'],
         allowedMethods: [lambda.HttpMethod.ALL],
         allowedHeaders: ['*'],
         allowCredentials: true,
@@ -255,6 +283,42 @@ export class YourAppStack extends cdk.Stack {
     });
 
     // NOTE: Stripe webhooks are handled by the API handler at /api/webhooks/stripe (api/routes/webhooks.py).
+
+    // --- Admin API (api/admin_handler.py): the same code bundle, its own function, role and Function URL. Reached only
+    // through the admin distribution (its own X-Origin-Verify); /api/admin/* on the user API answers 404. No test login.
+    const adminHandler = new lambda.Function(this, 'AdminHandler', {
+      ...lambdaDefaults,
+      functionName: `${prefix}-admin`,
+      handler: 'admin_handler.lambda_handler',
+      code: lambdaAsset('api'),
+      memorySize: 256,
+      logGroup: makeLogGroup('admin'),
+      environment: {
+        STAGE: stage,
+        TABLE_NAME: mainTable.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
+        FRONTEND_URL: `https://${adminDomain}`,  // CORS: the admin site only
+        SITE_URL: `https://${siteDomain}`,
+        SES_FROM_EMAIL: `noreply@${domainName}`,
+        ORIGIN_VERIFY: adminOriginVerify,
+        BILLING_MODE: billingMode,
+        ADMIN_EMAIL: adminEmail,
+        STRIPE_SECRET_NAME: `${secretPrefix}/stripe`,
+        // Health tab: this stage's resource names, never hardcoded in the code
+        API_FUNCTION_NAME: apiHandler.functionName,
+        DAILY_JOB_FUNCTION: dailyJobFn.functionName,
+      },
+    });
+    const adminUrl = adminHandler.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: [`https://${adminDomain}`, 'http://localhost:5174'],
+        allowedMethods: [lambda.HttpMethod.ALL],
+        allowedHeaders: ['*'],
+        allowCredentials: true,
+      },
+    });
 
     // Card refunds Stripe hasn't confirmed yet (a refund request that died half way) are settled every 15 minutes by
     // payments.sweep_pending, not only when that customer next opens the wallet. The API recognises exactly this event
@@ -278,39 +342,50 @@ export class YourAppStack extends cdk.Stack {
     // API handler — full CRUD on main table
     mainTable.grantReadWriteData(apiHandler);
 
-    // Secrets of this stage only: Stripe keys (the admin Billing page can create/update them), admin credentials and
-    // the test login key. Prod can't read yourapp/test/* and test can't read yourapp/prod/*.
+    // Secrets of this stage only (the Stripe key, the test login key): prod can't read yourapp/test/* and test can't
+    // read yourapp/prod/*. Read only: scripts/stripe-secret.sh writes them.
     apiHandler.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['secretsmanager:GetSecretValue', 'secretsmanager:PutSecretValue', 'secretsmanager:CreateSecret'],
+      actions: ['secretsmanager:GetSecretValue'],
       resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:${secretPrefix}/*`],
-    }));
-    // Admin dashboard (Health page, actions)
-    apiHandler.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['cloudwatch:GetMetricData'],
-      resources: ['*'],
-    }));
-    apiHandler.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['lambda:InvokeFunction'],
-      resources: [dailyJobFn.functionArn],
-    }));
-    apiHandler.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['ses:GetSendStatistics', 'ses:GetSendQuota'],
-      resources: ['*'],
     }));
     // Account and admin email (api/lib/mail.py), only as noreply@ the domain. Email-address identities stay in the list
     // because in the SES sandbox IAM also checks each (verified) recipient; the From condition still stops sending as
     // them. (ses:FromAddress is the bare address; the second form is a fallback for "Name <address>".)
-    apiHandler.addToRolePolicy(new iam.PolicyStatement({
+    const sendMail = new iam.PolicyStatement({
       actions: ['ses:SendEmail'],
       resources: [
         `arn:aws:ses:${this.region}:${this.account}:identity/${domainName}`,
         `arn:aws:ses:${this.region}:${this.account}:identity/*@*`,
       ],
       conditions: { StringLike: { 'ses:FromAddress': [`noreply@${domainName}`, `*<noreply@${domainName}>`] } },
+    });
+    apiHandler.addToRolePolicy(sendMail);
+
+    // Admin handler: only what the admin API needs.
+    mainTable.grantReadWriteData(adminHandler);  // the table and its indexes (list-index)
+    adminHandler.addToRolePolicy(sendMail);      // support replies, ban notices
+    adminHandler.addToRolePolicy(new iam.PolicyStatement({
+      // the Stripe key only (card refunds, subscription cancels on a ban), never the test login key
+      actions: ['secretsmanager:GetSecretValue'],
+      resources: [`arn:aws:secretsmanager:${this.region}:${this.account}:secret:${secretPrefix}/stripe-??????`],
     }));
-    apiHandler.addToRolePolicy(new iam.PolicyStatement({
+    adminHandler.addToRolePolicy(new iam.PolicyStatement({
+      // the live admin check, and granting / revoking admin from the Users tab (api/lib/admins.py)
+      actions: ['cognito-idp:AdminListGroupsForUser', 'cognito-idp:AdminAddUserToGroup', 'cognito-idp:AdminRemoveUserFromGroup',
+        'cognito-idp:ListUsers'],
+      resources: [userPool.userPoolArn],
+    }));
+    adminHandler.addToRolePolicy(new iam.PolicyStatement({  // Health tab
+      actions: ['cloudwatch:GetMetricData', 'ses:GetSendStatistics', 'ses:GetSendQuota', 'ses:GetAccount'],
+      resources: ['*'],
+    }));
+    adminHandler.addToRolePolicy(new iam.PolicyStatement({
       actions: ['dynamodb:DescribeTable'],
       resources: [mainTable.tableArn],
+    }));
+    adminHandler.addToRolePolicy(new iam.PolicyStatement({  // "Run the daily job" (Health tab)
+      actions: ['lambda:InvokeFunction'],
+      resources: [dailyJobFn.functionArn],
     }));
 
     // ========================================================================
@@ -326,8 +401,8 @@ function handler(event) {
   var request = event.request;
   var host = request.headers.host.value;
 
-  // www redirect (skip for manager subdomain)
-  if (host.startsWith('www.') && !host.startsWith('manager.')) {
+  // www redirect
+  if (host.startsWith('www.')) {
     return {
       statusCode: 301,
       statusDescription: 'Moved Permanently',
@@ -349,6 +424,21 @@ function handler(event) {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
     });
 
+    // The admin site: SPA rewrite only (no www host)
+    const adminViewerRequestFunction = new cloudfront.Function(this, 'AdminViewerRequestFunction', {
+      functionName: `${prefix}-admin-viewer-request`,
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  if (!request.uri.includes('.')) {
+    request.uri = '/index.html';
+  }
+  return request;
+}
+`),
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+    });
+
     // Security headers on every response: HTTPS only (HSTS), no MIME sniffing, a referrer policy and no framing by other
     // sites. The test stage also stays out of search engines (X-Robots-Tag: noindex).
     const securityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
@@ -362,6 +452,18 @@ function handler(event) {
       ...(isProd ? {} : {
         customHeadersBehavior: { customHeaders: [{ header: 'X-Robots-Tag', value: 'noindex, nofollow', override: true }] },
       }),
+    });
+
+    // The admin site: the same headers, never framed, and never indexed on any stage.
+    const adminSecurityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'AdminSecurityHeaders', {
+      responseHeadersPolicyName: `${prefix}-admin-security`,
+      securityHeadersBehavior: {
+        strictTransportSecurity: { accessControlMaxAge: cdk.Duration.days(365), includeSubdomains: true, override: true },
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.SAME_ORIGIN, override: true },
+      },
+      customHeadersBehavior: { customHeaders: [{ header: 'X-Robots-Tag', value: 'noindex, nofollow', override: true }] },
     });
 
     // /api/*: nothing is cached unless the API sends Cache-Control (default TTL 0). Authorization is part of the cache
@@ -429,15 +531,59 @@ function handler(event) {
     });
 
     // ========================================================================
-    // Route53 DNS Records — one per site alias (prod: apex, www, manager; test: test., manager.test.)
+    // Admin site distribution (admin.<domain> / admin.test.<domain>): its own bucket, and /api/admin/* to the admin
+    // Lambda with the admin X-Origin-Verify. Nothing else of the API is reachable through it.
+    // ========================================================================
+    const adminDistribution = new cloudfront.Distribution(this, 'AdminDistribution', {
+      domainNames: [adminDomain],
+      certificate,
+      defaultRootObject: 'index.html',
+      httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      comment: `${prefix} admin site`,
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        responseHeadersPolicy: adminSecurityHeaders,
+        functionAssociations: [{ function: adminViewerRequestFunction, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
+      },
+      additionalBehaviors: {
+        '/api/admin/*': {
+          origin: new origins.HttpOrigin(cdk.Fn.select(2, cdk.Fn.split('/', adminUrl.url)), {
+            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+            customHeaders: { 'X-Origin-Verify': adminOriginVerify },
+          }),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachePolicy: apiCachePolicy,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+          responseHeadersPolicy: adminSecurityHeaders,
+        },
+      },
+      // as on the site: no error pages, and error codes are never cached
+      errorResponses: [400, 403, 404, 405, 414, 416, 500, 501, 502, 503, 504].map((httpStatus) => ({
+        httpStatus,
+        ttl: cdk.Duration.seconds(0),
+      })),
+    });
+
+    // ========================================================================
+    // Route53 DNS Records — the site's aliases (prod: apex, www; test: test.) and the admin host
     // ========================================================================
     siteAliases.forEach((recordName, i) => {
-      const id = isProd ? ['ARecord', 'WwwARecord', 'ManagerARecord'][i] : ['TestARecord', 'TestManagerARecord'][i];
+      const id = isProd ? ['ARecord', 'WwwARecord'][i] : 'TestARecord';
       new route53.ARecord(this, id, {
         zone: hostedZone,
         recordName,
         target: route53.RecordTarget.fromAlias(new route53targets.CloudFrontTarget(distribution)),
       });
+    });
+    new route53.ARecord(this, isProd ? 'AdminARecord' : 'TestAdminARecord', {
+      zone: hostedZone,
+      recordName: adminDomain,
+      target: route53.RecordTarget.fromAlias(new route53targets.CloudFrontTarget(adminDistribution)),
     });
 
     // ========================================================================
@@ -466,7 +612,11 @@ function handler(event) {
     output('SpaBucketName', spaBucket.bucketName, 'S3 bucket for SPA assets');
     output('TableName', mainTable.tableName, 'DynamoDB single-table name');
     output('DomainName', siteDomain, 'Site domain name');
-    output('AdminDomain', adminDomain, 'Admin site domain name');
+    output('AdminUrl', `https://${adminDomain}`, 'Admin site URL');
+    output('AdminBucket', adminBucket.bucketName, 'S3 bucket for the admin site');
+    output('AdminDistributionId', adminDistribution.distributionId, 'Admin CloudFront Distribution ID (for cache invalidation)');
+    output('AdminFunctionName', adminHandler.functionName, 'Admin API Lambda name');
+    output('AdminApiUrl', adminUrl.url, 'Admin Lambda Function URL (refuses requests without the admin X-Origin-Verify)');
     output('SecretPrefix', secretPrefix, 'Secrets Manager prefix this stage reads');
     output('BillingMode', billingMode, 'Billing modules on (none | subscriptions | credits | both)');
   }

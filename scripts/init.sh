@@ -77,6 +77,9 @@ FILES=$(find . \
   -not -path './.git/*' \
   -not -path './node_modules/*' \
   -not -path './frontend/node_modules/*' \
+  -not -path './admin/node_modules/*' \
+  -not -path './admin/dist/*' \
+  -not -path './packages/*/node_modules/*' \
   -not -path './cdk/node_modules/*' \
   -not -path './.venv/*' \
   -not -path './__pycache__/*' \
@@ -99,7 +102,6 @@ echo ""
 sed_files "s/YOUR_AWS_ACCOUNT_ID/$AWS_ACCOUNT_ID/g"
 echo -e "  ${GREEN}✓${NC} AWS Account ID"
 
-sed_files "s/manager\.yourapp\.com/manager.$DOMAIN/g"
 sed_files "s/yourapp\.com/$DOMAIN/g"
 echo -e "  ${GREEN}✓${NC} Domain name"
 
@@ -145,11 +147,11 @@ echo "  2. Deploy the test stage first (test.$DOMAIN), then prod ($DOMAIN):"
 echo "     STAGE=test ./scripts/deploy.sh"
 echo "     STAGE=prod ./scripts/deploy.sh"
 echo ""
-echo "  3. Set up admin credentials for each stage:"
-echo "     STAGE=test ./scripts/setup-admin.sh you@example.com"
+echo "  3. Make yourself an admin (sign up on the site first): admin.test.$DOMAIN / admin.$DOMAIN"
+echo "     .venv/bin/python scripts/make-admin.py test you@example.com"
 echo ""
 echo "  4. Stripe keys live in Secrets Manager ($PROJECT_NAME/{stage}/stripe), never in .env:"
-echo "     enter them on the admin site's Billing page (manager.test.$DOMAIN / manager.$DOMAIN)"
+echo "     scripts/stripe-secret.sh test, then .venv/bin/python scripts/stripe-setup.py test --apply"
 echo ""
 echo "  5. Customize your app:"
 echo "     - Replace 'items' with your domain entity in:"

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Run the API Lambda locally for fast iteration: an HTTP server that turns each request into a Lambda Function URL
-event and calls api/handler.py, restarting itself whenever a file under api/ changes.
+"""Run the API Lambdas locally for fast iteration: an HTTP server that turns each request into a Lambda Function URL
+event and calls api/handler.py, or api/admin_handler.py for /api/admin/* (as the two CloudFront distributions do),
+restarting itself whenever a file under api/ changes.
 
 Started by scripts/local-test.sh (which sets the environment for a deployed stage). Listens on 127.0.0.1:3000, which is
-where Vite proxies /api (frontend/vite.config.ts).
+where both Vite apps proxy /api (frontend/vite.config.ts, admin/vite.config.ts).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ PORT = int(os.environ.get("LOCAL_API_PORT", "3000"))
 
 def serve() -> None:
     sys.path.insert(0, str(API))
+    import admin_handler  # noqa: E402  (api/admin_handler.py: the admin Lambda)
     import handler  # noqa: E402  (api/handler.py, imported the way Lambda imports it)
 
     class Handler(BaseHTTPRequestHandler):
@@ -43,7 +45,8 @@ def serve() -> None:
             }
             started = time.time()
             try:
-                resp = handler.lambda_handler(event, None)
+                target = admin_handler if url.path.startswith("/api/admin/") else handler
+                resp = target.lambda_handler(event, None)
             except Exception as e:  # noqa: BLE001 - show the error instead of dropping the connection
                 import traceback
 

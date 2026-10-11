@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# YourApp deploy: bundle the Lambdas, deploy the CDK stack, build + upload the site, invalidate CloudFront.
+# YourApp deploy: bundle the Lambdas, deploy the CDK stack, build + upload both sites (user site and admin site),
+# invalidate both CloudFront distributions.
 #
 # Usage: STAGE=test|prod scripts/deploy.sh [--infra-only|--site-only]
 #   STAGE (required, no default)
-#     test   YourAppTestStack  https://test.yourapp.com  (username test login, noindex, disposable resources)
-#     prod   YourAppStack      https://yourapp.com       (asks you to type "prod" first; YES=1 skips that, for CI)
-#   --infra-only   Lambdas + CDK only;  --site-only   frontend only (needs an earlier full deploy of that stage)
-# Writes cdk-outputs-{stage}.json (stack outputs) and frontend/.env.production.local (the site's Cognito ids).
+#     test   YourAppTestStack  https://test.yourapp.com, https://admin.test.yourapp.com  (test login, noindex, disposable)
+#     prod   YourAppStack      https://yourapp.com, https://admin.yourapp.com  (asks you to type "prod"; YES=1 skips, for CI)
+#   --infra-only   Lambdas + CDK only;  --site-only   both sites only (needs an earlier full deploy of that stage)
+# Writes cdk-outputs-{stage}.json (stack outputs), frontend/.env.production.local and admin/.env.production.local.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -47,31 +48,43 @@ if [ "$MODE" != --infra-only ]; then
   CLIENT="$(out UserPoolClientId)"
   BUCKET="$(out SpaBucketName)"
   DIST="$(out CloudFrontDistributionId)"
+  ADMIN_BUCKET="$(out AdminBucket)"
+  ADMIN_DIST="$(out AdminDistributionId)"
+  ADMIN_URL="$(out AdminUrl)"
+  SITE_URL="https://$(out DomainName)"
 
-  echo "== building site ($STAGE)"
-  {
+  common_env() {
     echo "# written by scripts/deploy.sh for the $STAGE stage"
     echo "VITE_STAGE=$STAGE"
     echo "VITE_USER_POOL_ID=$POOL"
     echo "VITE_CLIENT_ID=$CLIENT"
-    if [ "$STAGE" = test ]; then echo "VITE_TEST_LOGIN=1"; fi
-  } > "$ROOT/frontend/.env.production.local"
-  cd "$ROOT/frontend"
-  [ -d node_modules ] || npm ci --silent
-  npm run build
+  }
+  { common_env; [ "$STAGE" != test ] || echo "VITE_TEST_LOGIN=1"; echo "VITE_ADMIN_URL=$ADMIN_URL"; } \
+    > "$ROOT/frontend/.env.production.local"
+  { common_env; echo "VITE_SITE_URL=$SITE_URL"; } > "$ROOT/admin/.env.production.local"
 
-  echo "== uploading site to s3://$BUCKET"
+  echo "== building both sites ($STAGE)"
+  cd "$ROOT"
+  [ -d node_modules ] || npm ci --silent
+  npm run build   # packages/shared (typecheck), frontend/, admin/
+
   # Vite's hashed assets never change, so browsers keep them for a year; everything else (index.html, icons) is
   # revalidated on every visit, so a deploy shows up at once. Old assets are kept (no --delete on assets/): a tab
   # opened before this deploy can still load its lazy chunks.
-  aws s3 sync dist/assets/ "s3://$BUCKET/assets/" --region "$REGION" --only-show-errors \
-    --cache-control "public, max-age=31536000, immutable"
-  aws s3 sync dist/ "s3://$BUCKET/" --delete --region "$REGION" --only-show-errors \
-    --exclude "assets/*" --cache-control "no-cache"
+  upload() {  # upload DIST_DIR BUCKET
+    echo "== uploading $1 to s3://$2"
+    aws s3 sync "$1/assets/" "s3://$2/assets/" --region "$REGION" --only-show-errors \
+      --cache-control "public, max-age=31536000, immutable"
+    aws s3 sync "$1/" "s3://$2/" --delete --region "$REGION" --only-show-errors \
+      --exclude "assets/*" --cache-control "no-cache"
+  }
+  upload "$ROOT/frontend/dist" "$BUCKET"
+  upload "$ROOT/admin/dist" "$ADMIN_BUCKET"
 
-  echo "== invalidating CloudFront"
+  echo "== invalidating CloudFront (site and admin)"
   aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*" --query 'Invalidation.Id' --output text
+  aws cloudfront create-invalidation --distribution-id "$ADMIN_DIST" --paths "/*" --query 'Invalidation.Id' --output text
 fi
 
-echo "== done: https://$(out DomainName)  (admin: https://$(out AdminDomain))"
+echo "== done: https://$(out DomainName)  (admin: $(out AdminUrl))"
 echo "   outputs: $ROOT/$OUT_FILE"
