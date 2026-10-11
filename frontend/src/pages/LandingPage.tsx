@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import SiteFooter from '../components/SiteFooter';
 import { useTranslation } from '@yourapp/shared';
+import { ActionButton, CtaBand, FeatureGrid, Hero, Section, SectionHeader, SiteHeader } from '@yourapp/shared/archetypes';
 import { creditsOn, subscriptionsOn, units, usd, usePublicConfig } from '../billing';
 import { itemsLabel } from '../plans';
 
@@ -71,201 +72,119 @@ export default function LandingPage() {
   const freeLimit = config?.planLimits?.free;
   const { t } = useTranslation();
 
-  return (
-    <div className="min-h-screen bg-white">
-      {/* Nav */}
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg className="w-7 h-7 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-            </svg>
-            <span className="text-xl font-bold text-gray-900">YourApp</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900">
-              {t('landing.nav.login')}
-            </Link>
-            <Link
-              to="/signup"
-              className="text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 px-4 py-2 rounded-lg transition-colors"
-            >
-              {t('landing.getStarted')}
-            </Link>
-          </div>
-        </div>
-      </nav>
+  const nav = (
+    <div className="flex items-center gap-3">
+      <Link to="/login" className="text-sm font-medium text-muted hover:text-ink">{t('landing.nav.login')}</Link>
+      <ActionButton action={{ label: t('landing.getStarted'), href: '/signup' }} />
+    </div>
+  );
 
-      {/* Hero */}
-      <section className="pt-20 pb-16 sm:pt-28 sm:pb-24">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
-            {t('landing.hero.title')}<br />
-            <span className="text-brand-600">{t('landing.hero.titleAccent')}</span>
-          </h1>
-          <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-            {t('landing.hero.body')}
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-sm"
-            >
-              {t('landing.hero.start')}
-            </Link>
-            <a
-              href="#pricing"
-              className="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300"
-            >
-              {t('landing.hero.viewPricing')}
-            </a>
-          </div>
-          <p className="mt-4 text-sm text-gray-500">
+  return (
+    <div className="min-h-screen bg-surface">
+      <SiteHeader brand={<><BrandMark /> YourApp</>} nav={[]} right={nav} />
+
+      <Hero
+        variant="centered"
+        title={<>{t('landing.hero.title')}<br /><span className="text-brand-600">{t('landing.hero.titleAccent')}</span></>}
+        subtitle={t('landing.hero.body')}
+        actions={[
+          { label: t('landing.hero.start'), href: '/signup' },
+          ...(plans.length > 0 || credits ? [{ label: t('landing.hero.viewPricing'), onClick: () => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }) }] : []),
+        ]}
+        aside={
+          <p className="text-sm text-muted">
             {freeLimit !== undefined && t('landing.hero.freeIncludes', { items: itemsLabel(freeLimit).toLowerCase() })}
             {t('landing.hero.noCard')}
           </p>
-        </div>
-      </section>
+        }
+      />
 
-      {/* Features */}
-      <section className="py-16 sm:py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">
-              {t('landing.features.title')}
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              {t('landing.features.subtitle')}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature) => (
-              <div key={feature.title} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="w-10 h-10 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t(feature.title)}</h3>
-                <p className="text-gray-600">{t(feature.description)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeatureGrid
+        variant="cards"
+        tone="raised"
+        title={t('landing.features.title')}
+        subtitle={t('landing.features.subtitle')}
+        features={features.map((f) => ({ title: t(f.title), body: t(f.description), icon: f.icon }))}
+      />
 
-      {/* How it Works */}
-      <section className="py-16 sm:py-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-16">{t('landing.how.title')}</h2>
-          <div className="space-y-12">
-            {[
-              {
-                step: '1',
-                title: t('landing.how.add.title'),
-                desc: t('landing.how.add.desc'),
-              },
-              {
-                step: '2',
-                title: t('landing.how.check.title'),
-                desc: t('landing.how.check.desc'),
-              },
-              {
-                step: '3',
-                title: t('landing.how.alert.title'),
-                desc: t('landing.how.alert.desc'),
-              },
-            ].map((item) => (
-              <div key={item.step} className="flex gap-6 items-start">
-                <div className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold shrink-0">
-                  {item.step}
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-2 text-gray-600">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeatureGrid
+        variant="steps"
+        tone="surface"
+        title={t('landing.how.title')}
+        features={[
+          { title: t('landing.how.add.title'), body: t('landing.how.add.desc') },
+          { title: t('landing.how.check.title'), body: t('landing.how.check.desc') },
+          { title: t('landing.how.alert.title'), body: t('landing.how.alert.desc') },
+        ]}
+      />
 
-      {/* Pricing */}
       {(plans.length > 0 || credits) && (
-        <section id="pricing" className="py-16 sm:py-24 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold text-gray-900">{t('landing.pricing.title')}</h2>
-              <p className="mt-4 text-lg text-gray-600">{t('landing.pricing.subtitle')}</p>
+        <Section tone="raised" id="pricing">
+          <SectionHeader align="center" title={t('landing.pricing.title')} subtitle={t('landing.pricing.subtitle')} />
+          {plans.length > 0 && (
+            <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
+              {plans.map((plan, i) => (
+                <div key={plan.id} className={`flex flex-col rounded-card border bg-panel p-7 ${i === 1 ? 'border-brand-600 shadow-lg ring-1 ring-brand-600' : 'border-line'}`}>
+                  <h3 className="font-display text-lg font-semibold text-ink">{plan.name}</h3>
+                  <p className="mt-4 flex items-baseline gap-1">
+                    <span className="font-display text-4xl font-semibold tracking-tight text-ink">{t('landing.pricing.price', { amount: plan.monthlyUsd })}</span>
+                    <span className="text-muted">{t('landing.pricing.perMonth')}</span>
+                  </p>
+                  <ActionButton
+                    className="mt-6 w-full"
+                    action={{ label: plan.monthlyUsd === 0 ? t('landing.pricing.startFree') : t('landing.pricing.choose', { plan: plan.name }), href: '/signup', variant: i === 1 ? 'primary' : 'secondary' }}
+                  />
+                  <ul className="mt-8 flex-1 space-y-3">
+                    {[itemsLabel(plan.limits.items ?? null), ...(plan.features ?? [])].map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-ink">
+                        <svg className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-            {plans.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                {plans.map((plan, i) => (
-                  <div key={plan.id} className={`rounded-2xl p-8 flex flex-col bg-white ${i === 1 ? 'ring-2 ring-brand-600 shadow-lg' : 'border border-gray-200 shadow-sm'}`}>
-                    <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-                    <div className="mt-4 flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-gray-900">{t('landing.pricing.price', { amount: plan.monthlyUsd })}</span>
-                      <span className="text-gray-500">{t('landing.pricing.perMonth')}</span>
-                    </div>
-                    <Link to="/signup" className="mt-6 block text-center py-2.5 px-4 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700">
-                      {plan.monthlyUsd === 0 ? t('landing.pricing.startFree') : t('landing.pricing.choose', { plan: plan.name })}
-                    </Link>
-                    <ul className="mt-8 space-y-3 flex-1">
-                      {[itemsLabel(plan.limits.items ?? null), ...(plan.features ?? [])].map((f) => (
-                        <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                          </svg>
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
+          )}
+          {credits && (
+            <div className="mx-auto mt-12 max-w-3xl text-center">
+              <h3 className="font-display text-xl font-semibold text-ink">{t('landing.pricing.payg.title')}</h3>
+              <p className="mt-2 text-muted">
+                {credits.signupGift > 0
+                  ? t('landing.pricing.payg.buyWithGift', {
+                    credits: credits.creditName,
+                    perDollar: credits.perDollar,
+                    gift: units(credits.signupGift, credits.creditName),
+                  })
+                  : t('landing.pricing.payg.buy', { credits: credits.creditName, perDollar: credits.perDollar })}{' '}
+                {t('landing.pricing.payg.refund', { credits: credits.creditName, count: credits.refundDays })}
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {credits.packs.map((p) => (
+                  <div key={p.id} className="rounded-card border border-line bg-panel px-5 py-3">
+                    <p className="font-semibold text-ink">{usd(p.payCents)}</p>
+                    <p className="text-sm text-muted">{units(p.credits, credits.creditName)}</p>
                   </div>
                 ))}
               </div>
-            )}
-            {credits && (
-              <div className="mt-12 max-w-3xl mx-auto text-center">
-                <h3 className="text-xl font-semibold text-gray-900">{t('landing.pricing.payg.title')}</h3>
-                <p className="mt-2 text-gray-600">
-                  {credits.signupGift > 0
-                    ? t('landing.pricing.payg.buyWithGift', {
-                      credits: credits.creditName,
-                      perDollar: credits.perDollar,
-                      gift: units(credits.signupGift, credits.creditName),
-                    })
-                    : t('landing.pricing.payg.buy', { credits: credits.creditName, perDollar: credits.perDollar })}{' '}
-                  {t('landing.pricing.payg.refund', { credits: credits.creditName, count: credits.refundDays })}
-                </p>
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
-                  {credits.packs.map((p) => (
-                    <div key={p.id} className="bg-white border border-gray-200 rounded-lg px-4 py-3">
-                      <p className="font-semibold text-gray-900">{usd(p.payCents)}</p>
-                      <p className="text-sm text-gray-600">{units(p.credits, credits.creditName)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+            </div>
+          )}
+        </Section>
       )}
 
-      {/* CTA */}
-      <section className="py-16 sm:py-24">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-gray-900">{t('landing.cta.title')}</h2>
-          <p className="mt-4 text-lg text-gray-600">
-            {t('landing.cta.body')}
-          </p>
-          <Link
-            to="/signup"
-            className="mt-8 inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors shadow-sm"
-          >
-            {t('landing.getStarted')}
-          </Link>
-        </div>
-      </section>
+      <CtaBand title={t('landing.cta.title')} subtitle={t('landing.cta.body')} actions={[{ label: t('landing.getStarted'), href: '/signup' }]} />
 
       <SiteFooter />
     </div>
+  );
+}
+
+function BrandMark() {
+  return (
+    <svg className="h-7 w-7 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+    </svg>
   );
 }

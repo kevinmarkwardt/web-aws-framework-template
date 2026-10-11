@@ -71,6 +71,8 @@
     --brand-50: oklch(28% 0.07 277);
     --brand-100: oklch(32% 0.09 277);
     --brand-200: oklch(40% 0.12 277);
+    --brand-600: oklch(60% 0.22 277);
+    --brand-700: oklch(66% 0.2 277);
     /* dark:end */
     color-scheme: dark;
   }
@@ -90,6 +92,8 @@
   --brand-50: oklch(28% 0.07 277);
   --brand-100: oklch(32% 0.09 277);
   --brand-200: oklch(40% 0.12 277);
+  --brand-600: oklch(60% 0.22 277);
+  --brand-700: oklch(66% 0.2 277);
   color-scheme: dark;
 }
 
