@@ -55,7 +55,7 @@ export interface Action {
 
 const ACTION: Record<NonNullable<Action['variant']>, string> = {
   primary: 'bg-brand-600 text-brand-ink hover:bg-brand-700',
-  secondary: 'border border-line bg-panel text-ink hover:bg-raised',
+  secondary: 'border border-line-strong bg-panel text-ink hover:bg-raised',
   ghost: 'text-ink hover:bg-raised',
 };
 

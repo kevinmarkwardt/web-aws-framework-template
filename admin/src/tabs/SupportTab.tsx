@@ -62,7 +62,7 @@ export default function SupportTab() {
       <div className="mb-4 inline-flex rounded-lg border border-line bg-panel p-0.5">
         {(['open', 'closed', 'all'] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)}
-            className={`rounded-md px-3 py-1 text-sm capitalize ${status === s ? 'bg-brand-600 text-white' : 'text-muted hover:text-ink'}`}>
+            className={`rounded-md px-3 py-1 text-sm capitalize ${status === s ? 'bg-brand-600 text-brand-ink' : 'text-muted hover:text-ink'}`}>
             {t(FILTER_LABELS[s])}{data && s !== 'all' ? ` (${data.counts[s]})` : ''}
           </button>
         ))}

@@ -14,7 +14,7 @@ export default function RestrictedNote({ need, className = '' }: { need: 'pay' |
     ? t('app.restricted.readOnly', { date: shortDate(user.bannedUntil) })
     : t('app.restricted.paymentsPaused');
   return (
-    <p role="note" className={`text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 ${className}`}>
+    <p role="note" className={`text-sm text-warn bg-warn-soft border border-warn/30 rounded-lg px-3 py-2 ${className}`}>
       {text}
     </p>
   );

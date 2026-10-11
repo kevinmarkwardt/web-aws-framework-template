@@ -33,7 +33,7 @@ function NoticePage({ message }: { message: string }) {
   };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
-      <p className="text-lg text-gray-900">{message}</p>
+      <p className="text-lg text-ink">{message}</p>
       <button onClick={signOut} className="text-sm font-medium text-brand-600 hover:text-brand-500">
         {t('app.signOut')}
       </button>

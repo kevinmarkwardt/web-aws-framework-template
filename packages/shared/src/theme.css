@@ -29,6 +29,7 @@
   --muted: oklch(44.6% 0.03 256.802);
   --faint: oklch(55.1% 0.027 264.364);
   --line: oklch(92.8% 0.006 264.531);
+  --line-strong: oklch(76% 0.012 264);
   --surface: oklch(98.5% 0.002 247.839);
   --panel: oklch(100% 0 0);
   --raised: oklch(96.7% 0.003 264.542);
@@ -62,6 +63,7 @@
     --muted: oklch(76% 0.015 260);
     --faint: oklch(64% 0.02 262);
     --line: oklch(32% 0.02 264);
+    --line-strong: oklch(46% 0.02 264);
     --surface: oklch(17% 0.02 266);
     --panel: oklch(21% 0.022 266);
     --raised: oklch(26% 0.024 266);
@@ -84,6 +86,7 @@
   --muted: oklch(76% 0.015 260);
   --faint: oklch(64% 0.02 262);
   --line: oklch(32% 0.02 264);
+  --line-strong: oklch(46% 0.02 264);
   --surface: oklch(17% 0.02 266);
   --panel: oklch(21% 0.022 266);
   --raised: oklch(26% 0.024 266);
@@ -117,6 +120,7 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-surface: var(--surface);
   --color-panel: var(--panel);
   --color-raised: var(--raised);

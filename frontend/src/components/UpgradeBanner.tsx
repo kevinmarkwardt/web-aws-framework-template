@@ -30,7 +30,7 @@ export default function UpgradeBanner({ user, itemCount = user.itemCount }: Upgr
           {nextLimit === null ? t('items.upgrade.nextUnlimited', { plan: next }) : t('items.upgrade.next', { plan: next, limit: itemsLabel(nextLimit) })}
         </p>
       </div>
-      <Link to="/dashboard/plans" className="shrink-0 px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">
+      <Link to="/dashboard/plans" className="shrink-0 px-4 py-2 text-sm font-semibold text-brand-ink bg-brand-600 hover:bg-brand-700 rounded-lg">
         {t('items.upgrade.seePlans')}
       </Link>
     </div>

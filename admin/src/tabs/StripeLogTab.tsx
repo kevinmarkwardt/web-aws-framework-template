@@ -105,7 +105,7 @@ export default function StripeLogTab() {
           <div className="inline-flex rounded-lg border border-line p-0.5">
             {(['calls', 'webhooks'] as const).map((k) => (
               <button key={k} onClick={() => set('kind', k === 'calls' ? null : k)}
-                className={`rounded-md px-3 py-1 text-sm ${kind === k ? 'bg-brand-600 text-white' : 'text-muted hover:text-ink'}`}>
+                className={`rounded-md px-3 py-1 text-sm ${kind === k ? 'bg-brand-600 text-brand-ink' : 'text-muted hover:text-ink'}`}>
                 {k === 'calls' ? t('admin.stripeLog.apiCalls') : t('admin.stripeLog.webhooks')}
               </button>
             ))}

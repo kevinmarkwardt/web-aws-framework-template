@@ -113,7 +113,7 @@ export function TotpSetup({ issuer, account, onDone }: { issuer: string; account
         <li>{t('common.mfa.stepScan')}</li>
         <li>{t('common.mfa.stepType')}</li>
       </ol>
-      <div className="flex justify-center rounded-lg border border-line bg-white p-3">
+      <div className="flex justify-center rounded-lg border border-line bg-panel p-3">
         <QrCode text={setup.uri} label={t('common.mfa.qrCodeFor', { issuer })} />
       </div>
       <div className="text-center text-xs text-muted">

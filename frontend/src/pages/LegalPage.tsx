@@ -41,8 +41,8 @@ function Body({ p }: { p: string[] }) {
   return (
     <>
       {blocks.map((b, i) => Array.isArray(b)
-        ? <ul key={i} className="list-disc pl-5 space-y-1.5 text-gray-700">{b.map((li, j) => <li key={j}>{linked(li)}</li>)}</ul>
-        : <p key={i} className="text-gray-700">{linked(b)}</p>)}
+        ? <ul key={i} className="list-disc pl-5 space-y-1.5 text-ink">{b.map((li, j) => <li key={j}>{linked(li)}</li>)}</ul>
+        : <p key={i} className="text-ink">{linked(b)}</p>)}
     </>
   );
 }
@@ -68,34 +68,34 @@ export default function LegalPage({ doc }: { doc: 'terms' | 'privacy' }) {
   }, [doc]);
   const other = doc === 'terms' ? '/privacy' : '/terms';
   return (
-    <div className="min-h-screen bg-white">
-      <header className="border-b border-gray-100">
+    <div className="min-h-screen bg-panel">
+      <header className="border-b border-line">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center">
-          <Link to="/" className="text-lg font-bold text-gray-900">{SITE.displayName}</Link>
+          <Link to="/" className="text-lg font-bold text-ink">{SITE.displayName}</Link>
         </div>
       </header>
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-8 leading-relaxed">
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">{d.title}</h1>
-        <p className="text-sm text-gray-500 mt-3">{t('legal.updated', { date: shortDate(SITE.legalUpdated) })}</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink">{d.title}</h1>
+        <p className="text-sm text-muted mt-3">{t('legal.updated', { date: shortDate(SITE.legalUpdated) })}</p>
         <div className="mt-6 space-y-4"><Body p={d.intro} /></div>
 
-        <nav aria-label={t('legal.contents')} className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-2">{t('legal.contents')}</div>
+        <nav aria-label={t('legal.contents')} className="mt-8 rounded-xl border border-line bg-surface p-4 sm:p-5">
+          <div className="text-xs uppercase tracking-wider text-muted mb-2">{t('legal.contents')}</div>
           <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
             {d.sections.map((s, i) => (
-              <li key={i}><a href={`#s${i + 1}`} className="text-gray-700 hover:text-gray-900">{s.h}</a></li>
+              <li key={i}><a href={`#s${i + 1}`} className="text-ink hover:text-ink">{s.h}</a></li>
             ))}
           </ol>
         </nav>
 
         {d.sections.map((s, i) => (
           <section key={i} id={`s${i + 1}`} className="scroll-mt-6">
-            <h2 className="text-xl font-semibold text-gray-900 mt-10 mb-3">{s.h}</h2>
+            <h2 className="text-xl font-semibold text-ink mt-10 mb-3">{s.h}</h2>
             <div className="space-y-3"><Body p={s.p} /></div>
           </section>
         ))}
 
-        <p className="mt-12 pt-6 border-t border-gray-100 text-sm">
+        <p className="mt-12 pt-6 border-t border-line text-sm">
           <Link to={other} className="text-brand-600 hover:underline">{t(`legal.otherDoc.${doc}`)}</Link>
         </p>
       </main>

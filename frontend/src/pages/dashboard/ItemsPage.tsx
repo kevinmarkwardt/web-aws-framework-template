@@ -59,8 +59,8 @@ export default function ItemsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('items.title')}</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-ink">{t('items.title')}</h1>
+          <p className="text-sm text-muted mt-1">
             {user && user.itemLimit !== null
               ? t('items.countOfLimit', { count: items.length, limit: user.itemLimit })
               : t('items.count', { count: items.length })}
@@ -69,7 +69,7 @@ export default function ItemsPage() {
         <button
           onClick={() => setShowForm(true)}
           disabled={!writable}
-          className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-brand-600 text-brand-ink text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('items.add')}
         </button>
@@ -80,12 +80,12 @@ export default function ItemsPage() {
       {user && <UpgradeBanner user={user} itemCount={items.length} />}
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
+        <div className="p-4 bg-danger-soft text-danger rounded-lg text-sm">{error}</div>
       )}
 
       {showForm && writable && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('items.addTitle')}</h2>
+        <div className="bg-panel border border-line rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-ink mb-4">{t('items.addTitle')}</h2>
           <AddItemForm
             onSubmit={handleCreate}
             onCancel={() => setShowForm(false)}
@@ -93,7 +93,7 @@ export default function ItemsPage() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-panel border border-line rounded-xl shadow-sm overflow-hidden">
         <ItemsTable items={items} onDelete={handleDelete} onEdit={handleEdit} readOnly={!writable} />
       </div>
     </div>

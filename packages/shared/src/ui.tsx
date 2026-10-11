@@ -9,8 +9,8 @@ const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boo
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 border border-transparent',
-  secondary: 'bg-panel text-ink border border-line hover:bg-raised',
+  primary: 'bg-brand-600 text-brand-ink hover:bg-brand-700 border border-transparent',
+  secondary: 'bg-panel text-ink border border-line-strong hover:bg-raised',
   danger: 'bg-danger text-white hover:opacity-90 border border-transparent',
   ghost: 'text-muted hover:text-ink hover:bg-raised border border-transparent',
 };
@@ -39,7 +39,7 @@ export function Button({ variant = 'secondary', size = 'md', className, busy, ch
 // ---- form fields
 
 const fieldCls =
-  'block rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink placeholder:text-faint ' +
+  'block rounded-control border border-line-strong bg-panel px-3 py-2 text-sm text-ink placeholder:text-faint ' +
   'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-raised';
 
 /** Full width unless the caller sets a width (w-...). */
@@ -91,7 +91,7 @@ export function Toggle({ checked, onChange, label, hint, disabled }:
         className={cx('relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50',
           checked ? 'bg-brand-600' : 'bg-line')}
       >
-        <span className={cx('inline-block h-5 w-5 rounded-full bg-white shadow transition-transform mt-0.5',
+        <span className={cx('inline-block h-5 w-5 rounded-full bg-panel shadow transition-transform mt-0.5',
           checked ? 'translate-x-5.5' : 'translate-x-0.5')} />
       </button>
     </div>

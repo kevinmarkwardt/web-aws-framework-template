@@ -77,7 +77,7 @@ export function Browse<T>({
             value={query ?? ''}
             onChange={(e) => onQuery(e.target.value)}
             placeholder={searchPlaceholder ?? t('common.archetypes.searchPlaceholder')}
-            className="w-full rounded-control border border-line bg-panel py-2 pl-9 pr-3 text-sm text-ink placeholder:text-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="w-full rounded-control border border-line-strong bg-panel py-2 pl-9 pr-3 text-sm text-ink placeholder:text-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           />
         </label>
       )}
@@ -91,7 +91,7 @@ export function Browse<T>({
             <select
               value={sort}
               onChange={(e) => onSort(e.target.value)}
-              className="rounded-control border border-line bg-panel py-2 pl-3 pr-8 text-sm text-ink focus:border-brand-500 focus:outline-none"
+              className="rounded-control border border-line-strong bg-panel py-2 pl-3 pr-8 text-sm text-ink focus:border-brand-500 focus:outline-none"
             >
               {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -222,7 +222,7 @@ export function Browse<T>({
 
 export function Pagination({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
   const { t } = useTranslation();
-  const btn = 'rounded-control border border-line bg-panel px-3 py-1.5 text-sm font-medium text-ink hover:bg-raised disabled:opacity-40 disabled:hover:bg-panel';
+  const btn = 'rounded-control border border-line-strong bg-panel px-3 py-1.5 text-sm font-medium text-ink hover:bg-raised disabled:opacity-40 disabled:hover:bg-panel';
   return (
     <nav aria-label={t('common.archetypes.pagination')} className="flex items-center justify-between gap-3 pt-4">
       <button type="button" className={btn} disabled={page <= 1} onClick={() => onPage(page - 1)}>{t('common.archetypes.previous')}</button>

@@ -4,8 +4,8 @@ import type { User } from '../types';
 import { shortDate, subscriptionsOn } from '../billing';
 
 const box = 'mb-6 p-4 rounded-lg border text-sm';
-const red = `${box} border-red-200 bg-red-50 text-red-800`;
-const amber = `${box} border-amber-200 bg-amber-50 text-amber-900`;
+const red = `${box} border-danger/30 bg-danger-soft text-danger`;
+const amber = `${box} border-warn/30 bg-warn-soft text-warn`;
 
 /** Account standing above every signed-in page (GET /api/account; api/lib/accounts.py): banned (read-only), suspended
  *  (payments paused), active warnings, or a failed subscription renewal in its grace period. Nothing when all is

@@ -21,7 +21,7 @@ function Sidebar({ tabs, onNavigate }: { tabs: AdminTab[]; onNavigate?: () => vo
   return (
     <nav className="flex h-full flex-col bg-chrome text-chrome-ink">
       <div className="flex items-center gap-2 px-5 py-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white"><Icon name="shield" className="h-5 w-5" /></span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-brand-ink"><Icon name="shield" className="h-5 w-5" /></span>
         <div className="leading-tight">
           <div className="text-sm font-semibold text-white">YourApp</div>
           <div className="text-xs text-chrome-ink/70">{t('admin.layout.admin')}</div>

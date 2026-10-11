@@ -70,11 +70,11 @@ export default function PlansPage() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('plans.title')}</h1>
+      <h1 className="text-2xl font-bold text-ink mb-6">{t('plans.title')}</h1>
       <RestrictedNote need="pay" className="mb-4" />
 
       {sub?.paymentFailedAt && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+        <div className="mb-4 p-3 bg-warn-soft border border-warn/30 rounded-lg text-sm text-warn">
           {t('plans.paymentFailed.lead')}{' '}
           {sub.effectivePlan === 'free'
             ? t('plans.paymentFailed.onFree')
@@ -82,24 +82,24 @@ export default function PlansPage() {
           <button className="underline font-medium disabled:opacity-50" onClick={portal} disabled={restricted}>{t('plans.paymentFailed.updateCard')}</button>
         </div>
       )}
-      {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+      {error && <div className="mb-4 p-3 bg-danger-soft border border-danger/30 rounded-lg text-sm text-danger">{error}</div>}
       {confirmCancel && (
-        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm font-medium text-amber-900 mb-3">
+        <div className="mb-4 p-4 bg-warn-soft border border-warn/30 rounded-lg">
+          <p className="text-sm font-medium text-warn mb-3">
             {t('plans.confirmCancel', { limit: itemsLabel(user?.planLimits?.free ?? null) })}
           </p>
           <div className="flex gap-2">
             <button onClick={cancel} disabled={restricted}
-              className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+              className="px-4 py-2 text-sm font-semibold text-white bg-danger hover:opacity-90 rounded-lg disabled:opacity-50">
               {t('plans.cancelSubscription')}
             </button>
-            <button onClick={() => setConfirmCancel(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300">{t('plans.keepPlan')}</button>
+            <button onClick={() => setConfirmCancel(false)} className="px-4 py-2 text-sm font-medium text-ink rounded-lg border border-line-strong">{t('plans.keepPlan')}</button>
           </div>
         </div>
       )}
 
       {!config ? (
-        <div className="animate-pulse h-40 bg-gray-100 rounded-xl" />
+        <div className="animate-pulse h-40 bg-raised rounded-xl" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {plans.map((plan) => {
@@ -109,29 +109,29 @@ export default function PlansPage() {
             const overLimit = limit !== null && itemCount > limit;
             const busy = loadingPlan !== null;
             return (
-              <div key={plan.id} className={`relative rounded-xl border-2 p-5 ${isCurrent ? 'border-brand-500 bg-brand-50/50' : 'border-gray-200 bg-white'}`}>
+              <div key={plan.id} className={`relative rounded-xl border-2 p-5 ${isCurrent ? 'border-brand-500 bg-brand-50/50' : 'border-line bg-panel'}`}>
                 {isCurrent && (
-                  <span className="absolute -top-3 left-4 bg-brand-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">{t('plans.current')}</span>
+                  <span className="absolute -top-3 left-4 bg-brand-600 text-brand-ink text-xs font-semibold px-2.5 py-0.5 rounded-full">{t('plans.current')}</span>
                 )}
-                <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">${plan.monthlyUsd}<span className="text-sm font-normal text-gray-500">{t('plans.perMonth')}</span></p>
-                <ul className="mt-4 space-y-1 text-sm text-gray-600">
+                <h3 className="text-lg font-bold text-ink">{plan.name}</h3>
+                <p className="text-2xl font-bold text-ink mt-1">${plan.monthlyUsd}<span className="text-sm font-normal text-muted">{t('plans.perMonth')}</span></p>
+                <ul className="mt-4 space-y-1 text-sm text-muted">
                   {[itemsLabel(limit), ...(plan.features ?? [])].map((f) => <li key={f}>✓ {f}</li>)}
                 </ul>
                 <div className="mt-5">
                   {isCurrent ? null : higher ? (
                     <button onClick={() => go(plan.id)} disabled={busy || restricted}
-                      className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50">
+                      className="w-full px-4 py-2.5 text-sm font-semibold text-brand-ink bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50">
                       {loadingPlan === plan.id ? t('plans.working') : t('plans.upgrade')}
                     </button>
                   ) : (
                     <>
                       <button onClick={() => go(plan.id)} disabled={busy || overLimit || restricted}
-                        className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50">
+                        className="w-full px-4 py-2.5 text-sm font-medium text-ink rounded-lg border border-line-strong hover:bg-raised disabled:opacity-50">
                         {loadingPlan === plan.id ? t('plans.working') : plan.id === 'free' ? t('plans.cancelSubscription') : t('plans.downgrade')}
                       </button>
                       {overLimit && limit !== null && (
-                        <p className="mt-2 text-xs text-amber-700">{t('plans.overLimit', { count: itemCount, limit, remove: itemCount - limit })}</p>
+                        <p className="mt-2 text-xs text-warn">{t('plans.overLimit', { count: itemCount, limit, remove: itemCount - limit })}</p>
                       )}
                     </>
                   )}
