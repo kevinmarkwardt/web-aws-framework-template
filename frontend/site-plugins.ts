@@ -1,6 +1,6 @@
 // Build-time plugins for the user site (vite.config.ts). Both run only in `vite build` and read the VITE_* settings
-// (frontend/.env.example): .env.production (committed: the Google ids, from ai/site.spec.json modules.googleTags via
-// init.sh) and .env.production.local (written per stage by scripts/deploy.sh: VITE_STAGE, VITE_SITE_URL).
+// (frontend/.env.example): .env.production (committed: the Google ids, from site.spec.yaml modules.googleTags via
+// scripts/init.py) and .env.production.local (written per stage by scripts/deploy.sh: VITE_STAGE, VITE_SITE_URL).
 import type { Plugin, ResolvedConfig } from 'vite';
 import { PRIVATE_PATHS, PUBLIC_PAGES } from './src/seo';
 

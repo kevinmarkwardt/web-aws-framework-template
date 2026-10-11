@@ -2,6 +2,15 @@
 
 An opinionated, production-ready AWS SaaS starter. Everything you need to ship a subscription web app in a weekend.
 
+> **AI agents: start at [ai/PLAYBOOK.md](ai/PLAYBOOK.md).** It turns "build a website for X" into a site spec, a
+> design, generated pages on realistic mock data, a test-stage deploy and a handoff.
+
+**AI site builder:** one `site.spec.yaml` (schema: [ai/site.spec.schema.json](ai/site.spec.schema.json)) drives
+`scripts/init.py` (name, domain, billing, languages, design tokens), `scripts/new-entity.py` (per entity: contract, list
+and detail pages, admin tab, texts) and `scripts/gen-fixtures.py` (realistic, deterministic mock data). Entities start
+**mocked in the browser** (MSW) behind the same `/api/<entity>` contract the real backend implements later
+(`new-entity.py --backend`); auth, account, billing and admin stay real. `scripts/verify.sh` is the one gate.
+
 **What's included out of the box:**
 - User auth (sign up, log in, email verification, forgot password) via Cognito
 - Protected dashboard with generic CRUD (replace "items" with your entity)
@@ -67,10 +76,15 @@ cd YOUR_REPO_NAME
 ### 2. Initialize the project
 
 ```bash
-./scripts/init.sh
+./scripts/init.sh                                    # asks the basics, writes site.spec.yaml, runs init.py
+python3 scripts/init.py --spec site.spec.yaml        # or: write the spec yourself (ai/site.spec.example.yaml)
+npm install && scripts/verify.sh
 ```
 
-This prompts for your project name, display name, domain, and AWS account ID — then does a global find-replace across all files and renames the CDK stack.
+`init.py` replaces the placeholders (`yourapp`, `YourApp`, `yourapp.com`, `YOUR_AWS_ACCOUNT_ID`), renames the CDK files,
+and writes the site's config from the spec: `api/site.json` (plans, packs, credit costs, sign-up gift, regions,
+support), `packages/shared/src/site.generated.ts`, the language list, `cdk/cdk.json` context and the Google tag ids. It
+is idempotent: change the spec and run it again. `--apply-design` writes the spec's design tokens into the theme.
 
 ### 3. Deploy the test stage, then prod
 
@@ -128,13 +142,18 @@ packs and costs in `api/lib/config.py` before deploying. Set `adminEmail` there 
 
 ```bash
 npm install                         # once, at the repo root (npm workspaces)
-npm run dev                         # user site, no AWS needed: MOCK_AUTH signs you in with any email/password
+npm run dev                         # user site, no AWS needed: MOCK_AUTH signs you in with any email/password, and the
+                                    # spec's entities are answered by the browser mocks (MSW) from their fixtures
 npm run dev:admin                   # admin site on :5174, no AWS needed: a mock admin with sample data
 scripts/local-test.sh api           # both APIs from your working tree on :3000, against the test stage's AWS resources
 scripts/local-test.sh web           # user site on :5173 with hot reload, test login, proxying /api to :3000
 scripts/local-test.sh admin         # admin site on :5174 against the test stage (sign in as a Cognito admin)
 npm run lint && npm run build       # every workspace
+scripts/verify.sh [--prod]          # everything: spec, pytest, contract tests, lint, i18n, typecheck, builds, cdk tsc
 ```
+
+`.claude/launch.json` has the same servers for an agent's browser pane: `web-mock` (:5175) and `admin-mock` (:5176)
+need no AWS; `api`, `web` and `admin` run `scripts/local-test.sh` against the test stage.
 
 ## Architecture
 
@@ -184,7 +203,24 @@ Scheduled (EventBridge)
 
 ## Customization Guide
 
-### Replace "items" with your entity
+### Add your entities (generated, mocked first)
+
+Describe them in `site.spec.yaml` (`entities`: fields, refs, owner, public; `pages`; `mocks`), then:
+
+```bash
+python3 scripts/spec.py validate
+python3 scripts/new-entity.py --all        # contract, pages, admin tab, texts, mock flag (per entity)
+python3 scripts/gen-fixtures.py --sample 3 # deterministic mock data + placeholder images
+npm run dev                                # the pages work now, on mock data (MSW in the browser)
+python3 scripts/new-entity.py --backend Recipe   # later: the real API route + contract test; the mock turns off
+```
+
+The first `init.py` run with entities removes the template's Items example pages and admin tab (its backend,
+`api/routes/items.py`, stays as the plan-limit reference). Generated pages are yours to edit: the generator never
+overwrites a file you changed (`--force` does). The page templates are `scripts/templates/entity/`.
+Production builds (`VITE_STAGE=prod`) fail while an entity is still mocked.
+
+### Replace "items" by hand (without the generator)
 
 The template uses a generic "Item" entity (name + status). To replace it with your domain entity (e.g., "Link", "Post", "Order"):
 
@@ -195,17 +231,6 @@ The template uses a generic "Item" entity (name + status). To replace it with yo
 5. **DB helpers:** Update `api/lib/db.py` (get_items → get_links, increment_item_count → increment_link_count, etc.) and the limit wording in `api/lib/config.py`
 6. **Handler routing:** Update `api/handler.py` to route `/api/links` instead of `/api/items`
 7. **Tests:** Update `tests/test_api_items.py` → `tests/test_api_links.py`
-
-### Add a second entity
-
-To add a second entity (e.g., "Pipeline" alongside "Links"):
-
-1. Create `api/routes/pipeline.py` (copy items.py, rename functions and key prefix)
-2. Add pipeline DB functions to `api/lib/db.py`
-3. Add pipeline routing to `api/handler.py`
-4. Create `frontend/src/pages/dashboard/PipelinePage.tsx`
-5. Add route in `frontend/src/App.tsx`
-6. Add nav item in `frontend/src/pages/dashboard/DashboardLayout.tsx`
 
 ### Add new Lambda workers
 
@@ -269,6 +294,9 @@ python3 -m venv .venv
 ```
 
 All AWS services are mocked via [moto](https://github.com/getmoto/moto). No real AWS calls during tests.
+`scripts/verify.sh` runs these plus every other check (it installs what is missing first);
+`scripts/template-selftest.sh` (and the `template-ci` GitHub workflow) also builds the example spec in a temporary copy
+and verifies that.
 
 Run specific tests:
 ```bash

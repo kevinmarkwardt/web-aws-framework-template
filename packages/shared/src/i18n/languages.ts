@@ -1,6 +1,6 @@
 /** The site's languages: the one list the user site, the admin site and the language picker read.
  *
- *  scripts/init.sh writes it from ai/site.spec.json `modules.i18n.languages` (default English only). To add a language
+ *  scripts/init.py writes it from site.spec.yaml `modules.i18n.languages` (default English only). To add a language
  *  by hand (CLAUDE.md, "i18n"): add it here, copy `packages/shared/src/locales/en/` to `locales/{code}/` and translate
  *  the values, and copy `api/locales/en.json` to `api/locales/{code}.json` likewise. `npm run i18n:check` and
  *  tests/test_language_sync.py keep the three in step. The language picker shows once there are two or more. */

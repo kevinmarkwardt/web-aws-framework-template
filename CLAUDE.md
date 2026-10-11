@@ -1,8 +1,14 @@
 # CLAUDE.md — web-aws-framework-template
 
+> **AI agents: start at [ai/PLAYBOOK.md](ai/PLAYBOOK.md)** when asked to build a website from this template. It is
+> the step-by-step process (interview, spec, design, mock data, build, verify, test deploy, handoff) with its gates.
+
 ## What This Is
 
-A reusable AWS SaaS starter built from a working production app. Clone via GitHub template, run `./scripts/init.sh`, and you have a deployable SaaS with auth, billing, admin, email and AI, in two stages (test and prod).
+A reusable AWS SaaS starter built from a working production app. Clone via GitHub template, write `site.spec.yaml`
+(or run `./scripts/init.sh`, which asks and writes a minimal one), run `scripts/init.py`, and you have a deployable SaaS
+with auth, billing, admin, email and AI, in two stages (test and prod). Domain entities are generated from the spec and
+start mocked in the browser ("AI site builder" below).
 
 Roadmap: [docs/plans/2026-10-11-template-v2-plan.md](docs/plans/2026-10-11-template-v2-plan.md) (phases 0-3 are done: clean
 foundation, payments core, billing modules, the separate admin site).
@@ -13,7 +19,8 @@ admin API). `cdk/` has its own npm package.
 
 ## Placeholder Values
 
-All project-specific values use these placeholders (replaced by `init.sh`):
+All project-specific values use these placeholders (replaced by `scripts/init.py` from `site.spec.yaml`; it leaves
+`scripts/init.py`, `scripts/sitegen/`, `tests/test_init.py` and the self-test files alone, since they look for them):
 
 | Placeholder | Replaced with |
 |-------------|--------------|
@@ -130,9 +137,60 @@ Edit `api/requirements.in`, then `scripts/lock-api-deps.sh` rewrites `api/requir
 - **`signupsEnabled: false`**: `GET /api/account` refuses to create profiles for new accounts (403 `SIGNUPS_CLOSED`); existing users are unaffected.
 - **`jobsEnabled: false`**: `lambdas/daily-job` skips its run.
 
+## AI site builder (spec -> generated site on browser mocks)
+
+`site.spec.yaml` (repo root; schema `ai/site.spec.schema.json`, example `ai/site.spec.example.yaml`) is the single
+source of truth. The tooling (Python, `scripts/requirements.txt` in `.venv`; each script re-runs itself under
+`.venv/bin/python` when called with a bare `python3`):
+
+| Command | Does |
+|---|---|
+| `python3 scripts/spec.py validate\|summary [path]` | schema + cross-field checks (refs, enums, page entities, billing fields vs mode, colors); a readable summary |
+| `python3 scripts/init.py --spec site.spec.yaml [--design-only\|--apply-design] [--dry-run]` | placeholders + CDK file renames, `api/site.json`, `packages/shared/src/site.generated.ts`, `languages.ts` (+ English copies for new languages), `cdk.json` context (billingMode, adminEmail, region, googleTags), `frontend/.env.production` Google tags; with entities (not `--design-only`) removes the Items example's UI; `--apply-design` only writes `design.tokens` into the `/* tokens:begin */…/* tokens:end */` and `/* dark:begin */…/* dark:end */` blocks of `theme.css` (+ font packages / links). Idempotent; refuses a changed `site.name` |
+| `python3 scripts/new-entity.py <Entity>… \| --all [--force] [--dry-run]` | per entity: contract `packages/shared/src/contracts/<entity>.ts`, fixture file, `mocks.config.ts` flag, `frontend/src/entities/<plural>/` (api.ts, list, detail, form when owner is user/both), `admin/src/tabs/entities/<Plural>Tab.tsx`, texts `locales/*/entity-<plural>.json` + `admin-entity-<plural>.json`; regenerates `contracts/all.gen.ts`, `frontend/src/entities/routes.gen.ts` + `paths.gen.ts`, `admin/src/tabs/entities.gen.ts` |
+| `python3 scripts/new-entity.py --backend <Entity>…` | `api/routes/<plural>.py` (fields + filters over `api/lib/entities.py`), `api/routes/entity_routes.py`, `tests/test_entity_<plural>.py` (contract test), filter params in `API_CACHE_QUERY_KEYS`, mock flag off |
+| `python3 scripts/gen-fixtures.py [--entity X] [--sample N]` | `packages/shared/src/mocks/fixtures/<plural>.json` from `mocks.seed/counts/edgeCases`, SVG placeholders in `{frontend,admin}/public/mock-images/`; hooks in `scripts/fixtures/<entity>.py` |
+| `scripts/verify.sh [--prod]` | the gate: spec, pytest, contract tests, lint + i18n, typecheck, both builds, cdk tsc; `--prod` adds the prod build (mock guard) |
+| `scripts/template-selftest.sh` | the template's CI (`.github/workflows/template-ci.yml`): verify, then the example spec end to end in a temp copy, then `--backend --all` + `verify --prod` |
+
+**Browser mocks (MSW).** `packages/shared/src/mocks/`: `browser.ts` (`startMocks()`, called by both `main.tsx` when
+`VITE_STAGE !== 'prod'`; prod bundles don't contain it), `handlers.ts` (CRUD handlers from a contract's endpoint list:
+list with `q`, filters, `sort`, `page`, `pageSize`, `mine=1`; get; create; update; delete; on `/api/<plural>` and
+`/api/admin/<plural>`; errors `{error, message, code, field?}`), `store.ts` (localStorage per entity, reseeded when the
+fixture's hash changes), `mocks.config.ts` (`plural: true|false`), `state.ts` (`mocksOn`, `resetDemoData`; no MSW
+import). Unhandled requests pass through, so auth, account, billing and admin platform routes stay real. "Reset demo
+data" sits in the user menu, the public header and the admin header while anything is mocked. Mock data is per browser
+and per origin (the admin site has its own copy). `packages/shared/vite/mockGuard.ts`: `VITE_STAGE=prod` builds fail
+while any flag is true and drop `mockServiceWorker.js` and `mock-images/`. The MOCK_AUTH user is `mock-user`
+(fixtures give it some user-owned records).
+
+**Contracts.** `packages/shared/src/contracts/types.ts` documents the HTTP contract; `validate.ts` and `query.ts` are
+the reference rules, mirrored by `api/lib/entities.py` (records `pk <KIND>#<id>`, `sk META`, `listPk <KIND>`; lists
+read the kind via list-index and filter in memory; swap in a GSI when an entity grows past a few thousand records).
+Access: public reads when `public: true`; `owner: user` + not public = private (lists only your own); writes by users
+only for owner `user|both`, and only on their own records (others' are 404); `/api/admin/<plural>` sees everything
+and audits writes.
+
+**Generated files.** Source files carry a first-line `@generated … hash:` marker: re-runs rewrite them while untouched
+and keep them (reported) once edited; `--force` overwrites. `*.gen.ts`, `entity_routes.py`, `api/site.json`,
+`site.generated.ts`, `fonts.generated.ts` are always regenerated (never edit). Locale JSON is merged (new keys added,
+your wording kept). Pages come from `scripts/templates/entity/` (`__Entity__`-style placeholders, `#if userWrites`
+blocks): to change what every entity gets, edit the templates (or point them at the page archetypes), then
+`new-entity.py --all --force` for entities you haven't customized. Generated pages use `@yourapp/shared` UI
+(`FieldValue`, `FieldInput`, `ListToolbar`, `Pager`, `EntityImage`), `frontend/src/entities/{components,shell,hooks}`
+and `font-display` on titles.
+
+**Items example.** Lines marked `example:items` and the Items page/tab files are the template's example UI;
+`init.py` removes them when the spec has entities (the dashboard index then redirects to the first entity page or
+Settings). The backend example (`api/routes/items.py`, admin items routes, `tests/test_api_items.py`, the `items` plan
+limit) stays as the plan-limit reference.
+
+**Local preview.** `.claude/launch.json`: `web-mock` (:5175) and `admin-mock` (:5176) are Vite with MOCK_AUTH + MSW, no
+AWS; `api`, `web`, `admin` run `scripts/local-test.sh` against the test stage (MSW still answers mocked entities).
+
 ## Where to Add New Entities
 
-When replacing "items" with your domain entity (e.g., "orders"):
+Prefer the generator (above). By hand, when replacing "items" with your domain entity (e.g., "orders"):
 
 1. **`api/lib/db.py`** — Add `get_orders()`, `create_order()`, `update_order()`, `delete_order()` using an `ORDER#` prefix, and a counter like `increment_item_count()`. Give new records `listPk: "ORDER"` (and `createdAt`) to list them on the admin site.
 2. **`api/lib/config.py`** — Rename/add the limit in `DEFAULT_PLAN_LIMITS` if the entity is plan-limited.
@@ -159,7 +217,9 @@ Full design and decisions: [docs/payments.md](docs/payments.md).
   (`billingMode`, `plans`, `credits`) tells the frontend what to show. `adminEmail` (context) receives dispute,
   failed-refund and banned-card mail.
 - **What is sold** is code config in `api/lib/config.py` (`FREE_PLAN`, `PAID_PLANS`, `BILLING`, `ACCOUNT_RULES`),
-  shaped like `ai/site.spec.schema.json` `modules.billing`. Never hardcode plans, prices, packs or limits in the
+  shaped like `ai/site.spec.schema.json` `modules.billing`; `api/site.json` (written by `scripts/init.py` from the
+  spec) overrides plans, packs, creditName, creditCosts, signupGift, regions and support at import
+  (`SITE_CONFIG=off`, set by `tests/conftest.py`, ignores it). Never hardcode plans, prices, packs or limits in the
   frontend.
 - **Keys:** Secrets Manager `yourapp/{stage}/stripe`, written by `scripts/stripe-secret.sh <stage>` (hidden prompt,
   prefix checked against the stage); read through `api/lib/stripe_config.py` (5-minute cache, short timeouts, the
@@ -203,8 +263,8 @@ Full design and decisions: [docs/payments.md](docs/payments.md).
 The template ships in English with translation built in: every user-visible string goes through i18next on the sites
 and through `api/lib/i18n.py` in the API.
 
-- **Languages:** one list, `packages/shared/src/i18n/languages.ts` (`LANGUAGES`; `init.sh` writes it from
-  `ai/site.spec.json` `modules.i18n.languages`, default `['en']`). The language picker (`LanguagePicker`, in the site
+- **Languages:** one list, `packages/shared/src/i18n/languages.ts` (`LANGUAGES`; `scripts/init.py` writes it from
+  `site.spec.yaml` `modules.i18n.languages`, default `['en']`, and copies English for new languages). The language picker (`LanguagePicker`, in the site
   footer) and the Settings page's Language field appear only once there are two or more.
 - **Site texts:** `packages/shared/src/locales/{lang}/{area}.json`, each file shaped `{ "area": { ... } }`; components
   call `t('area.key')` (`useTranslation` / `Trans` / `i18n` re-exported from `@yourapp/shared`). Interpolation is
