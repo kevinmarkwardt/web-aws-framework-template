@@ -17,7 +17,8 @@ cdk/cdk.context.json
 .env.local
 
 # Deploy artifacts
-cdk-outputs.json
+cdk-outputs*.json
+build/
 *.zip
 
 # OS
