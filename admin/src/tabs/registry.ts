@@ -1,8 +1,11 @@
 // The admin site's tab registry: every sidebar entry is a registered tab, so an app adds its own tabs without editing
 // the layout. Built-in tabs are registered in tabs/builtin.ts; register yours in tabs/app.ts:
 //
-//   registerTab({ id: 'orders', label: 'Orders', icon: 'items', section: 'Data',
+//   registerTab({ id: 'orders', label: 'admin.tabs.orders', icon: 'items', section: 'admin.sections.data',
 //                 component: lazy(() => import('./OrdersTab')) });
+//
+// `label` and `section` are i18n keys: add their English text to packages/shared/src/locales/en/admin*.json (the
+// built-ins are in admin.json); the layout shows them with t(). A key with no text shows as written.
 //
 // A tab is a React component (lazy-loaded is best) shown at /<id>. Call your app's admin routes with apiFetch from
 // api.ts; add them to ROUTES in api/admin_handler.py, where the admin check has already run.
@@ -11,14 +14,16 @@ import { creditsOn, subscriptionsOn } from '@yourapp/shared';
 import type { IconName } from '../icons';
 import type { AdminMe } from '../types';
 
-/** Sidebar groups, in order. A tab may name another section; it is listed after these. */
-export const SECTIONS = ['Overview', 'People', 'Money', 'Data', 'System'] as const;
+/** Sidebar groups (i18n keys), in order. A tab may name another section; it is listed after these. */
+export const SECTIONS = ['admin.sections.overview', 'admin.sections.people', 'admin.sections.money', 'admin.sections.data', 'admin.sections.system'] as const;
 
 export interface AdminTab {
   /** URL segment and key (/users, /payments, ...); unique */
   id: string;
+  /** i18n key of the sidebar text (packages/shared/src/locales/en/admin*.json) */
   label: string;
   icon: IconName;
+  /** i18n key of the sidebar group: one of SECTIONS, or your own key */
   section: (typeof SECTIONS)[number] | string;
   component: ComponentType | LazyExoticComponent<ComponentType>;
   /** Billing modules the tab needs: 'any' (billing not none), 'credits', 'subscriptions'. Hidden otherwise. */

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { verify } from '../../auth';
+import { useTranslation } from '@yourapp/shared';
 
 export default function VerifyPage() {
   const location = useLocation();
@@ -10,6 +11,7 @@ export default function VerifyPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,7 @@ export default function VerifyPage() {
       await verify(email, code);
       navigate('/login', { state: { verified: true } });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Verification failed';
+      const message = err instanceof Error ? err.message : t('auth.verify.failed');
       setError(message);
     } finally {
       setLoading(false);
@@ -35,9 +37,9 @@ export default function VerifyPage() {
           </svg>
           <span className="text-2xl font-bold text-gray-900">YourApp</span>
         </Link>
-        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">Verify your email</h2>
+        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">{t('auth.verify.title')}</h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          We sent a verification code to your email address
+          {t('auth.verify.subtitle')}
         </p>
       </div>
 
@@ -51,7 +53,7 @@ export default function VerifyPage() {
             )}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -64,7 +66,7 @@ export default function VerifyPage() {
             </div>
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-                Verification code
+                {t('auth.verify.code')}
               </label>
               <input
                 id="code"
@@ -82,12 +84,12 @@ export default function VerifyPage() {
               disabled={loading}
               className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 focus:outline-2 focus:outline-offset-2 focus:outline-brand-600 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Verifying...' : 'Verify email'}
+              {loading ? t('auth.verify.submitting') : t('auth.verify.submit')}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
             <Link to="/login" className="font-medium text-brand-600 hover:text-brand-500">
-              Back to sign in
+              {t('auth.backToSignIn')}
             </Link>
           </p>
         </div>

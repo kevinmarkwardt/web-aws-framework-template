@@ -1,0 +1,20 @@
+{
+  "common": {
+    "loading": "Loading",
+    "loadingEllipsis": "Loading…",
+    "nothingYet": "Nothing here yet.",
+    "close": "Close",
+    "language": "Language",
+    "errors": {
+      "notSignedIn": "Not signed in",
+      "sessionExpired": "Your session has expired. Sign in again.",
+      "server": "Something went wrong on our end. Please try again in a few minutes.",
+      "requestFailed": "Request failed ({{status}})"
+    },
+    "auth": {
+      "needsCognito": "This needs a Cognito user pool. Run scripts/local-test.sh web (or admin) to use a deployed stage.",
+      "testLoginFailed": "Test login failed",
+      "mockCredentials": "Enter any email and password."
+    }
+  }
+}

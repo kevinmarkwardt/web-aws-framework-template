@@ -1,14 +1,18 @@
 import { useContext, useState } from 'react';
+import { useTranslation } from '@yourapp/shared';
 import { AuthContext } from '../../auth-context';
 import { cancelPlan, changePlan, createCheckoutSession, createPortalSession } from '../../api';
 import { shortDate, usePublicConfig } from '../../billing';
+import RestrictedNote from '../../components/RestrictedNote';
 import { itemsLabel } from '../../plans';
+import { canPay } from '../../standing';
 import type { Plan } from '../../types';
 
 // Plans, prices and limits come from the API (GET /api/public-config, api/lib/config.py PAID_PLANS + planLimits).
 
 export default function PlansPage() {
   const { user, refresh } = useContext(AuthContext);
+  const { t } = useTranslation();
   const config = usePublicConfig();
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -19,7 +23,7 @@ export default function PlansPage() {
   const rank = (id: Plan) => Math.max(0, plans.findIndex((p) => p.id === id));
   const itemCount = user?.itemCount || 0;
   const sub = user?.subscription;
-  const restricted = user?.status !== 'active';
+  const restricted = !canPay(user); // payments paused or read-only (RestrictedNote says why)
 
   const go = async (target: Plan) => {
     setError('');
@@ -36,7 +40,7 @@ export default function PlansPage() {
       }
       await refresh();
     } catch (e) {
-      setError((e as Error).message || 'Failed to change plan');
+      setError((e as Error).message || t('plans.errors.changeFailed'));
     } finally {
       setLoadingPlan(null);
     }
@@ -50,7 +54,7 @@ export default function PlansPage() {
       await cancelPlan();
       await refresh();
     } catch (e) {
-      setError((e as Error).message || 'Failed to cancel');
+      setError((e as Error).message || t('plans.errors.cancelFailed'));
     } finally {
       setLoadingPlan(null);
     }
@@ -66,26 +70,30 @@ export default function PlansPage() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Plans</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('plans.title')}</h1>
+      <RestrictedNote need="pay" className="mb-4" />
 
       {sub?.paymentFailedAt && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
-          Your last subscription payment failed.{' '}
+          {t('plans.paymentFailed.lead')}{' '}
           {sub.effectivePlan === 'free'
-            ? 'Your account is on the free plan until a payment goes through.'
-            : `Your plan stays active until ${shortDate(sub.graceUntil)}.`}{' '}
-          <button className="underline font-medium" onClick={portal}>Update your card</button>
+            ? t('plans.paymentFailed.onFree')
+            : t('plans.paymentFailed.graceUntil', { date: shortDate(sub.graceUntil) })}{' '}
+          <button className="underline font-medium disabled:opacity-50" onClick={portal} disabled={restricted}>{t('plans.paymentFailed.updateCard')}</button>
         </div>
       )}
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
       {confirmCancel && (
         <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-sm font-medium text-amber-900 mb-3">
-            Cancel your subscription now? You'll move to the free plan ({itemsLabel(user?.planLimits?.free ?? null)}).
+            {t('plans.confirmCancel', { limit: itemsLabel(user?.planLimits?.free ?? null) })}
           </p>
           <div className="flex gap-2">
-            <button onClick={cancel} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg">Cancel subscription</button>
-            <button onClick={() => setConfirmCancel(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300">Keep plan</button>
+            <button onClick={cancel} disabled={restricted}
+              className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+              {t('plans.cancelSubscription')}
+            </button>
+            <button onClick={() => setConfirmCancel(false)} className="px-4 py-2 text-sm font-medium text-gray-700 rounded-lg border border-gray-300">{t('plans.keepPlan')}</button>
           </div>
         </div>
       )}
@@ -103,10 +111,10 @@ export default function PlansPage() {
             return (
               <div key={plan.id} className={`relative rounded-xl border-2 p-5 ${isCurrent ? 'border-brand-500 bg-brand-50/50' : 'border-gray-200 bg-white'}`}>
                 {isCurrent && (
-                  <span className="absolute -top-3 left-4 bg-brand-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">Current plan</span>
+                  <span className="absolute -top-3 left-4 bg-brand-600 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full">{t('plans.current')}</span>
                 )}
                 <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">${plan.monthlyUsd}<span className="text-sm font-normal text-gray-500">/month</span></p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">${plan.monthlyUsd}<span className="text-sm font-normal text-gray-500">{t('plans.perMonth')}</span></p>
                 <ul className="mt-4 space-y-1 text-sm text-gray-600">
                   {[itemsLabel(limit), ...(plan.features ?? [])].map((f) => <li key={f}>✓ {f}</li>)}
                 </ul>
@@ -114,16 +122,16 @@ export default function PlansPage() {
                   {isCurrent ? null : higher ? (
                     <button onClick={() => go(plan.id)} disabled={busy || restricted}
                       className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50">
-                      {loadingPlan === plan.id ? 'Working...' : 'Upgrade'}
+                      {loadingPlan === plan.id ? t('plans.working') : t('plans.upgrade')}
                     </button>
                   ) : (
                     <>
                       <button onClick={() => go(plan.id)} disabled={busy || overLimit || restricted}
                         className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50">
-                        {loadingPlan === plan.id ? 'Working...' : plan.id === 'free' ? 'Cancel subscription' : 'Downgrade'}
+                        {loadingPlan === plan.id ? t('plans.working') : plan.id === 'free' ? t('plans.cancelSubscription') : t('plans.downgrade')}
                       </button>
                       {overLimit && limit !== null && (
-                        <p className="mt-2 text-xs text-amber-700">You have {itemCount} items (limit {limit}). Remove {itemCount - limit} to switch.</p>
+                        <p className="mt-2 text-xs text-amber-700">{t('plans.overLimit', { count: itemCount, limit, remove: itemCount - limit })}</p>
                       )}
                     </>
                   )}
@@ -135,8 +143,8 @@ export default function PlansPage() {
       )}
 
       {sub?.hasSubscription && (
-        <button onClick={portal} className="mt-6 text-sm text-brand-600 hover:text-brand-700 font-medium">
-          Cards and invoices (Stripe billing portal) &rarr;
+        <button onClick={portal} disabled={restricted} className="mt-6 text-sm text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50">
+          {t('plans.portal')}
         </button>
       )}
     </div>

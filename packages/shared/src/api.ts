@@ -1,5 +1,7 @@
-/** The fetch core both sites use: Bearer token, JSON in and out, and the API's error shape
- *  ({"error": message, "code"?: machine-readable reason}, api/lib/response.py) turned into an ApiError. */
+/** The fetch core both sites use: Bearer token, JSON in and out, the site's language (X-Language), and the API's error
+ *  shape ({"error": English message, "message": the same in the request's language, "code"?: machine-readable reason},
+ *  api/lib/response.py) turned into an ApiError whose message is the translated one. */
+import { currentLanguage, i18n } from './i18n/setup';
 
 /** An API refusal with the server's machine-readable code (MAINTENANCE, SIGNUPS_CLOSED, PLAN_LIMIT, NOT_ADMIN,
  *  REASON_REQUIRED, ...) and, for a card charge, its outcome ("unknown": resend with the same requestId; "declined":
@@ -49,22 +51,24 @@ export function createApiClient(opts: ApiClientOptions): ApiFetch {
     const token = await opts.getToken();
     if (!token) {
       opts.onUnauthorized?.();
-      throw new ApiError('Not signed in', 401, ErrorCodes.SIGNED_OUT);
+      throw new ApiError(i18n.t('common.errors.notSignedIn'), 401, ErrorCodes.SIGNED_OUT);
     }
     const res = await fetch(`${base}${path}`, {
       ...init,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...init.headers },
+      headers: {
+        'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Language': currentLanguage(), ...init.headers,
+      },
     });
     const body = await res.json().catch(() => ({}));
     if (res.status === 401) {
       opts.onUnauthorized?.();
-      throw new ApiError(body.error || 'Your session has expired. Sign in again.', 401, body.code ?? ErrorCodes.SIGNED_OUT);
+      throw new ApiError(body.message || body.error || i18n.t('common.errors.sessionExpired'), 401, body.code ?? ErrorCodes.SIGNED_OUT);
     }
     if (!res.ok) {
-      const message = body.error || body.message;
+      const message = body.message || body.error;
       if (message) throw new ApiError(message, res.status, body.code, body.outcome);
-      if (res.status >= 500) throw new ApiError('Something went wrong on our end. Please try again in a few minutes.', res.status);
-      throw new ApiError(`Request failed (${res.status})`, res.status);
+      if (res.status >= 500) throw new ApiError(i18n.t('common.errors.server'), res.status);
+      throw new ApiError(i18n.t('common.errors.requestFailed', { status: res.status }), res.status);
     }
     return body as T;
   };

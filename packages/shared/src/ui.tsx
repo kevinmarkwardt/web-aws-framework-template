@@ -1,5 +1,6 @@
 /** UI primitives both sites use, styled with the theme tokens (theme.css). Plain Tailwind, no component library. */
 import { useEffect, useId, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -165,14 +166,16 @@ export function Notice({ tone = 'neutral', children, className }: { tone?: Tone;
 }
 
 export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const { t } = useTranslation();
   const s = { sm: 'h-3.5 w-3.5 border-2', md: 'h-5 w-5 border-2', lg: 'h-8 w-8 border-2' }[size];
-  return <span aria-label="Loading" className={cx('inline-block animate-spin rounded-full border-current border-r-transparent text-brand-600', s)} />;
+  return <span aria-label={t('common.loading')} className={cx('inline-block animate-spin rounded-full border-current border-r-transparent text-brand-600', s)} />;
 }
 
-export function Loading({ label = 'Loading…' }: { label?: string }) {
+export function Loading({ label }: { label?: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted">
-      <Spinner /> {label}
+      <Spinner /> {label ?? t('common.loadingEllipsis')}
     </div>
   );
 }
@@ -192,9 +195,10 @@ export interface Column<T> {
   numeric?: boolean;
 }
 
-export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty = 'Nothing here yet.', selected }:
+export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty, selected }:
   { columns: Column<T>[]; rows: T[]; rowKey: (row: T) => string; onRowClick?: (row: T) => void; empty?: ReactNode; selected?: string | null }) {
-  if (!rows.length) return <Empty>{empty}</Empty>;
+  const { t } = useTranslation();
+  if (!rows.length) return <Empty>{empty ?? t('common.nothingYet')}</Empty>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -270,6 +274,7 @@ export function Dialog({ open, title, onClose, children, footer }:
 export function Drawer({ open, title, onClose, children, actions }:
   { open: boolean; title: ReactNode; onClose: () => void; children: ReactNode; actions?: ReactNode }) {
   useEscape(open, onClose);
+  const { t } = useTranslation();
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
@@ -279,7 +284,7 @@ export function Drawer({ open, title, onClose, children, actions }:
           <h2 className="min-w-0 truncate text-base font-semibold text-ink">{title}</h2>
           <div className="flex items-center gap-2">
             {actions}
-            <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">✕</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} aria-label={t('common.close')}>✕</Button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">{children}</div>

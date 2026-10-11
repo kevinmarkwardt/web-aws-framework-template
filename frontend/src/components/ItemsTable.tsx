@@ -1,3 +1,4 @@
+import { shortDate, useTranslation } from '@yourapp/shared';
 import type { Item } from '../types';
 import StatusBadge from './StatusBadge';
 
@@ -5,14 +6,17 @@ interface Props {
   items: Item[];
   onDelete: (itemId: string) => void;
   onEdit: (item: Item) => void;
+  /** The account is read-only (banned): no edit or delete. */
+  readOnly?: boolean;
 }
 
-export default function ItemsTable({ items, onDelete, onEdit }: Props) {
+export default function ItemsTable({ items, onDelete, onEdit, readOnly = false }: Props) {
+  const { t } = useTranslation();
   if (items.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        <p className="text-lg font-medium">No items yet</p>
-        <p className="text-sm mt-1">Add your first item to get started.</p>
+        <p className="text-lg font-medium">{t('items.table.empty')}</p>
+        <p className="text-sm mt-1">{t('items.table.emptyHint')}</p>
       </div>
     );
   }
@@ -22,10 +26,10 @@ export default function ItemsTable({ items, onDelete, onEdit }: Props) {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="bg-gray-50 text-left text-gray-600 uppercase text-xs tracking-wider">
-            <th className="px-4 py-3 border-b">Name</th>
-            <th className="px-4 py-3 border-b">Status</th>
-            <th className="px-4 py-3 border-b">Created</th>
-            <th className="px-4 py-3 border-b">Actions</th>
+            <th className="px-4 py-3 border-b">{t('items.table.name')}</th>
+            <th className="px-4 py-3 border-b">{t('items.table.status')}</th>
+            <th className="px-4 py-3 border-b">{t('items.table.created')}</th>
+            <th className="px-4 py-3 border-b">{t('items.table.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -36,22 +40,24 @@ export default function ItemsTable({ items, onDelete, onEdit }: Props) {
                 <StatusBadge status={item.status} />
               </td>
               <td className="px-4 py-3 text-gray-500">
-                {new Date(item.createdAt).toLocaleDateString()}
+                {shortDate(item.createdAt)}
               </td>
               <td className="px-4 py-3 flex gap-2">
                 <button
                   onClick={() => onEdit(item)}
-                  className="text-brand-600 hover:text-brand-800 text-sm font-medium"
+                  disabled={readOnly}
+                  className="text-brand-600 hover:text-brand-800 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Edit
+                  {t('items.table.edit')}
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm(`Delete "${item.name}"?`)) onDelete(item.itemId);
+                    if (confirm(t('items.table.confirmDelete', { name: item.name }))) onDelete(item.itemId);
                   }}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                  disabled={readOnly}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Delete
+                  {t('items.table.delete')}
                 </button>
               </td>
             </tr>

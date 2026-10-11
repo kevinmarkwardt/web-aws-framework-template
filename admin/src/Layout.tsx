@@ -1,19 +1,20 @@
 import { Suspense, useMemo, useState } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { Badge, Loading } from '@yourapp/shared';
+import { Badge, Loading, useTranslation } from '@yourapp/shared';
 import { Icon } from './icons';
 import { siteUrl, useMe } from './session';
 import { SECTIONS, visibleTabs } from './tabs/registry';
 import type { AdminTab } from './tabs/registry';
 
 function Sidebar({ tabs, onNavigate }: { tabs: AdminTab[]; onNavigate?: () => void }) {
+  const { t } = useTranslation();
   const me = useMe();
   const groups = useMemo(() => {
     const out: { section: string; tabs: AdminTab[] }[] = [];
-    for (const t of tabs) {
+    for (const tab of tabs) {
       const last = out[out.length - 1];
-      if (last && last.section === t.section) last.tabs.push(t);
-      else out.push({ section: t.section, tabs: [t] });
+      if (last && last.section === tab.section) last.tabs.push(tab);
+      else out.push({ section: tab.section, tabs: [tab] });
     }
     return out;
   }, [tabs]);
@@ -23,27 +24,27 @@ function Sidebar({ tabs, onNavigate }: { tabs: AdminTab[]; onNavigate?: () => vo
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white"><Icon name="shield" className="h-5 w-5" /></span>
         <div className="leading-tight">
           <div className="text-sm font-semibold text-white">YourApp</div>
-          <div className="text-xs text-chrome-ink/70">Admin</div>
+          <div className="text-xs text-chrome-ink/70">{t('admin.layout.admin')}</div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pb-4">
         {groups.map((g) => (
           <div key={g.section} className="mt-4 first:mt-0">
             {g.section !== SECTIONS[0] && (
-              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-chrome-ink/50">{g.section}</div>
+              <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-chrome-ink/50">{t(g.section)}</div>
             )}
-            {g.tabs.map((t) => (
+            {g.tabs.map((tab) => (
               <NavLink
-                key={t.id}
-                to={`/${t.id}`}
+                key={tab.id}
+                to={`/${tab.id}`}
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors ${
                     isActive ? 'bg-chrome-active text-white' : 'hover:bg-chrome-active/60 hover:text-white'
                   }`}
               >
-                <Icon name={t.icon} />
-                {t.label}
+                <Icon name={tab.icon} />
+                {t(tab.label)}
               </NavLink>
             ))}
           </div>
@@ -51,7 +52,7 @@ function Sidebar({ tabs, onNavigate }: { tabs: AdminTab[]; onNavigate?: () => vo
       </div>
       {siteUrl(me) && (
         <a href={siteUrl(me)} className="mx-3 mb-4 flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-chrome-active/60 hover:text-white">
-          <Icon name="external" className="h-4 w-4" /> Open the site
+          <Icon name="external" className="h-4 w-4" /> {t('admin.layout.openSite')}
         </a>
       )}
     </nav>
@@ -59,6 +60,7 @@ function Sidebar({ tabs, onNavigate }: { tabs: AdminTab[]; onNavigate?: () => vo
 }
 
 export default function Layout({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useTranslation();
   const me = useMe();
   const tabs = useMemo(() => visibleTabs(me), [me]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -79,16 +81,16 @@ export default function Layout({ onSignOut }: { onSignOut: () => void }) {
       <div className="lg:pl-60">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-panel/95 px-4 backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
-            <button className="rounded-lg p-1.5 text-muted hover:bg-raised lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+            <button className="rounded-lg p-1.5 text-muted hover:bg-raised lg:hidden" onClick={() => setMenuOpen(true)} aria-label={t('admin.layout.openMenu')}>
               <Icon name="menu" />
             </button>
-            <Badge tone={me.stage === 'prod' ? 'danger' : 'warn'}>{me.stage === 'prod' ? 'Production' : `Stage: ${me.stage}`}</Badge>
-            <span className="hidden text-xs text-faint sm:inline">Billing: {me.billingMode}</span>
+            <Badge tone={me.stage === 'prod' ? 'danger' : 'warn'}>{me.stage === 'prod' ? t('admin.layout.production') : t('admin.layout.stage', { stage: me.stage })}</Badge>
+            <span className="hidden text-xs text-faint sm:inline">{t('admin.layout.billing', { mode: me.billingMode })}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted sm:inline">{me.email}</span>
             <button onClick={onSignOut} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-muted hover:bg-raised hover:text-ink">
-              <Icon name="logout" className="h-4 w-4" /> Sign out
+              <Icon name="logout" className="h-4 w-4" /> {t('admin.actions.signOut')}
             </button>
           </div>
         </header>
@@ -97,8 +99,8 @@ export default function Layout({ onSignOut }: { onSignOut: () => void }) {
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route index element={<Navigate to={`/${first}`} replace />} />
-              {tabs.map((t) => (
-                <Route key={t.id} path={`/${t.id}`} element={<t.component />} />
+              {tabs.map((tab) => (
+                <Route key={tab.id} path={`/${tab.id}`} element={<tab.component />} />
               ))}
               <Route path="*" element={<Navigate to={`/${first}`} replace />} />
             </Routes>

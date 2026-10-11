@@ -1,17 +1,21 @@
-/** Formatting both sites use. Money is always whole cents from the API; 100 credit units = $1. */
+/** Formatting both sites use, in the site's language (numbers and dates). Money is always whole cents from the API;
+ *  100 credit units = $1. */
+import { currentLanguage } from './i18n/setup';
+
+const loc = () => currentLanguage();
 
 export const usd = (cents: number) =>
-  `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `${cents < 0 ? '-' : ''}$${(Math.abs(cents) / 100).toLocaleString(loc(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** "1,250 credits" (the unit name is config creditName). */
-export const units = (n: number, name = 'credits') => `${n.toLocaleString()} ${name}`;
+export const units = (n: number, name = 'credits') => `${n.toLocaleString(loc())} ${name}`;
 
-export const num = (n: number | null | undefined) => (n ?? 0).toLocaleString();
+export const num = (n: number | null | undefined) => (n ?? 0).toLocaleString(loc());
 
-export const shortDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '');
+export const shortDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(loc()) : '');
 
 export const dateTime = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  iso ? new Date(iso).toLocaleString(loc(), { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
 /** Today as YYYY-MM-DD in UTC (the API files payments and logs by UTC day). */
 export const utcToday = () => new Date().toISOString().slice(0, 10);

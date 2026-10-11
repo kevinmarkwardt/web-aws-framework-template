@@ -1,0 +1,10 @@
+{
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Monthly reports archived here",
+    "empty": "No reports generated yet. Your first report will appear on the 1st of next month.",
+    "lockedTitle": "Monthly Reports",
+    "lockedBody": "Get monthly PDF reports with detailed breakdowns and trend analysis. Available on the Pro plan.",
+    "seePro": "See the Pro plan"
+  }
+}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Badge, Button, DataTable, Field, Input, Loading, Notice, Panel, Select, creditsOn, dateTime, num, shortDate, subscriptionsOn, usd,
-  useLoad,
+  Badge, Button, DataTable, Field, Input, Loading, Notice, Panel, Select, Trans, creditsOn, dateTime, num, shortDate, subscriptionsOn, usd,
+  useLoad, useTranslation,
 } from '@yourapp/shared';
 import { api } from '../api';
 import PaymentsTable from '../components/PaymentsTable';
@@ -10,11 +10,18 @@ import ReasonDialog from '../components/ReasonDialog';
 import { useMe } from '../session';
 import type { AdminUser, UserAction, UserDetail as Detail } from '../types';
 
+const STATUS_KEYS: Record<string, string> = {
+  active: 'adminUsers.status.active',
+  suspended: 'adminUsers.status.suspended',
+  banned: 'adminUsers.status.banned',
+};
+
 export function StatusBadge({ user }: { user: Pick<AdminUser, 'status' | 'isAdmin'> }) {
+  const { t } = useTranslation();
   return (
     <span className="inline-flex gap-1">
-      <Badge tone={user.status === 'active' ? 'ok' : user.status === 'suspended' ? 'warn' : 'danger'}>{user.status}</Badge>
-      {user.isAdmin && <Badge tone="brand">admin</Badge>}
+      <Badge tone={user.status === 'active' ? 'ok' : user.status === 'suspended' ? 'warn' : 'danger'}>{STATUS_KEYS[user.status] ? t(STATUS_KEYS[user.status]) : user.status}</Badge>
+      {user.isAdmin && <Badge tone="brand">{t('adminUsers.status.admin')}</Badge>}
     </span>
   );
 }
@@ -29,6 +36,7 @@ interface Pending {
 }
 
 function Actions({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
+  const { t } = useTranslation();
   const me = useMe();
   const u = d.user;
   const credits = creditsOn(me.billingMode);
@@ -37,7 +45,7 @@ function Actions({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
   const [days, setDays] = useState(String(d.accountRules.banDays));
   const [amount, setAmount] = useState('');
   const [policy, setPolicy] = useState<'all' | 'window'>('all');
-  const unit = d.creditName ?? 'credits';
+  const unit = d.creditName ?? t('adminUsers.detail.creditsUnit');
   const all = d.refundable?.all.refundable ?? 0;
 
   const open = (p: Pending) => {
@@ -54,48 +62,50 @@ function Actions({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
       body.policy = policy;
     }
     const out = await api.userAction(u.userId, pending.action, body);
-    onDone(`${pending.title}: done${'refunded' in out ? `, ${usd(Number(out.refunded))} refunded` : ''}`);
+    onDone('refunded' in out
+      ? t('adminUsers.actions.doneRefunded', { title: pending.title, amount: usd(Number(out.refunded)) })
+      : t('adminUsers.actions.done', { title: pending.title }));
   };
 
   const amountOk = (min: number) => amount.trim() === '' ? false : Number.isInteger(Number(amount)) && Math.abs(Number(amount)) >= min;
 
   return (
-    <Panel title="Actions">
+    <Panel title={t('adminUsers.actions.title')}>
       <div className="flex flex-wrap gap-2">
         {u.status === 'active' && (
-          <Button disabled={self} onClick={() => open({ action: 'suspend', title: 'Suspend payments', confirm: 'Suspend', danger: true,
-            description: 'Payments, spending and subscription changes are refused until you lift it. Nothing is refunded.' })}>Suspend</Button>
+          <Button disabled={self} onClick={() => open({ action: 'suspend', title: t('adminUsers.actions.suspendTitle'), confirm: t('adminUsers.actions.suspend'), danger: true,
+            description: t('adminUsers.actions.suspendDescription') })}>{t('adminUsers.actions.suspend')}</Button>
         )}
         {u.status !== 'active' && (
-          <Button onClick={() => open({ action: 'unban', title: u.status === 'banned' ? 'Unban' : 'Lift the suspension', confirm: 'Make active',
-            description: 'The account goes back to active. A ban\'s refunds and forfeited bonus stay as they are.' })}>
-            {u.status === 'banned' ? 'Unban' : 'Lift suspension'}
+          <Button onClick={() => open({ action: 'unban', title: u.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.liftTitle'), confirm: t('adminUsers.actions.makeActive'),
+            description: t('adminUsers.actions.unbanDescription') })}>
+            {u.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.lift')}
           </Button>
         )}
         {u.status !== 'banned' && (
-          <Button variant="danger" disabled={self} onClick={() => open({ action: 'ban', title: `Ban ${u.email}`, confirm: 'Ban', danger: true,
-            description: `Read-only for the days you choose.${credits ? ` The unused paid balance (${usd(all)}) goes back to the card and the bonus is forfeited.` : ''} An active subscription is cancelled and the cards are blocked.` })}>Ban</Button>
+          <Button variant="danger" disabled={self} onClick={() => open({ action: 'ban', title: t('adminUsers.actions.banTitle', { email: u.email }), confirm: t('adminUsers.actions.ban'), danger: true,
+            description: credits ? t('adminUsers.actions.banDescriptionCredits', { amount: usd(all) }) : t('adminUsers.actions.banDescription') })}>{t('adminUsers.actions.ban')}</Button>
         )}
-        <Button onClick={() => open({ action: 'warn', title: 'Add a warning', confirm: 'Warn',
-          description: `Warnings expire after ${d.accountRules.warningDays} days; the ${d.accountRules.warningsToBan}th active one bans automatically. The user gets an alert and an email.` })}>Warn</Button>
-        <Button disabled={self} onClick={() => open({ action: 'admin', title: u.isAdmin ? 'Remove admin' : 'Make admin', confirm: u.isAdmin ? 'Remove admin' : 'Make admin',
+        <Button onClick={() => open({ action: 'warn', title: t('adminUsers.actions.warnTitle'), confirm: t('adminUsers.actions.warn'),
+          description: t('adminUsers.actions.warnDescription', { days: d.accountRules.warningDays, toBan: d.accountRules.warningsToBan }) })}>{t('adminUsers.actions.warn')}</Button>
+        <Button disabled={self} onClick={() => open({ action: 'admin', title: u.isAdmin ? t('adminUsers.actions.removeAdmin') : t('adminUsers.actions.makeAdmin'), confirm: u.isAdmin ? t('adminUsers.actions.removeAdmin') : t('adminUsers.actions.makeAdmin'),
           danger: !u.isAdmin, extra: { isAdmin: !u.isAdmin },
-          description: u.isAdmin ? 'Removes the profile flag and the Cognito group: the admin site locks them out on their next request.'
-            : 'Adds the Cognito group "admins" and the profile flag. They sign in again on the admin site to use it.' })}>
-          {u.isAdmin ? 'Remove admin' : 'Make admin'}
+          description: u.isAdmin ? t('adminUsers.actions.removeAdminDescription')
+            : t('adminUsers.actions.makeAdminDescription') })}>
+          {u.isAdmin ? t('adminUsers.actions.removeAdmin') : t('adminUsers.actions.makeAdmin')}
         </Button>
         {credits && (
           <>
-            <Button onClick={() => open({ action: 'adjust-balance', title: 'Adjust the balance', confirm: 'Adjust',
-              description: `A positive amount adds bonus ${unit} (goodwill); a negative one takes ${unit} away, bonus first. Never touches the card.` })}>Adjust balance</Button>
-            <Button disabled={!all} onClick={() => open({ action: 'refund-card', title: 'Refund to the card', confirm: 'Refund', danger: true,
-              description: `Unused paid ${unit} go back to the card, newest payment first (1 ${unit.replace(/s$/, '')} = 1¢). The bonus that came with them goes too.` })}>
-              Refund to card ({usd(all)})
+            <Button onClick={() => open({ action: 'adjust-balance', title: t('adminUsers.actions.adjustTitle'), confirm: t('adminUsers.actions.adjust'),
+              description: t('adminUsers.actions.adjustDescription', { unit }) })}>{t('adminUsers.actions.adjustBalance')}</Button>
+            <Button disabled={!all} onClick={() => open({ action: 'refund-card', title: t('adminUsers.actions.refundTitle'), confirm: t('adminUsers.actions.refund'), danger: true,
+              description: t('adminUsers.actions.refundDescription', { unit, one: unit.replace(/s$/, '') }) })}>
+              {t('adminUsers.actions.refundToCard', { amount: usd(all) })}
             </Button>
           </>
         )}
       </div>
-      {self && <p className="mt-2 text-xs text-faint">This is you: another admin can suspend, ban or remove your admin access.</p>}
+      {self && <p className="mt-2 text-xs text-faint">{t('adminUsers.actions.selfNote')}</p>}
 
       <ReasonDialog
         open={!!pending}
@@ -110,24 +120,24 @@ function Actions({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
         onConfirm={run}
       >
         {pending?.action === 'ban' && (
-          <Field label="Days" hint="1 to 3650">
+          <Field label={t('adminUsers.actions.days')} hint={t('adminUsers.actions.daysHint')}>
             <Input type="number" min={1} max={3650} value={days} onChange={(e) => setDays(e.target.value)} />
           </Field>
         )}
         {pending?.action === 'adjust-balance' && (
-          <Field label={`Amount (${unit})`} hint="e.g. 500 to give, -200 to take away">
+          <Field label={t('adminUsers.actions.amount', { unit })} hint={t('adminUsers.actions.amountHint')}>
             <Input type="number" step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
           </Field>
         )}
         {pending?.action === 'refund-card' && (
           <>
-            <Field label={`Amount (paid ${unit})`} hint={`Empty refunds everything refundable (${num(all)}).`}>
+            <Field label={t('adminUsers.actions.refundAmount', { unit })} hint={t('adminUsers.actions.refundAmountHint', { amount: num(all) })}>
               <Input type="number" min={1} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(all)} />
             </Field>
-            <Field label="Policy">
+            <Field label={t('adminUsers.actions.policy')}>
               <Select value={policy} onChange={(e) => setPolicy(e.target.value as 'all' | 'window')}>
-                <option value="all">Any unused paid {unit} (admin)</option>
-                <option value="window">The customer's own rules ({num(d.refundable?.window.refundable ?? 0)} now)</option>
+                <option value="all">{t('adminUsers.actions.policyAll', { unit })}</option>
+                <option value="window">{t('adminUsers.actions.policyWindow', { amount: num(d.refundable?.window.refundable ?? 0) })}</option>
               </Select>
             </Field>
           </>
@@ -138,34 +148,36 @@ function Actions({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
 }
 
 function Warnings({ d, onDone }: { d: Detail; onDone: (msg: string) => void }) {
+  const { t } = useTranslation();
   const [sk, setSk] = useState<string | null>(null);
   const active = d.warnings.filter((w) => w.active).length;
   return (
-    <Panel title={`Warnings (${active} active of ${d.accountRules.warningsToBan} to a ban)`}>
-      {!d.warnings.length ? <p className="text-sm text-faint">None.</p> : (
+    <Panel title={t('adminUsers.warnings.title', { active, toBan: d.accountRules.warningsToBan })}>
+      {!d.warnings.length ? <p className="text-sm text-faint">{t('adminUsers.warnings.none')}</p> : (
         <ul className="divide-y divide-line text-sm">
           {d.warnings.map((w) => (
             <li key={w.sk} className="flex items-start gap-3 py-2">
               <div className="flex-1">
                 <p className={w.active ? 'text-ink' : 'text-faint line-through'}>{w.reason}</p>
-                <p className="text-xs text-faint">{dateTime(w.at)} by {w.actor} · {w.removed ? `removed by ${w.removedBy}` : `expires ${shortDate(w.expiresAt)}`}</p>
+                <p className="text-xs text-faint">{t('adminUsers.warnings.by', { at: dateTime(w.at), actor: w.actor })} · {w.removed ? t('adminUsers.warnings.removedBy', { actor: w.removedBy }) : t('adminUsers.warnings.expires', { date: shortDate(w.expiresAt) })}</p>
               </div>
-              {w.active && <Button size="sm" onClick={() => setSk(w.sk)}>Remove</Button>}
+              {w.active && <Button size="sm" onClick={() => setSk(w.sk)}>{t('adminUsers.warnings.remove')}</Button>}
             </li>
           ))}
         </ul>
       )}
-      <ReasonDialog open={!!sk} title="Remove this warning" confirmLabel="Remove" onClose={() => setSk(null)}
-        description="It stops counting. A ban it already caused stays until you unban."
+      <ReasonDialog open={!!sk} title={t('adminUsers.warnings.removeTitle')} confirmLabel={t('adminUsers.warnings.remove')} onClose={() => setSk(null)}
+        description={t('adminUsers.warnings.removeDescription')}
         onConfirm={async (reason) => {
           await api.userAction(d.user.userId, 'remove-warning', { reason, warningSk: sk });
-          onDone('Warning removed');
+          onDone(t('adminUsers.warnings.removed'));
         }} />
     </Panel>
   );
 }
 
 export default function UserDetail({ userId, onChanged }: { userId: string; onChanged: () => void }) {
+  const { t } = useTranslation();
   const me = useMe();
   const { data: d, error, reload } = useLoad(() => api.user(userId), [userId]);
   const [msg, setMsg] = useState('');
@@ -177,7 +189,7 @@ export default function UserDetail({ userId, onChanged }: { userId: string; onCh
     reload();
     onChanged();
   };
-  const unit = d.creditName ?? 'credits';
+  const unit = d.creditName ?? t('adminUsers.detail.creditsUnit');
   return (
     <div className="space-y-4">
       <Panel>
@@ -189,16 +201,16 @@ export default function UserDetail({ userId, onChanged }: { userId: string; onCh
           </div>
           <StatusBadge user={u} />
         </div>
-        {u.statusReason && <p className="mt-2 text-sm text-muted">Reason: {u.statusReason}{u.bannedUntil ? ` · until ${shortDate(u.bannedUntil)}` : ''}</p>}
+        {u.statusReason && <p className="mt-2 text-sm text-muted">{t('adminUsers.detail.reason', { reason: u.statusReason })}{u.bannedUntil ? ` · ${t('adminUsers.detail.until', { date: shortDate(u.bannedUntil) })}` : ''}</p>}
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <div><dt className="text-xs text-faint">Joined</dt><dd>{shortDate(u.createdAt)}</dd></div>
-          <div><dt className="text-xs text-faint">Items</dt><dd className="tabular-nums">{num(u.itemCount)}</dd></div>
-          {subscriptionsOn(me.billingMode) && <div><dt className="text-xs text-faint">Plan</dt><dd className="capitalize">{u.plan}</dd></div>}
+          <div><dt className="text-xs text-faint">{t('adminUsers.detail.joined')}</dt><dd>{shortDate(u.createdAt)}</dd></div>
+          <div><dt className="text-xs text-faint">{t('adminUsers.detail.items')}</dt><dd className="tabular-nums">{num(u.itemCount)}</dd></div>
+          {subscriptionsOn(me.billingMode) && <div><dt className="text-xs text-faint">{t('adminUsers.detail.plan')}</dt><dd className="capitalize">{u.plan}</dd></div>}
           {creditsOn(me.billingMode) && (
-            <div><dt className="text-xs text-faint">Balance</dt><dd className="tabular-nums">{num(u.credits ?? 0)} <span className="text-xs text-faint">({num(u.paidCredits ?? 0)} paid · {num(u.bonusCredits ?? 0)} bonus)</span></dd></div>
+            <div><dt className="text-xs text-faint">{t('adminUsers.detail.balance')}</dt><dd className="tabular-nums">{num(u.credits ?? 0)} <span className="text-xs text-faint">{t('adminUsers.detail.balanceSplit', { paid: num(u.paidCredits ?? 0), bonus: num(u.bonusCredits ?? 0) })}</span></dd></div>
           )}
         </dl>
-        {u.stripeCustomerId && <p className="mt-3 text-xs text-faint">Stripe customer {u.stripeCustomerId} · {u.cards} card{u.cards === 1 ? '' : 's'} used</p>}
+        {u.stripeCustomerId && <p className="mt-3 text-xs text-faint">{t('adminUsers.detail.stripeCustomer', { id: u.stripeCustomerId, count: u.cards })}</p>}
       </Panel>
 
       {msg && <Notice tone="ok">{msg}</Notice>}
@@ -206,48 +218,48 @@ export default function UserDetail({ userId, onChanged }: { userId: string; onCh
       <Warnings d={d} onDone={done} />
 
       {d.subscription && (
-        <Panel title="Subscription">
+        <Panel title={t('adminUsers.detail.subscription')}>
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <div><dt className="text-xs text-faint">Plan</dt><dd className="capitalize">{d.subscription.plan}</dd></div>
-            <div><dt className="text-xs text-faint">In effect</dt><dd className="capitalize">{d.subscription.effectivePlan}</dd></div>
-            <div><dt className="text-xs text-faint">Stripe status</dt><dd>{d.subscription.subscriptionStatus ?? '—'}</dd></div>
-            <div><dt className="text-xs text-faint">Renewal failed</dt><dd>{d.subscription.paymentFailedAt ? `${shortDate(d.subscription.paymentFailedAt)} (grace to ${shortDate(d.subscription.graceUntil)})` : '—'}</dd></div>
+            <div><dt className="text-xs text-faint">{t('adminUsers.detail.plan')}</dt><dd className="capitalize">{d.subscription.plan}</dd></div>
+            <div><dt className="text-xs text-faint">{t('adminUsers.detail.inEffect')}</dt><dd className="capitalize">{d.subscription.effectivePlan}</dd></div>
+            <div><dt className="text-xs text-faint">{t('adminUsers.detail.stripeStatus')}</dt><dd>{d.subscription.subscriptionStatus ?? '—'}</dd></div>
+            <div><dt className="text-xs text-faint">{t('adminUsers.detail.renewalFailed')}</dt><dd>{d.subscription.paymentFailedAt ? t('adminUsers.detail.grace', { date: shortDate(d.subscription.paymentFailedAt), grace: shortDate(d.subscription.graceUntil) }) : '—'}</dd></div>
           </dl>
         </Panel>
       )}
 
       {d.payments && (
-        <Panel title="Payments" padded={false}>
+        <Panel title={t('adminUsers.detail.payments')} padded={false}>
           <PaymentsTable rows={d.payments} />
         </Panel>
       )}
 
       {d.history && (
-        <Panel title={`Balance history (${unit})`} padded={false}>
+        <Panel title={t('adminUsers.detail.history', { unit })} padded={false}>
           <DataTable
             rows={d.history}
             rowKey={(t) => `${t.at}-${t.kind}-${t.amount}`}
-            empty="No balance activity."
+            empty={t('adminUsers.detail.historyEmpty')}
             columns={[
-              { key: 'at', header: 'When', render: (t) => <span className="whitespace-nowrap text-muted">{dateTime(t.at)}</span> },
-              { key: 'kind', header: 'Kind', render: (t) => t.kind },
-              { key: 'amount', header: 'Amount', numeric: true, render: (t) => <span className={t.amount < 0 ? 'text-danger' : 'text-ok'}>{t.amount > 0 ? '+' : ''}{num(t.amount)}</span> },
-              { key: 'split', header: 'Paid / bonus', numeric: true, render: (t) => <span className="text-faint">{num(t.paid)} / {num(t.bonus)}</span> },
-              { key: 'after', header: 'Balance', numeric: true, render: (t) => num(t.balanceAfter) },
-              { key: 'note', header: 'Note', render: (t) => <span className="text-muted">{t.note}</span> },
+              { key: 'at', header: t('adminUsers.detail.colWhen'), render: (t) => <span className="whitespace-nowrap text-muted">{dateTime(t.at)}</span> },
+              { key: 'kind', header: t('adminUsers.detail.colKind'), render: (t) => t.kind },
+              { key: 'amount', header: t('adminUsers.detail.colAmount'), numeric: true, render: (t) => <span className={t.amount < 0 ? 'text-danger' : 'text-ok'}>{t.amount > 0 ? '+' : ''}{num(t.amount)}</span> },
+              { key: 'split', header: t('adminUsers.detail.colSplit'), numeric: true, render: (t) => <span className="text-faint">{num(t.paid)} / {num(t.bonus)}</span> },
+              { key: 'after', header: t('adminUsers.detail.colBalance'), numeric: true, render: (t) => num(t.balanceAfter) },
+              { key: 'note', header: t('adminUsers.detail.colNote'), render: (t) => <span className="text-muted">{t.note}</span> },
             ]}
           />
         </Panel>
       )}
 
       {!!d.pending?.length && (
-        <Panel title="Rewards on hold">
-          <ul className="text-sm">{d.pending.map((h) => <li key={h.sk}>{num(h.amount)} {unit} · {h.kind} · releases {shortDate(h.releaseAt)}</li>)}</ul>
+        <Panel title={t('adminUsers.detail.onHold')}>
+          <ul className="text-sm">{d.pending.map((h) => <li key={h.sk}>{t('adminUsers.detail.onHoldRow', { amount: num(h.amount), unit, kind: h.kind, date: shortDate(h.releaseAt) })}</li>)}</ul>
         </Panel>
       )}
 
-      <Panel title="Account alerts they can see">
-        {!d.notes.length ? <p className="text-sm text-faint">None.</p> : (
+      <Panel title={t('adminUsers.detail.alerts')}>
+        {!d.notes.length ? <p className="text-sm text-faint">{t('adminUsers.detail.none')}</p> : (
           <ul className="divide-y divide-line text-sm">
             {d.notes.map((n) => (
               <li key={n.id} className="py-2"><span className="font-medium">{n.title}</span> <span className="text-xs text-faint">{dateTime(n.createdAt)}</span><p className="text-muted">{n.message}</p></li>
@@ -257,8 +269,13 @@ export default function UserDetail({ userId, onChanged }: { userId: string; onCh
       </Panel>
 
       <p className="text-xs text-faint">
-        Their actions in the <Link className="text-brand-700 hover:underline" to={`/audit?target=${encodeURIComponent(`user:${u.userId}`)}`}>audit log</Link>
-        {me.billingMode !== 'none' && <> and <Link className="text-brand-700 hover:underline" to={`/stripe-log?user=${encodeURIComponent(u.userId)}`}>Stripe log</Link></>} (today; pick another day there).
+        <Trans
+          i18nKey={me.billingMode !== 'none' ? 'adminUsers.detail.logsStripe' : 'adminUsers.detail.logs'}
+          components={{
+            audit: <Link className="text-brand-700 hover:underline" to={`/audit?target=${encodeURIComponent(`user:${u.userId}`)}`} />,
+            stripe: <Link className="text-brand-700 hover:underline" to={`/stripe-log?user=${encodeURIComponent(u.userId)}`} />,
+          }}
+        />
       </p>
     </div>
   );

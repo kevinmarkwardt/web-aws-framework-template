@@ -1,0 +1,48 @@
+{
+  "items": {
+    "title": "Items",
+    "count_one": "{{count}} item",
+    "count_other": "{{count}} items",
+    "countOfLimit_one": "{{count}} item of {{limit}} on your plan",
+    "countOfLimit_other": "{{count}} items of {{limit}} on your plan",
+    "add": "+ Add Item",
+    "addTitle": "Add New Item",
+    "loadFailed": "Failed to load items",
+    "editTodo": "Edit item: {{name}}. Add the edit UI here.",
+    "status": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Enter item name",
+      "status": "Status",
+      "failed": "Something went wrong",
+      "adding": "Adding…",
+      "submit": "Add Item",
+      "cancel": "Cancel"
+    },
+    "table": {
+      "empty": "No items yet",
+      "emptyHint": "Add your first item to get started.",
+      "name": "Name",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Delete \"{{name}}\"?"
+    },
+    "limit": {
+      "unlimited": "Unlimited items",
+      "count_one": "{{count}} item",
+      "count_other": "{{count}} items"
+    },
+    "upgrade": {
+      "reached": "You've reached your plan's limit: {{limit}}",
+      "next": "The {{plan}} plan allows up to {{limit}}.",
+      "nextUnlimited": "The {{plan}} plan allows unlimited items.",
+      "seePlans": "See plans"
+    }
+  }
+}

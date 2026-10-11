@@ -1,0 +1,46 @@
+{
+  "app": {
+    "signOut": "Sign out",
+    "nav": {
+      "label": "Main",
+      "toggle": "Menu",
+      "items": "Items",
+      "plans": "Plans",
+      "wallet": "Wallet",
+      "settings": "Settings",
+      "reports": "Reports",
+      "support": "Support"
+    },
+    "menu": {
+      "label": "Account menu",
+      "labelWithAlerts_one": "Account menu, {{count}} alert",
+      "labelWithAlerts_other": "Account menu, {{count}} alerts",
+      "alerts": "Alerts",
+      "noAlerts": "No alerts right now.",
+      "dismiss": "Dismiss alert",
+      "admin": "Admin"
+    },
+    "banner": {
+      "bannedTitle": "This account is read-only until {{date}}.",
+      "reason": "Reason: {{reason}}",
+      "bannedBody": "You can still sign in and view your data; payments and changes are turned off. If you think this is a mistake, <a>contact support</a>.",
+      "suspended": "Payments are paused on this account while we look into an issue. <a>Contact support</a> if you think this is a mistake.",
+      "warnings_one": "Your account has an active warning; see your alerts for why. {{left}} more within the warning period will make the account read-only. Questions? <a>Contact support</a>.",
+      "warnings_other": "Your account has {{count}} active warnings; see your alerts for why. {{left}} more within the warning period will make the account read-only. Questions? <a>Contact support</a>.",
+      "paymentFailed": "Your subscription payment failed.",
+      "onFreePlan": "Your account is on the free plan until it goes through.",
+      "graceUntil": "Your plan stays active until {{date}}.",
+      "fixIt": "Fix it"
+    },
+    "restricted": {
+      "readOnly": "Your account is read-only until {{date}}, so this is turned off. You can still sign in and view your data.",
+      "paymentsPaused": "Payments are paused on this account while we look into an issue, so this is turned off. Contact support if you think this is a mistake."
+    },
+    "footer": {
+      "label": "Site",
+      "copyright": "© {{year}} {{name}}",
+      "terms": "Terms",
+      "privacy": "Privacy"
+    }
+  }
+}

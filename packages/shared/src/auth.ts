@@ -1,4 +1,5 @@
 import { Amplify } from 'aws-amplify';
+import { i18n } from './i18n/setup';
 import {
   confirmResetPassword,
   confirmSignUp,
@@ -86,7 +87,7 @@ export function createAuth(opts: AuthOptions): Auth {
   }
 
   const notInLocalMode = () => {
-    throw new Error('This needs a Cognito user pool. Run scripts/local-test.sh web (or admin) to use a deployed stage.');
+    throw new Error(i18n.t('common.auth.needsCognito'));
   };
 
   async function testLogin(username: string) {
@@ -96,7 +97,7 @@ export function createAuth(opts: AuthOptions): Auth {
       body: JSON.stringify({ username }),
     });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Test login failed');
+    if (!res.ok) throw new Error(body.message || body.error || i18n.t('common.auth.testLoginFailed'));
     writeSession(testKey, { username: body.username, token: body.token });
   }
 
@@ -109,7 +110,7 @@ export function createAuth(opts: AuthOptions): Auth {
         return { done: true };
       }
       if (MOCK_AUTH) {
-        if (!email.trim() || !password) throw new Error('Enter any email and password.');
+        if (!email.trim() || !password) throw new Error(i18n.t('common.auth.mockCredentials'));
         writeSession(mockKey, { username: email.trim(), token: 'mock-token' });
         return { done: true };
       }

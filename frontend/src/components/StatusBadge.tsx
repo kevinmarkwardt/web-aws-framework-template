@@ -1,3 +1,5 @@
+import { useTranslation } from '@yourapp/shared';
+
 const statusStyles: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
   INACTIVE: 'bg-gray-100 text-gray-800',
@@ -11,12 +13,14 @@ const statusStyles: Record<string, string> = {
 
 const defaultStyle = 'bg-gray-100 text-gray-800';
 
+/** An item's status: its label from items.status.{STATUS} (the raw value when there is none). */
 export default function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] ?? defaultStyle}`}
     >
-      {status}
+      {t(`items.status.${status}`, { defaultValue: status })}
     </span>
   );
 }

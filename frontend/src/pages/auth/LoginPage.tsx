@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, MOCK_AUTH, TEST_LOGIN } from '../../auth';
 import { AuthContext } from '../../auth-context';
+import { useTranslation } from '@yourapp/shared';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { refresh } = useContext(AuthContext);
+  const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +22,7 @@ export default function LoginPage() {
       await refresh();
       navigate('/dashboard');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
+      const message = err instanceof Error ? err.message : t('auth.login.failed');
       setError(message);
     } finally {
       setLoading(false);
@@ -36,7 +38,7 @@ export default function LoginPage() {
           </svg>
           <span className="text-2xl font-bold text-gray-900">YourApp</span>
         </Link>
-        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">Sign in to your account</h2>
+        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">{t('auth.login.title')}</h2>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
@@ -44,12 +46,12 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {TEST_LOGIN && (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3">
-                Test site: sign in with any username (2-32 letters, numbers, - or _). No password needed.
+                {t('auth.login.testSite')}
               </div>
             )}
             {MOCK_AUTH && (
               <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3">
-                Local mock sign-in (no Cognito pool configured): any email and password.
+                {t('auth.login.mockAuth')}
               </div>
             )}
             {error && (
@@ -59,7 +61,7 @@ export default function LoginPage() {
             )}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                {TEST_LOGIN ? 'Username' : 'Email address'}
+                {TEST_LOGIN ? t('auth.login.username') : t('auth.email')}
               </label>
               <input
                 id="email"
@@ -74,7 +76,7 @@ export default function LoginPage() {
               <>
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Password
+                    {t('auth.password')}
                   </label>
                   <input
                     id="password"
@@ -87,7 +89,7 @@ export default function LoginPage() {
                 </div>
                 <div className="flex items-center justify-end">
                   <Link to="/forgot-password" className="text-sm text-brand-600 hover:text-brand-500">
-                    Forgot your password?
+                    {t('auth.login.forgot')}
                   </Link>
                 </div>
               </>
@@ -97,13 +99,13 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 focus:outline-2 focus:outline-offset-2 focus:outline-brand-600 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('auth.login.submitting') : t('auth.login.submit')}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-500">
-            Don't have an account?{' '}
+            {t('auth.login.noAccount')}{' '}
             <Link to="/signup" className="font-medium text-brand-600 hover:text-brand-500">
-              Sign up free
+              {t('auth.login.signup')}
             </Link>
           </p>
         </div>

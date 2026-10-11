@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, Loading, Notice } from '@yourapp/shared';
+import { ApiError, Loading, Notice, useTranslation } from '@yourapp/shared';
 import { api, SIGNED_OUT_EVENT } from './api';
 import { getUser, logout } from './auth';
 import Layout from './Layout';
@@ -29,6 +29,7 @@ async function check(): Promise<Gate> {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const [gate, setGate] = useState<Gate>({ state: 'loading' });
   const refresh = useCallback(() => {
     check().then(setGate);
@@ -53,7 +54,7 @@ export default function App() {
 
   switch (gate.state) {
     case 'loading':
-      return <div className="min-h-screen bg-surface"><Loading label="Checking your access…" /></div>;
+      return <div className="min-h-screen bg-surface"><Loading label={t('admin.app.checkingAccess')} /></div>;
     case 'signed-out':
       return <SignInPage onSignedIn={refresh} />;
     case 'not-admin':
@@ -62,8 +63,8 @@ export default function App() {
       return (
         <div className="min-h-screen bg-surface flex items-center justify-center p-6">
           <div className="max-w-md space-y-3">
-            <Notice tone="danger">The admin API didn't answer: {gate.message}</Notice>
-            <button className="text-sm text-brand-700 underline" onClick={refresh}>Try again</button>
+            <Notice tone="danger">{t('admin.app.apiDown', { message: gate.message })}</Notice>
+            <button className="text-sm text-brand-700 underline" onClick={refresh}>{t('admin.actions.tryAgain')}</button>
           </div>
         </div>
       );

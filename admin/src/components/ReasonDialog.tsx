@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Dialog, Field, Notice, Textarea } from '@yourapp/shared';
+import { Button, Dialog, Field, Notice, Textarea, useTranslation } from '@yourapp/shared';
 
 /** Every account or money action asks why: the reason goes in the audit log with the admin's id (the API refuses an
  *  empty one). `children` adds the action's own fields (days, amount, ...). */
-export default function ReasonDialog({ open, title, description, confirmLabel = 'Confirm', danger, children, onConfirm, onClose, canConfirm = true }: {
+export default function ReasonDialog({ open, title, description, confirmLabel, danger, children, onConfirm, onClose, canConfirm = true }: {
   open: boolean;
   title: ReactNode;
   description?: ReactNode;
@@ -15,6 +15,7 @@ export default function ReasonDialog({ open, title, description, confirmLabel = 
   onConfirm: (reason: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -42,15 +43,15 @@ export default function ReasonDialog({ open, title, description, confirmLabel = 
       onClose={close}
       footer={
         <>
-          <Button onClick={close}>Cancel</Button>
-          <Button variant={danger ? 'danger' : 'primary'} busy={busy} disabled={!reason.trim() || !canConfirm} onClick={confirm}>{confirmLabel}</Button>
+          <Button onClick={close}>{t('adminUsers.reason.cancel')}</Button>
+          <Button variant={danger ? 'danger' : 'primary'} busy={busy} disabled={!reason.trim() || !canConfirm} onClick={confirm}>{confirmLabel ?? t('adminUsers.reason.confirm')}</Button>
         </>
       }
     >
       <div className="space-y-4">
         {description && <div className="text-sm text-muted">{description}</div>}
         {children}
-        <Field label="Reason" hint="Required. Saved in the audit log with your admin id.">
+        <Field label={t('adminUsers.reason.label')} hint={t('adminUsers.reason.hint')}>
           <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
         </Field>
         {error && <Notice tone="danger">{error}</Notice>}

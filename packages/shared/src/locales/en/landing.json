@@ -1,0 +1,79 @@
+{
+  "landing": {
+    "nav": {
+      "login": "Log in"
+    },
+    "getStarted": "Get Started Free",
+    "hero": {
+      "title": "Track Everything.",
+      "titleAccent": "Know When It Changes.",
+      "body": "Monitor your items on a schedule. Get instant alerts when status changes. A simple, focused tool that stays out of your way.",
+      "start": "Start Monitoring Free",
+      "viewPricing": "View Pricing",
+      "freeIncludes": "Free plan includes {{items}}. ",
+      "noCard": "No credit card required."
+    },
+    "features": {
+      "title": "Everything you need to stay on top of your data",
+      "subtitle": "One focused tool. No bloat.",
+      "monitoring": {
+        "title": "Automated Monitoring",
+        "description": "Set it and forget it. Your items are checked on a schedule and you are alerted the moment something changes."
+      },
+      "alerts": {
+        "title": "Instant Alerts",
+        "description": "Get notified the same day something changes. No more discovering issues days or weeks after they happen."
+      },
+      "organize": {
+        "title": "Organize Everything",
+        "description": "Add tags, notes, and metadata to your items. Filter and search across your entire collection instantly."
+      },
+      "digest": {
+        "title": "Weekly Digest",
+        "description": "Every week, get a summary of what changed, what is healthy, and what needs your attention."
+      },
+      "insights": {
+        "title": "AI-Powered Insights",
+        "description": "Pro users get AI-powered analysis and recommendations based on their data trends."
+      },
+      "reports": {
+        "title": "Monthly Reports",
+        "description": "Pro users receive a monthly summary report with trends, breakdowns, and historical comparisons."
+      }
+    },
+    "how": {
+      "title": "How it works",
+      "add": {
+        "title": "Add your items",
+        "desc": "Add items individually or in bulk. Include a URL, a label, and any notes you want to track."
+      },
+      "check": {
+        "title": "We check them on a schedule",
+        "desc": "Your items are checked daily (or hourly on Pro). We detect status changes and record the history."
+      },
+      "alert": {
+        "title": "Get alerted instantly",
+        "desc": "The moment an item changes status, you get an email. Every week, you get a full digest of what is healthy and what is not."
+      }
+    },
+    "pricing": {
+      "title": "Simple, transparent pricing",
+      "subtitle": "Start free. Upgrade when you need more.",
+      "price": "${{amount}}",
+      "perMonth": "/month",
+      "startFree": "Start free",
+      "choose": "Choose {{plan}}",
+      "payg": {
+        "title": "Pay as you go",
+        "buy": "Buy {{credits}} when you need them ({{perDollar}} = $1).",
+        "buyWithGift": "Buy {{credits}} when you need them ({{perDollar}} = $1); new accounts get {{gift}}.",
+        "refund_one": "Unused bought {{credits}} can be refunded within {{count}} day.",
+        "refund_other": "Unused bought {{credits}} can be refunded within {{count}} days."
+      }
+    },
+    "cta": {
+      "title": "Start tracking in under 60 seconds",
+      "body": "Free plan available. No credit card required."
+    }
+  }
+}

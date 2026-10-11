@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { forgotPassword, confirmForgotPassword } from '../../auth';
+import { Trans, useTranslation } from '@yourapp/shared';
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'request' | 'confirm'>('request');
@@ -10,6 +11,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,7 @@ export default function ForgotPasswordPage() {
       await forgotPassword(email);
       setStep('confirm');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Request failed';
+      const message = err instanceof Error ? err.message : t('auth.forgot.requestFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -34,7 +36,7 @@ export default function ForgotPasswordPage() {
       await confirmForgotPassword(email, code, newPassword);
       navigate('/login');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Reset failed';
+      const message = err instanceof Error ? err.message : t('auth.forgot.resetFailed');
       setError(message);
     } finally {
       setLoading(false);
@@ -51,7 +53,7 @@ export default function ForgotPasswordPage() {
           <span className="text-2xl font-bold text-gray-900">YourApp</span>
         </Link>
         <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
-          {step === 'request' ? 'Reset your password' : 'Enter new password'}
+          {step === 'request' ? t('auth.forgot.title') : t('auth.forgot.confirmTitle')}
         </h2>
       </div>
 
@@ -66,7 +68,7 @@ export default function ForgotPasswordPage() {
               )}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
+                  {t('auth.email')}
                 </label>
                 <input
                   id="email"
@@ -82,7 +84,7 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
-                {loading ? 'Sending...' : 'Send reset code'}
+                {loading ? t('auth.forgot.sending') : t('auth.forgot.send')}
               </button>
             </form>
           ) : (
@@ -93,11 +95,11 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
               <p className="text-sm text-gray-600">
-                We sent a reset code to <strong>{email}</strong>.
+                <Trans i18nKey="auth.forgot.sentTo" values={{ email }} components={{ b: <strong /> }} />
               </p>
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-                  Reset code
+                  {t('auth.forgot.code')}
                 </label>
                 <input
                   id="code"
@@ -111,7 +113,7 @@ export default function ForgotPasswordPage() {
               </div>
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                  New password
+                  {t('auth.forgot.newPassword')}
                 </label>
                 <input
                   id="newPassword"
@@ -120,7 +122,7 @@ export default function ForgotPasswordPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm"
-                  placeholder="At least 8 characters"
+                  placeholder={t('auth.passwordHint')}
                 />
               </div>
               <button
@@ -128,13 +130,13 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
-                {loading ? 'Resetting...' : 'Reset password'}
+                {loading ? t('auth.forgot.resetting') : t('auth.forgot.reset')}
               </button>
             </form>
           )}
           <p className="mt-6 text-center text-sm text-gray-500">
             <Link to="/login" className="font-medium text-brand-600 hover:text-brand-500">
-              Back to sign in
+              {t('auth.backToSignIn')}
             </Link>
           </p>
         </div>
