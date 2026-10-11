@@ -52,6 +52,11 @@
       "needsAnotherStep": "This account needs another step to sign in. Finish signing in on the main site first, then come back.",
       "failed": "Sign-in failed"
     },
+    "mfa": {
+      "codeTitle": "Two-step sign-in",
+      "setupTitle": "Set up two-step sign-in",
+      "setupBody": "Admins need an authenticator app. From now on, signing in asks for its code."
+    },
     "notAuthorized": {
       "title": "Not authorized",
       "bodyEmail": "<b>{{email}}</b> isn't an admin of this site. If it should be, ask an admin to grant access (or run <code>scripts/make-admin.py</code>), then sign in again.",

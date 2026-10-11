@@ -15,6 +15,24 @@
       "needsCognito": "This needs a Cognito user pool. Run scripts/local-test.sh web (or admin) to use a deployed stage.",
       "testLoginFailed": "Test login failed",
       "mockCredentials": "Enter any email and password."
+    },
+    "mfa": {
+      "qrCode": "QR code",
+      "qrCodeFor": "QR code for {{issuer}}",
+      "enterCode": "Enter the 6-digit code from your authenticator app.",
+      "code": "Code",
+      "verify": "Verify",
+      "back": "Back",
+      "unsupportedStep": "Sign-in needs another step this site does not support.",
+      "badCode": "That code did not work. Try the newest one.",
+      "setupFailed": "Could not start the setup. Sign in again.",
+      "stepOpenApp": "Open an authenticator app (Google Authenticator, 1Password, Authy, ...).",
+      "stepScan": "Scan this code, or enter the key by hand.",
+      "stepType": "Type the 6-digit code the app shows.",
+      "key": "Key:",
+      "openInApp": "open in an app on this device",
+      "codeFromApp": "Code from the app",
+      "turnOn": "Turn on"
     }
   }
 }
