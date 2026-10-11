@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { ResetDemoData, useTranslation } from '@yourapp/shared';
-import { dashboardEntityNav } from '../../entities/routes.gen';
+import { ResetDemoData, SITE_CONFIG, useTranslation } from '@yourapp/shared';
+import { dashboardEntityNav } from '../../entities/paths.gen';
 import { AuthContext } from '../../auth-context';
 import { logout } from '../../auth';
 import { updateSettings } from '../../api';
@@ -43,14 +43,14 @@ export default function DashboardLayout() {
   const mode = user?.billingMode;
 
   // Billing pages appear only for the modules that are on (the API answers 404 for the others)
-  const navItems = [
+  const navItems: { to: string; label: string; end?: boolean }[] = [
     { to: '/dashboard', label: t('app.nav.items'), end: true }, // example:items
     ...dashboardEntityNav.map((n) => ({ to: n.to, label: t(n.label), end: false })),
     ...(subscriptionsOn(mode) ? [{ to: '/dashboard/plans', label: t('app.nav.plans') }] : []),
     ...(creditsOn(mode) ? [{ to: '/dashboard/wallet', label: t('app.nav.wallet') }] : []),
     { to: '/dashboard/settings', label: t('app.nav.settings') },
     { to: '/dashboard/reports', label: t('app.nav.reports') },
-    { to: '/dashboard/support', label: t('app.nav.support') },
+    ...(SITE_CONFIG.support ? [{ to: '/dashboard/support', label: t('app.nav.support') }] : []),
   ];
 
   const navClass = ({ isActive }: { isActive: boolean }) =>

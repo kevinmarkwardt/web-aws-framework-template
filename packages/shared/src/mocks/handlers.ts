@@ -82,7 +82,9 @@ export function crudHandlers(contract: EntityContract, store: MockStore, stores:
       switch (ep.op) {
         case 'list':
           try {
-            return HttpResponse.json(runQuery(contract, store.all(), new URL(request.url).searchParams, me));
+            const query = new URL(request.url).searchParams;
+            if (ep.access === 'owner') query.set('mine', '1');  // a private entity: only your own records
+            return HttpResponse.json(runQuery(contract, store.all(), query, me));
           } catch (e) {
             if (e instanceof QueryError) return fail(400, 'BAD_REQUEST', e.message, e.field);
             throw e;

@@ -1,4 +1,4 @@
-import { ApiError, createApiClient, i18n, post, put } from '@yourapp/shared';
+import { ApiError, SITE_CONFIG, createApiClient, i18n, post, put } from '@yourapp/shared';
 import { getToken, MOCK_AUTH, mockUsername } from './auth';
 import type {
   AccountNote, AutoReload, ChargeResult, CreateItemRequest, Item, Plan, PublicConfig, RefundRow, SavedCard,
@@ -67,11 +67,11 @@ function mockAccount(): User {
     status: 'active',
     activeWarnings: 0,
     warningsToBan: 3,
-    billingMode: 'both',
+    billingMode: SITE_CONFIG.billingMode,  // the spec's mode (packages/shared/src/site.generated.ts)
     credits: 0,
     paidCredits: 0,
     bonusCredits: 0,
-    creditName: 'credits',
+    creditName: SITE_CONFIG.creditName,
   };
 }
 

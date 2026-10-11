@@ -1,4 +1,5 @@
 import '@yourapp/shared/i18n/admin';  // first: i18next with this site's texts
+import '@yourapp/shared/fonts';  // the design's fonts (scripts/init.py --apply-design)
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

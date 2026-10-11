@@ -2,7 +2,8 @@
 // mocks.
 //   - VITE_STAGE=prod and any entity still true in packages/shared/src/mocks/mocks.config.ts: the build fails, naming
 //     them. Make them real first: scripts/new-entity.py --backend <Entity> (writes the API route, flips the flag).
-//   - VITE_STAGE=prod: public/mockServiceWorker.js is left out of dist/ (main.tsx never imports the mocks then anyway).
+//   - VITE_STAGE=prod: public/mockServiceWorker.js and public/mock-images/ are left out of dist/ (main.tsx never
+//     imports the mocks then anyway).
 // Dev and test builds are untouched.
 import { readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -36,7 +37,9 @@ export function mockGuard(): Plugin {
       }
     },
     closeBundle() {
-      if (stage === 'prod') rmSync(resolve(outDir, 'mockServiceWorker.js'), { force: true });
+      if (stage !== 'prod') return;
+      rmSync(resolve(outDir, 'mockServiceWorker.js'), { force: true });
+      rmSync(resolve(outDir, 'mock-images'), { recursive: true, force: true });  // gen-fixtures.py placeholders
     },
   };
 }

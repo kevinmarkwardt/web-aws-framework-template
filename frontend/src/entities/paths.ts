@@ -1,7 +1,7 @@
-/** Where each entity's pages live (routes.gen.ts ENTITY_PATHS, written by scripts/new-entity.py) and the i18n area of
+/** Where each entity's pages live (paths.gen.ts ENTITY_PATHS, written by scripts/new-entity.py) and the i18n area of
  *  its texts (locales/{lang}/entity-<plural>.json -> "entity<Plural>"). */
 import type { EntityContract } from '@yourapp/shared/contracts';
-import { ENTITY_PATHS } from './routes.gen';
+import { ENTITY_PATHS } from './paths.gen';
 
 export interface EntityPaths {
   /** the list page ('/recipes', or '/dashboard/notes' for a signed-in-only entity) */

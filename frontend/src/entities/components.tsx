@@ -37,8 +37,9 @@ function nameOf(c: EntityContract, id: string): Promise<string> {
   return names.get(key)!;
 }
 
-/** The name of the `entity` record `id`, linked to its page when it has one. */
-export function RefLink({ entity, id }: { entity: string; id: string }) {
+/** The name of the `entity` record `id`, linked to its page when it has one (`plain`: never linked, e.g. inside a
+ *  card that is a link itself). */
+export function RefLink({ entity, id, plain = false }: { entity: string; id: string; plain?: boolean }) {
   const c = contractByName(entity);
   const [name, setName] = useState<string | null>(null);
   useEffect(() => {
@@ -50,7 +51,7 @@ export function RefLink({ entity, id }: { entity: string; id: string }) {
   }, [c, id]);
   const href = entityHref(entity, 'detail', id);
   const label = name ?? '…';
-  return href ? <Link to={href} className="text-brand-700 hover:underline">{label}</Link> : <span>{label}</span>;
+  return href && !plain ? <Link to={href} className="text-brand-700 hover:underline">{label}</Link> : <span>{label}</span>;
 }
 
 /** Records of `contract` whose ref `field` is `id`, as a small grid with pages. Nothing when there are none. */

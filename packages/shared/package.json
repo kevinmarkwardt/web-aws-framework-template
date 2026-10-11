@@ -9,6 +9,7 @@
     "./theme.css": "./src/theme.css",
     "./contracts": "./src/contracts/index.ts",
     "./mocks": "./src/mocks/browser.ts",
+    "./fonts": "./src/fonts.generated.ts",
     "./i18n/site": "./src/i18n/site.ts",
     "./i18n/admin": "./src/i18n/admin.ts"
   },

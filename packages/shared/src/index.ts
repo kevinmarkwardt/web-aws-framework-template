@@ -14,6 +14,7 @@ export {
 } from './ui';
 export type { Column } from './ui';
 export type { AccountStatus, BillingMode } from './types';
+export { SITE_CONFIG } from './site.generated';
 export { creditsOn, subscriptionsOn } from './types';
 // i18n: each site first imports '@yourapp/shared/i18n/site' or '/i18n/admin' (it sets i18next up with that site's texts)
 export { DEFAULT_LANGUAGE, LANGUAGES, LANGUAGE_CODES, supportedLanguage } from './i18n/languages';

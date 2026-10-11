@@ -1,2 +1,4 @@
 pytest>=8.0.0
 moto[dynamodb,cognitoidp]>=5.0.0
+# the site-builder tooling (tests/test_init.py runs it)
+-r ../scripts/requirements.txt

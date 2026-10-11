@@ -8,7 +8,7 @@ import { ResetDemoData, useTranslation } from '@yourapp/shared';
 import { AuthContext } from '../auth-context';
 import SiteFooter from '../components/SiteFooter';
 import { SITE } from '../site';
-import { publicEntityNav } from './routes.gen';
+import { publicEntityNav } from './paths.gen';
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
