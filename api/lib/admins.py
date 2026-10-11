@@ -10,6 +10,11 @@ admin site on its next request. scripts/make-admin.py <stage> <email> [--revoke]
 
 Test-login tokens (the test stage's username login) are never admins: they aren't Cognito users, and the admin Lambda
 doesn't accept them (it has no TEST_LOGIN).
+
+Admin MFA (ADMIN_MFA=1; CDK context adminMfa, on by default in prod): an admin must also have an authenticator app
+(TOTP) enabled on their Cognito user (AdminGetUser's UserMFASettingList has SOFTWARE_TOKEN_MFA), checked live on every
+request. Without one the admin API answers 403 MFA_REQUIRED and the admin site walks them through the setup. With TOTP
+enabled, Cognito asks every sign-in for the code (the pool's MFA is OPTIONAL: users may opt in, admins must).
 """
 
 from __future__ import annotations
@@ -71,7 +76,24 @@ def check(claims: dict) -> tuple[str | None, str]:
         return None, "NOT_ADMIN"
     if not accounts.is_admin(uid):
         return None, "NOT_ADMIN"
+    if mfa_required():
+        try:
+            if not has_totp(username):
+                return None, "MFA_REQUIRED"
+        except Exception:  # noqa: BLE001 - can't confirm MFA: refuse, never fail open
+            return None, "MFA_REQUIRED"
     return uid, ""
+
+
+def mfa_required() -> bool:
+    """Admins must have an authenticator app (ADMIN_MFA=1, set by the CDK stack's adminMfa context)."""
+    return os.environ.get("ADMIN_MFA", "") == "1"
+
+
+def has_totp(username: str) -> bool:
+    """Whether `username` has a verified, enabled authenticator app (TOTP) right now (live, not from the token)."""
+    user = _cognito().admin_get_user(UserPoolId=_pool(), Username=username)
+    return "SOFTWARE_TOKEN_MFA" in (user.get("UserMFASettingList") or [])
 
 
 def cognito_username(user_id: str) -> str:
