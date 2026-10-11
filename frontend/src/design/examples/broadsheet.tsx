@@ -1,6 +1,7 @@
-/* Example direction "Editorial": a magazine. Centered masthead, oversized serif headlines, numbered steps, a reading
-   column on detail pages, generous spacing. For sites where the content is the product (recipes, guides, travel). */
-import { Browse, CtaBand, Detail, EntityCard, EntityRow, FeatureGrid, Hero, Showcase, SiteHeader, Tag } from '@yourapp/shared/archetypes';
+/* Example direction "Broadsheet": editorial. A masthead with a rule under it, oversized serif headlines, a numbered
+   index instead of cards, a reading column on detail pages. For sites where the content is the product (recipes,
+   guides, travel). */
+import { Browse, Container, CtaBand, Detail, EntityCard, EntityRow, FeatureGrid, Hero, SiteHeader, Tag } from '@yourapp/shared/archetypes';
 import { SAMPLE_CATEGORIES, SAMPLE_ITEMS, art, usd0 } from '../sample';
 import { ramp } from '../types';
 import type { Direction } from '../types';
@@ -9,7 +10,11 @@ import { HREF, SORTS, useSampleBrowse } from './shared';
 const NAV = [{ label: 'Stays', href: HREF }, { label: 'Journal', href: HREF }, { label: 'About', href: HREF }];
 
 function Header() {
-  return <SiteHeader variant="centered" brand="Field Notes" nav={NAV} right={<a href={HREF} className="text-sm font-medium text-ink underline underline-offset-4">Sign in</a>} />;
+  return (
+    <div className="border-b-[3px] border-double border-ink">
+      <SiteHeader variant="centered" sticky={false} brand="Field Notes" nav={NAV} right={<a href={HREF} className="text-sm font-medium text-ink underline underline-offset-4">Sign in</a>} />
+    </div>
+  );
 }
 
 function Home() {
@@ -24,12 +29,28 @@ function Home() {
         actions={[{ label: 'Read the issue', href: HREF }, { label: 'How we choose', href: HREF }]}
         image={art(11, 1600, 700)}
       />
-      <Showcase
-        eyebrow="This season"
-        title="Where we slept"
-        items={SAMPLE_ITEMS.slice(0, 3)}
-        renderItem={(s) => <EntityCard href={HREF} image={s.image} imageRatio="3/4" title={s.title} subtitle={s.place} meta={[{ label: 'From', value: `${usd0(s.price)} a night` }]} />}
-      />
+      <section className="section-y">
+        <Container width="wide">
+          <div className="flex items-baseline justify-between border-b border-ink pb-3">
+            <h2 className="font-display text-2xl font-semibold text-ink">Where we slept this season</h2>
+            <a href={HREF} className="text-sm font-medium text-brand-700 underline underline-offset-4">All stays</a>
+          </div>
+          <ol className="grid gap-x-10 md:grid-cols-2">
+            {SAMPLE_ITEMS.slice(0, 6).map((s, i) => (
+              <li key={s.id} className="border-b border-line">
+                <a href={HREF} className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 py-5">
+                  <span className="font-display text-2xl text-brand-700 tabular-nums">{i + 1}</span>
+                  <span>
+                    <span className="block font-display text-xl font-medium text-ink group-hover:underline">{s.title}</span>
+                    <span className="mt-1 block text-sm text-muted">{s.place} · {s.category}</span>
+                  </span>
+                  <span className="text-sm text-ink tabular-nums">{usd0(s.price)}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </Container>
+      </section>
       <FeatureGrid
         variant="steps"
         tone="raised"
@@ -102,17 +123,24 @@ function DetailPage() {
   );
 }
 
-export const editorial: Direction = {
-  id: 'editorial',
-  name: 'Editorial',
-  idea: 'A magazine: big serif headlines, one story at a time, a reading column. Content first, commerce second.',
-  fonts: ['Fraunces:opsz,wght@9..144,400..700', 'Source Sans 3:wght@400..700'],
+export const broadsheet: Direction = {
+  id: 'broadsheet',
+  name: 'Broadsheet',
+  idea: 'Editorial: serif headlines, ruled lines, a numbered index instead of cards, a reading column. Content first.',
+  fonts: ['Newsreader:opsz,wght@6..72,400..700', 'Instrument Sans:wght@400..700'],
   tokens: {
-    surface: '#f7f3ec', panel: '#fffdf9', raised: '#efe8dc', ink: '#221c16', muted: '#6a5f53', faint: '#8d8172', line: '#e3dacb',
-    ...ramp('#9c4523'), 'brand-ink': '#fffdf9',
-    'typeface-display': '"Fraunces", Georgia, serif', 'typeface-body': '"Source Sans 3", system-ui, sans-serif',
-    'corner-card': '0.25rem', 'corner-control': '0.25rem', density: '1.2',
+    surface: 'oklch(98.7% 0.004 85)', panel: 'oklch(99.7% 0.002 85)', raised: 'oklch(95.5% 0.006 85)',
+    ink: 'oklch(19% 0.01 70)', muted: 'oklch(42% 0.012 70)', faint: 'oklch(51% 0.01 70)',
+    line: 'oklch(88.5% 0.008 80)', 'line-strong': 'oklch(78% 0.01 80)',
+    ...ramp('oklch(42% 0.085 160)'), 'brand-ink': 'oklch(99% 0.003 160)',
+    'typeface-display': '"Newsreader", Georgia, serif', 'typeface-body': '"Instrument Sans", system-ui, sans-serif',
+    'corner-card': '0.1875rem', 'corner-control': '0.1875rem', density: '1.15',
   },
-  dark: { surface: '#191512', panel: '#211c18', raised: '#2b2520', ink: '#f2ebe0', muted: '#bfb3a3', faint: '#8f8475', line: '#3a322b', 'brand-50': '#3a241a' },
+  dark: {
+    surface: 'oklch(17% 0.006 70)', panel: 'oklch(20.5% 0.007 70)', raised: 'oklch(25% 0.008 70)',
+    ink: 'oklch(93.5% 0.008 85)', muted: 'oklch(75% 0.01 85)', faint: 'oklch(64% 0.01 85)',
+    line: 'oklch(31% 0.01 70)', 'line-strong': 'oklch(40% 0.012 70)',
+    'brand-50': 'oklch(28% 0.035 160)', 'brand-600': 'oklch(78% 0.085 160)', 'brand-700': 'oklch(84% 0.07 160)', 'brand-ink': 'oklch(17% 0.02 160)',
+  },
   pages: { home: Home, browse: BrowsePage, detail: DetailPage },
 };

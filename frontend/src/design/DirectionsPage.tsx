@@ -5,13 +5,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Route, Routes, useSearchParams } from 'react-router-dom';
 import DirectionFrame from './DirectionFrame';
 import { SITE_DIRECTIONS } from './directions';
-import { catalog } from './examples/catalog';
-import { editorial } from './examples/editorial';
-import { immersive } from './examples/immersive';
+import { instrument } from './examples/instrument';
+import { broadsheet } from './examples/broadsheet';
+import { grid } from './examples/grid';
 import { DIRECTION_PAGES } from './types';
 import type { Direction, DirectionPage } from './types';
 
-const DIRECTIONS: Direction[] = SITE_DIRECTIONS.length ? SITE_DIRECTIONS : [editorial, catalog, immersive];
+const DIRECTIONS: Direction[] = SITE_DIRECTIONS.length ? SITE_DIRECTIONS : [instrument, broadsheet, grid];
 const DEVICES = { desktop: { width: 1280, height: 860 }, mobile: { width: 390, height: 844 } } as const;
 type Device = keyof typeof DEVICES;
 

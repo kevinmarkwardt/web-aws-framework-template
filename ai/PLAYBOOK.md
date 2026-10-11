@@ -43,10 +43,10 @@ Show it as a diagram page (an Artifact or `docs/structure.md` with Mermaid). Pic
    This applies the name, domain, modules, languages and site config, and keeps the template's Items example for now.
 2. Run `python3 scripts/new-entity.py --all` and generate mock fixtures (step 5) first, so the directions show
    realistic content: every entity is then served by the browser mocks (`/api/<plural>`, MSW) with its fixture data.
-3. Build **three distinct directions** under `frontend/src/design/directions/{a,b,c}/`. They must differ in layout and information architecture (navigation model, home page composition, density, card vs list), not only palette and font. Write the UI yourself; don't delegate it to another agent.
+3. Read `ai/design-guidelines.md` (the AI tells to avoid, contrast and target sizes, dark-mode rules). Build **three distinct directions** under `frontend/src/design/directions/{a,b,c}/`, starting from copies of `frontend/src/design/examples/` and the page archetypes in `packages/shared/src/archetypes/`, and list them in `frontend/src/design/directions/index.ts`. Feed them the site's own mock data (the entity APIs), not the examples' sample. They must differ in layout and information architecture (navigation model, home composition, density, card vs list vs index), not only palette and font, and each needs light AND dark tokens (`tokens` + `dark` in the `Direction`). Write the UI yourself; don't delegate it to another agent.
 4. Start the mock-only server (`.claude/launch.json` `web-mock`, http://localhost:5175: MOCK_AUTH + MSW, no AWS; or
    `npm run dev`) and open `/__directions` in the browser pane. Screenshot each direction at desktop and mobile.
-5. Present all three side by side, with one sentence each on the idea behind it.
+5. Present all three side by side (`/__directions` has Page, Device and Theme switches), with one sentence each on the idea behind it and its main tradeoff. Check each against `ai/design-guidelines.md` before showing it.
 
 **GATE 3:** the user picks one or a mix. Then:
 - write the chosen tokens into `design` in the spec

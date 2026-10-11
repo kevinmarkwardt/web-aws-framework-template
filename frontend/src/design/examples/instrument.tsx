@@ -1,5 +1,5 @@
-/* Example direction "Catalog": a tool for finding things fast. Solid top bar, search-led hero, filters in a side column,
-   dense cards with the numbers up front, product-style detail. For marketplaces, directories, inventories. */
+/* Example direction "Instrument": a precise tool for finding things fast. Solid top bar, search-led hero, filters in a
+   side column, dense cards with the numbers up front, product-style detail. For marketplaces, directories, apps. */
 import { Browse, DashboardPanel, Detail, EntityCard, FeatureGrid, Hero, Showcase, SiteHeader, StatsBand, Tag } from '@yourapp/shared/archetypes';
 import { SAMPLE_CATEGORIES, SAMPLE_ITEMS, usd0 } from '../sample';
 import { ramp } from '../types';
@@ -40,7 +40,7 @@ function Home() {
       <Header />
       <Hero
         variant="split"
-        eyebrow="1,240 verified stays"
+        eyebrow="9 verified stays"
         title="Find a place that fits the trip."
         subtitle="Filter by what matters: price, nights, the kind of place. Every host verified, every price final."
         actions={[{ label: 'Browse stays', href: HREF }, { label: 'How verification works', href: HREF, variant: 'ghost' }]}
@@ -53,11 +53,11 @@ function Home() {
                 </label>
               ))}
             </div>
-            <a href={HREF} className="mt-4 block rounded-control bg-brand-600 py-2.5 text-center text-sm font-medium text-brand-ink">Search 1,240 stays</a>
+            <a href={HREF} className="mt-4 block rounded-control bg-brand-600 py-2.5 text-center text-sm font-medium text-brand-ink">Search 9 stays</a>
           </DashboardPanel>
         }
       />
-      <StatsBand stats={[{ value: '1,240', label: 'stays' }, { value: '4.82', label: 'average rating' }, { value: '$0', label: 'booking fees' }, { value: '24 h', label: 'host reply time' }]} />
+      <StatsBand stats={[{ value: String(SAMPLE_ITEMS.length), label: 'stays' }, { value: (SAMPLE_ITEMS.reduce((a, s) => a + s.rating, 0) / SAMPLE_ITEMS.length).toFixed(2), label: 'average rating' }, { value: String(SAMPLE_CATEGORIES.length), label: 'kinds of place' }, { value: '$0', label: 'booking fees' }]} />
       <Showcase title="Top rated this month" action={{ label: 'See all', href: HREF }} columns={4} items={SAMPLE_ITEMS.slice(0, 4)} renderItem={(s) => <Card s={s} />} />
       <FeatureGrid
         variant="cards"
@@ -134,17 +134,25 @@ function DetailPage() {
   );
 }
 
-export const catalog: Direction = {
-  id: 'catalog',
-  name: 'Catalog',
-  idea: 'A finding tool: search first, side filters, dense cards with price and rating up front, product-style pages.',
-  fonts: ['Inter:wght@400..700'],
+export const instrument: Direction = {
+  id: 'instrument',
+  name: 'Instrument',
+  idea: 'A precise tool: search first, side filters, dense cards with the numbers up front, borders instead of shadows.',
+  fonts: ['Geist:wght@400..700', 'Geist Mono:wght@400..600'],
   tokens: {
-    surface: '#f6f8fa', panel: '#ffffff', raised: '#eef2f6', ink: '#0f172a', muted: '#475569', faint: '#64748b', line: '#e2e8f0',
-    ...ramp('#0f6fde'), 'brand-ink': '#ffffff',
-    'typeface-display': '"Inter", system-ui, sans-serif', 'typeface-body': '"Inter", system-ui, sans-serif',
-    'corner-card': '0.625rem', 'corner-control': '0.5rem', density: '0.85',
+    surface: 'oklch(98.6% 0.003 255)', panel: 'oklch(100% 0 0)', raised: 'oklch(96.3% 0.005 255)',
+    ink: 'oklch(22% 0.012 255)', muted: 'oklch(46% 0.014 255)', faint: 'oklch(53% 0.012 255)',
+    line: 'oklch(91.5% 0.007 255)', 'line-strong': 'oklch(80% 0.01 255)',
+    ...ramp('oklch(52% 0.11 215)'), 'brand-ink': 'oklch(99% 0 0)',
+    'typeface-display': '"Geist", system-ui, sans-serif', 'typeface-body': '"Geist", system-ui, sans-serif',
+    'typeface-mono': '"Geist Mono", ui-monospace, monospace',
+    'corner-card': '0.625rem', 'corner-control': '0.375rem', density: '0.85',
   },
-  dark: { surface: '#0b1220', panel: '#111a2b', raised: '#18233a', ink: '#e6edf7', muted: '#a3b1c6', faint: '#7a8aa3', line: '#22304a', 'brand-50': '#0f2747' },
+  dark: {
+    surface: 'oklch(16.5% 0.008 255)', panel: 'oklch(20% 0.009 255)', raised: 'oklch(24.5% 0.01 255)',
+    ink: 'oklch(94.5% 0.005 255)', muted: 'oklch(74% 0.012 255)', faint: 'oklch(65% 0.012 255)',
+    line: 'oklch(29% 0.011 255)', 'line-strong': 'oklch(40% 0.012 255)',
+    'brand-50': 'oklch(29% 0.04 215)', 'brand-600': 'oklch(74% 0.1 210)', 'brand-700': 'oklch(80% 0.09 210)', 'brand-ink': 'oklch(18% 0.02 215)',
+  },
   pages: { home: Home, browse: BrowsePage, detail: DetailPage },
 };
