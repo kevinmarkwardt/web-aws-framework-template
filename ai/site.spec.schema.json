@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kevinmarkwardt/web-aws-framework-template/ai/site.spec.schema.json",
+  "title": "Site spec",
+  "description": "Single source of truth for a site built from web-aws-framework-template. Read by scripts/init.py, scripts/new-entity.py and scripts/gen-fixtures.py.",
+  "type": "object",
+  "required": ["version", "site", "modules", "entities", "pages"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "site": {
+      "type": "object",
+      "required": ["name", "displayName", "domain"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$", "description": "Slug: resource names, secrets prefix, package names." },
+        "displayName": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "audience": { "type": "string" },
+        "publicBrowse": { "type": "boolean", "default": true },
+        "adminEmail": { "type": "string", "format": "email" },
+        "awsAccountId": { "type": "string", "pattern": "^[0-9]{12}$" },
+        "awsRegion": { "type": "string", "default": "us-east-1" },
+        "timeline": { "type": "string" }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "required": ["billing"],
+      "additionalProperties": false,
+      "properties": {
+        "billing": {
+          "type": "object",
+          "required": ["mode"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["none", "subscriptions", "credits", "both"] },
+            "plans": {
+              "type": "array",
+              "description": "Subscription tiers (mode subscriptions|both). 'free' is implicit.",
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "monthlyUsd"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                  "name": { "type": "string" },
+                  "monthlyUsd": { "type": "number", "minimum": 0 },
+                  "limits": { "type": "object", "additionalProperties": { "type": ["integer", "null"] } },
+                  "features": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "creditName": { "type": "string", "default": "credits", "description": "Display name of the wallet unit (100 units = $1)." },
+            "packs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["usd"],
+                "additionalProperties": false,
+                "properties": { "usd": { "type": "number", "minimum": 1 }, "bonusPct": { "type": "number", "minimum": 0, "maximum": 100 } }
+              }
+            },
+            "creditCosts": { "type": "object", "description": "Action -> cost in units, e.g. {\"unlock\": 500}.", "additionalProperties": { "type": "integer", "minimum": 0 } },
+            "signupGift": { "type": "integer", "minimum": 0, "default": 0 },
+            "regions": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z]{2}$" }, "description": "ISO country codes allowed to pay. Empty = no gating." }
+          }
+        },
+        "i18n": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "languages": { "type": "array", "items": { "type": "string" }, "default": ["en"] } }
+        },
+        "googleTags": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ga4Id": { "type": "string" },
+            "adsenseClient": { "type": "string" },
+            "consentRegions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "support": { "type": "boolean", "default": true }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "fields"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$", "description": "Singular PascalCase, e.g. Recipe." },
+          "plural": { "type": "string" },
+          "description": { "type": "string" },
+          "owner": { "enum": ["site", "user", "both"], "default": "site" },
+          "public": { "type": "boolean", "default": true },
+          "adminTab": { "type": "boolean", "default": true },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+                "type": { "enum": ["string", "text", "int", "number", "money", "bool", "date", "datetime", "enum", "image", "url", "email", "tags", "ref"] },
+                "required": { "type": "boolean", "default": false },
+                "values": { "type": "array", "items": { "type": "string" } },
+                "ref": { "type": "string", "description": "Entity name when type is ref." },
+                "hint": { "type": "string", "description": "Guidance for gen-fixtures, e.g. 'recipe title, 2-6 words'." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "journeys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "steps"],
+        "additionalProperties": false,
+        "properties": { "name": { "type": "string" }, "actor": { "enum": ["visitor", "user", "admin"] }, "steps": { "type": "array", "items": { "type": "string" } } }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "title", "archetype"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "pattern": "^/" },
+          "title": { "type": "string" },
+          "archetype": { "enum": ["landing", "browse", "detail", "dashboard", "form", "pricing", "wallet", "account", "settings", "legal", "static"] },
+          "entity": { "type": "string" },
+          "auth": { "enum": ["public", "user"], "default": "public" }
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "extraTabs": { "type": "array", "items": { "type": "string" } } }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tone": { "type": "string" },
+        "references": { "type": "array", "items": { "type": "string" } },
+        "direction": { "type": "string", "description": "Chosen direction id + short note." },
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "colors": {
+              "type": "object",
+              "description": "Semantic colors (light). Keys: bg, surface, ink, muted, line, accent, accentInk, danger, success. Optional dark: {...}.",
+              "additionalProperties": { "type": ["string", "object"] }
+            },
+            "fonts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "display": { "type": "string" }, "body": { "type": "string" }, "mono": { "type": "string" } }
+            },
+            "radius": { "enum": ["none", "sm", "md", "lg", "full"] },
+            "density": { "enum": ["compact", "comfortable", "airy"] }
+          }
+        }
+      }
+    },
+    "mocks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": { "type": "integer", "default": 42 },
+        "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "edgeCases": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

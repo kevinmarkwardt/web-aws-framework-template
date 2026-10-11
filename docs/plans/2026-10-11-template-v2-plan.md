@@ -126,12 +126,12 @@ Cognito: one user pool. Admin = Cognito group "admins" + profile isAdmin, re-che
 ## Order and size
 Do phases in order 0 → 1 → 2 → 3, then 4–7 in parallel. The first deployable checkpoint is after phase 3: a fresh `init.sh` app with a test stage, credits wallet and admin site. Rough size: 0 = S, 1 = M, 2 = L, 3 = L, 4–6 = M each, 7 = M.
 
-## Open questions for Kevin
-1. **Billing default:** offer both modes at init (recommended), or credits only?
-2. **Admin login:** separate sign-in on `admin.` (recommended, simplest), or single sign-on via the Cognito Hosted UI?
-3. **Admin API:** separate Lambda (recommended) or the same Lambda with `/api/admin/*`?
-4. **NEG:** move NEG to `admin.` too? This reverses the 2026-09-25 "admin inside the main site" decision.
-5. **i18n:** include it in the template by default (English only), or make it an opt-in module?
+## Decisions (Kevin, 2026-10-11: "use the defaults")
+1. **Billing:** `init` offers subscriptions, credits, or both.
+2. **Admin login:** separate sign-in on `admin.` with the same Cognito pool.
+3. **Admin API:** a separate admin Lambda.
+4. **NEG:** moving NEG to `admin.` is deferred (phase 8, later).
+5. **i18n:** built in, shipping English only.
 
 ## Appendix: template bugs and stale items found
 - `account.get_account` returns `linkCount`; the UI reads `itemCount`.

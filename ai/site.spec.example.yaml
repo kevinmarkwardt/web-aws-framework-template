@@ -1,0 +1,77 @@
+# Example spec: a paid recipe collection. Template CI builds this to keep the template green.
+version: 1
+site:
+  name: mise
+  displayName: Mise
+  domain: mise.example.com
+  tagline: Restaurant recipes, scaled for home kitchens.
+  description: A curated library of chef recipes. Browse free, unlock full recipes with credits.
+  audience: home cooks who want restaurant results
+  publicBrowse: true
+  adminEmail: admin@example.com
+  awsRegion: us-east-1
+modules:
+  billing:
+    mode: credits
+    creditName: credits
+    packs:
+      - { usd: 5 }
+      - { usd: 10 }
+      - { usd: 20, bonusPct: 10 }
+    creditCosts: { unlock: 300 }
+    signupGift: 300
+    regions: [US, CA]
+  i18n: { languages: [en] }
+  googleTags: {}
+  support: true
+entities:
+  - name: Recipe
+    plural: recipes
+    owner: site
+    fields:
+      - { name: title, type: string, required: true, hint: "dish name, 2-6 words" }
+      - { name: summary, type: text, hint: "one appetizing sentence" }
+      - { name: cuisine, type: enum, values: [French, Italian, Japanese, Mexican, Thai, American] }
+      - { name: minutes, type: int, hint: "15-240, skewed toward 30-60" }
+      - { name: difficulty, type: enum, values: [easy, medium, hard] }
+      - { name: image, type: image }
+      - { name: chef, type: ref, ref: Chef }
+      - { name: tags, type: tags }
+      - { name: publishedAt, type: datetime }
+  - name: Chef
+    plural: chefs
+    owner: site
+    fields:
+      - { name: name, type: string, required: true, hint: "full name" }
+      - { name: restaurant, type: string }
+      - { name: city, type: string }
+      - { name: bio, type: text }
+      - { name: photo, type: image }
+journeys:
+  - name: Browse and unlock
+    actor: visitor
+    steps: [land on home, filter recipes by cuisine, open a recipe preview, sign up, unlock with signup gift, view full recipe]
+  - name: Top up
+    actor: user
+    steps: [open wallet, choose pack, pay with card, see new balance]
+pages:
+  - { path: /, title: Home, archetype: landing }
+  - { path: /recipes, title: Recipes, archetype: browse, entity: Recipe }
+  - { path: /recipes/:id, title: Recipe, archetype: detail, entity: Recipe }
+  - { path: /chefs/:id, title: Chef, archetype: detail, entity: Chef }
+  - { path: /wallet, title: Wallet, archetype: wallet, auth: user }
+  - { path: /account, title: Account, archetype: account, auth: user }
+admin:
+  extraTabs: []
+design:
+  tone: calm and premium
+  references: [nytimes cooking, kinfolk]
+  tokens:
+    colors: { bg: "#faf7f2", surface: "#ffffff", ink: "#1f1b16", muted: "#6b6258", line: "#e7e0d6", accent: "#b4532a", accentInk: "#ffffff", danger: "#b42318", success: "#2f7d4f" }
+    fonts: { display: "Fraunces", body: "Inter" }
+    radius: md
+    density: comfortable
+mocks:
+  seed: 42
+  counts: { Recipe: 60, Chef: 12 }
+  edgeCases: [one chef with 20 recipes, recipe with very long title, recipe with no image, empty search result]
