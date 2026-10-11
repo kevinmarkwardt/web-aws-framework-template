@@ -4,7 +4,8 @@
 
 A reusable AWS SaaS starter built from a working production app. Clone via GitHub template, run `./scripts/init.sh`, and you have a deployable SaaS with auth, billing, admin, email and AI, in two stages (test and prod).
 
-Roadmap: [docs/plans/2026-10-11-template-v2-plan.md](docs/plans/2026-10-11-template-v2-plan.md) (phase 0 "clean foundation" is done).
+Roadmap: [docs/plans/2026-10-11-template-v2-plan.md](docs/plans/2026-10-11-template-v2-plan.md) (phases 0-2 are done: clean
+foundation, payments core, billing modules).
 
 ## Placeholder Values
 
@@ -101,7 +102,7 @@ Edit `api/requirements.in`, then `scripts/lock-api-deps.sh` rewrites `api/requir
 
 **CloudFront:** `/api/*` uses a cache policy keyed on `Authorization` with TTL 0 (nothing is cached unless the API sends `Cache-Control`). No distribution-wide error pages: the viewer-request function rewrites extensionless paths to `/index.html`, so API 403/404 JSON reaches the client unchanged.
 
-**DynamoDB single-table design:** Everything in one table with `pk`/`sk` composite keys. Prefixes: `USER#`, `ITEM#`, `CONFIG`. One GSI (`stripe-customer-index`). Add GSIs when you need to query by non-key attributes.
+**DynamoDB single-table design:** Everything in one table with `pk`/`sk` composite keys. Prefixes: `USER#`, `ITEM#`, `CONFIG`, and the payments records (`PAY#`, `PAYDAY#`, `CARDFP#`, `BANNED#CARD`, `REFUNDPENDING`, `REFCODE#`, `STRIPELOG#`, `STRIPEEVT#`, `AUDIT#`; [docs/payments.md](docs/payments.md)). One GSI (`stripe-customer-index`). Add GSIs when you need to query by non-key attributes. Money writes are conditional DynamoDB transactions (`db.tx_put` / `tx_update` / `tx_delete`, `db.transact`).
 
 **Cognito ID token (not Access token):** The frontend sends the ID token as `Bearer`. `verify_token` accepts only tokens for this app client (`aud` for ID tokens, `client_id` for access tokens).
 
@@ -139,11 +140,37 @@ When replacing "items" with your domain entity (e.g., "orders"):
 2. In `cdk/lib/yourapp-stack.ts`, add a `lambda.Function` named `${prefix}-my-worker` with `code: lambdaAsset('my-worker')`, and an `events.Rule`.
 3. `scripts/bundle-lambdas.sh` picks up every `lambdas/*/` folder; `deploy-lambdas.sh my-worker` updates `${prefix}-my-worker`.
 
-## Stripe
+## Billing and Stripe
 
-- Keys: Secrets Manager `yourapp/{stage}/stripe` (`secretKey`, `webhookSecret`, `publishableKey`), set on the admin Billing page. Never in `.env`.
-- Price IDs: `CONFIG | STRIPE` in DynamoDB, also on the admin Billing page.
-- Webhook endpoint: `https://<site>/api/webhooks/stripe` (through CloudFront: direct Function URL calls are refused).
+Full design and decisions: [docs/payments.md](docs/payments.md).
+
+- **Billing mode:** `cdk/cdk.json` context `billingMode` = `none` | `subscriptions` | `credits` | `both` (default
+  `both`) becomes the API's `BILLING_MODE`. Routes of a module that is off answer 404; `GET /api/public-config`
+  (`billingMode`, `plans`, `credits`) tells the frontend what to show. `adminEmail` (context) receives dispute,
+  failed-refund and banned-card mail.
+- **What is sold** is code config in `api/lib/config.py` (`FREE_PLAN`, `PAID_PLANS`, `BILLING`, `ACCOUNT_RULES`),
+  shaped like `ai/site.spec.schema.json` `modules.billing`. Never hardcode plans, prices, packs or limits in the
+  frontend.
+- **Keys:** Secrets Manager `yourapp/{stage}/stripe`, written by `scripts/stripe-secret.sh <stage>` (hidden prompt,
+  prefix checked against the stage); read through `api/lib/stripe_config.py` (5-minute cache, short timeouts, the
+  test stage refuses live keys). Never in `.env`, never in `stripe.api_key`.
+- **Prices and webhook:** `.venv/bin/python scripts/stripe-setup.py <stage> [--apply]` (dry run by default): plan
+  prices `yourapp_plan_{id}` and pack prices `yourapp_credits_{packId}` by lookup key, and the webhook
+  `https://<site>/api/webhooks/stripe` for exactly the mode's events (`api/routes/webhooks.events_for`). Optional plan
+  price overrides: `CONFIG | STRIPE` `{plan}PriceId` (admin Billing page).
+- **Rules that keep money safe** (don't undo them):
+  - every Stripe create sends a deterministic idempotency key (`stripe_config.idem`)
+  - every webhook event is claimed once (`logs.claim_event`; a stuck `processing` claim is taken over after 3 min)
+  - credits are spent paid-first through `credits.spend` / `credits.debit` (conditional transactions)
+  - card refunds reserve the units before Stripe is asked (`payments._reserve`), and `sweep_pending` settles any left
+    pending (EventBridge `PaymentsSweep`, every 15 minutes, credits modes)
+- **Apps charge credits** with `credits.spend(user_id, action, units=None, ref=None, extra=None)` (costs:
+  `BILLING["creditCosts"]`) and give them back with `credits.refund_spend(user_id, action, ref)`.
+- **Account standing** (`api/lib/accounts.py`): suspended or banned accounts can't pay or spend; banned is read-only
+  (`accounts.can_write`: use it in your entity's write routes, as `items.py` does).
+- **Admin operations** for phase 3 live in `api/lib` (`payments.adjust_balance`, `payments.refund_to_card`,
+  `accounts.ban` / `set_status` / `add_warning`, `payments.by_day` / `detail`, `logs.stripe_calls` / `webhooks` /
+  `audits`): the table in docs/payments.md.
 
 ## Key Patterns
 
@@ -188,14 +215,31 @@ TEST_LOGIN and MOCK_AUTH are constant `false` in prod builds, so that code is co
 | `api/lib/admin_auth.py` | Admin HS256 login (Secrets Manager) |
 | `api/lib/db.py` | DynamoDB helpers + entity functions |
 | `api/routes/items.py` | CRUD for your main entity |
-| `api/routes/billing.py` | Stripe checkout + webhooks |
+| `api/routes/billing.py` | Subscription routes: Checkout, portal, change plan, cancel |
+| `api/routes/wallet.py` | Credits wallet: balance, on-site charge + 3-D Secure, auto reload, refunds |
+| `api/routes/cards.py` | Saved cards (Stripe setup page, default, remove) |
+| `api/routes/webhooks.py` | The Stripe webhook: signature, exactly-once claim, dispatch to the modules |
+| `api/lib/stripe_config.py` | Per-stage Stripe key, client with timeouts, idempotency keys |
+| `api/lib/payments.py` | `PAY#` records, card refunds (reserve, send, reconcile, sweep), disputes, admin balance/refund ops |
+| `api/lib/credits.py` | Credits ledger, `spend` / `refund_spend`, earning hooks, referrals |
+| `api/lib/subscriptions.py` | Plan prices, webhook events, grace period, `effective_plan` |
+| `api/lib/autoreload.py` | Auto reload after a spend |
+| `api/lib/accounts.py` | Status, warnings, bans, admin flag |
+| `api/lib/logs.py` | Stripe call log, webhook log, audit log (18-month TTL) and their readers |
+| `api/lib/notes.py`, `api/lib/mail.py` | Account alerts; SES mail to users and the admin |
+| `api/lib/regions.py`, `api/lib/fx.py` | Optional country gating; optional local price hints |
+| `scripts/stripe-secret.sh`, `scripts/stripe-setup.py` | Stripe key into Secrets Manager; prices + webhook per stage |
+| `docs/payments.md` | Payments design and decisions |
 | `api/routes/admin.py` | Admin endpoints |
 | `lambdas/daily-job/handler.py` | Example scheduled worker |
 | `frontend/src/App.tsx` | React router (user + admin apps) |
 | `frontend/src/auth.ts` | Cognito / test login / mock auth |
 | `frontend/src/api.ts` | API client functions |
 | `frontend/src/types.ts` | TypeScript interfaces |
-| `tests/conftest.py` | pytest fixtures + moto setup |
+| `frontend/src/billing.ts` | Billing mode helpers, `usePublicConfig`, money formatting |
+| `frontend/src/pages/dashboard/WalletPage.tsx`, `PlansPage.tsx` | Credits wallet; subscription plans |
+| `tests/conftest.py` | pytest fixtures + moto setup (`stripe_fake`, `who`, `billing_cfg`, `billing_mode`) |
+| `tests/stripe_fake.py` | Offline Stripe stand-in + signed webhook events |
 | `scripts/deploy.sh` | Per-stage deployment |
 | `scripts/bundle-lambdas.sh` | Builds `build/<lambda>` |
 | `scripts/local-test.sh` | Local API + site against a deployed stage |

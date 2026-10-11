@@ -7,7 +7,10 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 - Protected dashboard with generic CRUD (replace "items" with your entity)
 - Admin panel with user management, billing overview, feature toggles, plan limits (enforced by the API)
 - Two stages: `test.yourdomain.com` (disposable, noindex, username test login) and `yourdomain.com`
-- Stripe subscription billing (Checkout + Customer Portal)
+- Billing modules, chosen per app (`billingMode`: none, subscriptions, credits or both):
+  - Stripe subscriptions (Checkout + Customer Portal, plan changes, grace period on failed renewals)
+  - a credits wallet (packs, saved cards, 3-D Secure, auto reload, 14-day refunds, `credits.spend` for your features)
+  - refunds, disputes, bans and logs that can't lose or create money ([docs/payments.md](docs/payments.md))
 - Scheduled background job (EventBridge + Lambda)
 - Transactional email via SES
 - AI integration via Bedrock (model id set in `cdk/cdk.json`)
@@ -26,7 +29,7 @@ An opinionated, production-ready AWS SaaS starter. Everything you need to ship a
 | CDN + Hosting | CloudFront + S3 |
 | Email | AWS SES |
 | AI | AWS Bedrock (optional example in the daily job) |
-| Payments | Stripe (subscriptions) |
+| Payments | Stripe (subscriptions and/or a credits wallet) |
 | Scheduling | EventBridge |
 | DNS | Route53 |
 
@@ -83,7 +86,16 @@ Stores the admin login in Secrets Manager (`yourapp/test/admin-credentials`). Th
 
 ### 5. Add your Stripe keys
 
-Stripe keys live in Secrets Manager (`yourapp/{stage}/stripe`), never in `.env`. Enter the secret key, webhook secret and price IDs on the admin panel's Billing page, and point a Stripe webhook at `https://<site>/api/webhooks/stripe`. Use sandbox keys on test.
+Stripe keys live in Secrets Manager (`yourapp/{stage}/stripe`), never in `.env`. Sandbox keys on test, live keys on prod:
+
+```bash
+scripts/stripe-secret.sh test                          # paste the sk_test_ key at a hidden prompt
+.venv/bin/python scripts/stripe-setup.py test          # dry run: what it would create
+.venv/bin/python scripts/stripe-setup.py test --apply  # plan/pack prices by lookup key + the webhook and its secret
+```
+
+Pick the billing modules in `cdk/cdk.json` (`billingMode`: `none`, `subscriptions`, `credits` or `both`) and the plans,
+packs and costs in `api/lib/config.py` before deploying. Set `adminEmail` there too for dispute and refund alerts.
 
 ## Stages
 
@@ -111,6 +123,8 @@ yourdomain.com (CloudFront + S3)
 ├── /login, /signup, /verify — Auth flows (Cognito)
 ├── /dashboard — Protected user app
 │   ├── /dashboard — Items page (generic CRUD — replace with your entity)
+│   ├── /dashboard/plans — Subscription plans (subscriptions mode)
+│   ├── /dashboard/wallet — Credits wallet, saved cards, refunds (credits mode)
 │   ├── /dashboard/settings — User settings
 │   └── /dashboard/reports — Reports (Pro)
 └── manager.yourdomain.com — Admin panel
@@ -124,18 +138,22 @@ API (Lambda Function URL behind CloudFront — no API Gateway; direct calls are 
 ├── GET/PUT /api/account — User profile (+ plan limits)
 ├── GET /api/public-config — Maintenance/sign-up switches, plan limits (no auth)
 ├── POST /api/test-login — Username login (test stage only)
-├── POST /api/billing/checkout — Stripe checkout
-├── POST /api/billing/portal — Stripe customer portal
-├── POST /api/webhooks/stripe — Stripe webhook
+├── GET /api/account/notes — Account alerts (user menu)
+├── POST /api/billing/{checkout,portal,change-plan,cancel} — Subscriptions
+├── /api/wallet, /api/wallet/{charge,auto-reload,refunds,refund} — Credits wallet
+├── /api/account/cards — Saved cards
+├── POST /api/webhooks/stripe — Stripe webhook (exactly once per event)
 └── /api/admin/* — Admin endpoints
 
 DynamoDB (single-table design)
-├── USER#{userId} | PROFILE — User + plan + Stripe IDs
+├── USER#{userId} | PROFILE — User, plan, balance, standing, Stripe IDs
 ├── USER#{userId} | ITEM#{itemId} — Your entity
+├── USER#{userId} | TX#… — Credits ledger; PAY#… — payments (docs/payments.md)
 └── CONFIG | GLOBAL — Feature flags, plan limits, job settings, email templates
 
-Scheduled Lambda (EventBridge, daily 8 AM UTC)
-└── lambdas/daily-job/handler.py — Add your scheduled logic here
+Scheduled (EventBridge)
+├── lambdas/daily-job/handler.py — daily 8 AM UTC: add your scheduled logic here
+└── PaymentsSweep — every 15 min, the API settles card refunds Stripe hasn't confirmed (credits modes)
 ```
 
 ## Customization Guide
@@ -198,14 +216,12 @@ new events.Rule(this, 'MyWorkerRule', {
 
 Put packages beyond boto3 in `lambdas/my-worker/requirements.txt`; the bundle script installs them. `STAGE=test scripts/deploy-lambdas.sh my-worker` updates just its code.
 
-### Modify plan tiers
+### Modify plan tiers, packs and costs
 
-Item limits per plan are admin-editable (admin panel → Plan Limits) and enforced by the API. Change the defaults for a fresh install in `api/lib/config.py`:
-```python
-DEFAULT_PLAN_LIMITS = {"free": 10, "starter": 100, "pro": None}  # None = unlimited
-```
-
-The frontend reads limits from the API; update prices and plan copy in `frontend/src/pages/LandingPage.tsx` and `frontend/src/pages/dashboard/SettingsPage.tsx`, and the Stripe price IDs on the admin Billing page.
+Plans (`FREE_PLAN`, `PAID_PLANS`: name, monthly price, limits, features), credit packs, custom amounts, `creditCosts`
+and the earning hooks are in `api/lib/config.py`; the frontend reads them from `GET /api/public-config`. After
+changing prices, run `.venv/bin/python scripts/stripe-setup.py <stage> --apply`. Item limits per plan are also
+admin-editable (admin panel → Plan Limits) and enforced by the API.
 
 ## Running Tests
 
