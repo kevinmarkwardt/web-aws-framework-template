@@ -21,12 +21,12 @@ try:
     from lib.auth import get_token_claims, get_user_id
     from lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
     from lib import auth, config, i18n, params, payments
-    from routes import items, account, billing, cards, support, wallet, webhooks
+    from routes import items, account, billing, cards, entity_routes, support, wallet, webhooks
 except ImportError:
     from api.lib.auth import get_token_claims, get_user_id
     from api.lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
     from api.lib import auth, config, i18n, params, payments
-    from api.routes import items, account, billing, cards, support, wallet, webhooks
+    from api.routes import items, account, billing, cards, entity_routes, support, wallet, webhooks
 
 MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
 SWEEP_TASK = "payments-sweep"
@@ -96,8 +96,15 @@ def _dispatch(event: dict) -> dict:
     if config.get_site_config()["maintenanceMode"]:
         return unavailable(MAINTENANCE_MESSAGE)
 
-    # All other routes require JWT auth
     user_id = get_user_id(event)
+
+    # The spec's entities with a real backend (routes/entity_routes.py, scripts/new-entity.py --backend): public reads
+    # work signed out; their other routes check sign-in themselves
+    hit = entity_routes.route(method, path, user_id, event)
+    if hit is not None:
+        return hit
+
+    # All other routes require JWT auth
     if not user_id:
         return unauthorized()
 
@@ -126,6 +133,7 @@ _MODULE_ROUTES = (
     ("/api/wallet", config.credits_on),
     ("/api/account/referral", config.credits_on),
     ("/api/account/cards", lambda: config.billing_mode() != "none"),
+    ("/api/support", config.support_on),  # spec modules.support (api/site.json)
 )
 
 

@@ -33,6 +33,7 @@ os.environ.pop("TEST_LOGIN", None)
 os.environ["BILLING_MODE"] = "both"  # tests/test_billing_modes.py switches it per test
 os.environ["ALLOW_NO_VIEWER_COUNTRY"] = "1"  # no CloudFront in tests (api/lib/regions.py)
 os.environ.pop("ADMIN_EMAIL", None)
+os.environ["SITE_CONFIG"] = "off"  # the template's defaults, not api/site.json (scripts/init.py); test_site_json.py reads it
 
 
 def _both(name: str):

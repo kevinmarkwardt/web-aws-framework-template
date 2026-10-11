@@ -606,7 +606,7 @@ function handler(event) {
     // served to another. Query strings: only the ones the API reads are in the key (junk parameters can't split or bust
     // the cache); every parameter still reaches the API (the origin request policy forwards them all). Keep this list
     // in step with params.query / query_int / day in api/ (tests/test_edge_sync.py checks it).
-    const API_CACHE_QUERY_KEYS = ['actor', 'cursor', 'day', 'days', 'failed', 'q', 'status', 'target', 'user'];
+    const API_CACHE_QUERY_KEYS = ['actor', 'cursor', 'day', 'days', 'failed', 'mine', 'page', 'pageSize', 'q', 'sort', 'status', 'target', 'user'];
     const apiCachePolicy = new cloudfront.CachePolicy(this, 'ApiCachePolicy', {
       cachePolicyName: `${prefix}-api`,
       defaultTtl: cdk.Duration.seconds(0),

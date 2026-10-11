@@ -4,6 +4,7 @@ webhook events are ignored, and GET /api/public-config tells the site what to sh
 import pytest
 
 import api.handler as handler
+from api.lib import config
 
 from .conftest import call
 from .stripe_fake import event, signed_event, topup_event
@@ -98,4 +99,5 @@ def test_the_cdk_stack_passes_the_mode_and_sends_the_sweep_event_the_handler_exp
     stack = (root / "cdk/lib/yourapp-stack.ts").read_text()
     assert f"app_task: '{handler.SWEEP_TASK}'" in stack and "BILLING_MODE: billingMode" in stack
     assert "events.Schedule.rate(cdk.Duration.minutes(15))" in stack
-    assert json.loads((root / "cdk/cdk.json").read_text())["context"]["billingMode"] == "both"
+    # the template ships "both"; scripts/init.py writes the spec's modules.billing.mode
+    assert json.loads((root / "cdk/cdk.json").read_text())["context"]["billingMode"] in config.BILLING_MODES

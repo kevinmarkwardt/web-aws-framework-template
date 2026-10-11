@@ -11,6 +11,7 @@ Lambda containers pick it up within CACHE_TTL seconds.
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 import time
@@ -71,7 +72,51 @@ SUPPORT: dict = {
                "other": "Something else"},
     "maxOpen": 3,            # open requests per customer
     "followUpsPerDay": 10,   # a customer's follow-ups on one request per UTC day
+    "enabled": True,         # spec modules.support (api/site.json); off: the support routes answer 404
 }
+
+# ---- The site's own settings: api/site.json, written by scripts/init.py from site.spec.yaml (modules.billing:
+# plans, creditName, packs, creditCosts, signupGift, regions; modules.support). Missing file: the defaults above.
+# SITE_CONFIG=off (tests/conftest.py) ignores it, so the template's tests run against the defaults; another path in
+# SITE_CONFIG reads that file instead.
+SITE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "site.json")
+
+
+def _site_settings() -> dict:
+    path = os.environ.get("SITE_CONFIG", "") or SITE_FILE
+    if path == "off":
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def apply_site_settings(site: dict) -> None:
+    """Fold api/site.json into the code config (once, at import)."""
+    billing = site.get("billing") or {}
+    if isinstance(billing.get("plans"), list):
+        PAID_PLANS[:] = [{"id": p["id"], "name": p["name"], "monthlyUsd": p["monthlyUsd"],
+                          "limits": dict(p.get("limits") or {}), "features": list(p.get("features") or [])}
+                         for p in billing["plans"]]
+    for key in ("creditName", "creditCosts", "signupGift", "regions"):
+        if key in billing:
+            BILLING[key] = copy.deepcopy(billing[key])
+    if isinstance(billing.get("packs"), list):
+        BILLING["packs"] = [{"usd": p["usd"], "bonusPct": p.get("bonusPct", 0)} for p in billing["packs"]]
+    if "support" in site:
+        SUPPORT["enabled"] = bool(site["support"])
+
+
+apply_site_settings(_site_settings())
+
+
+def support_on() -> bool:
+    """modules.support (spec): the Support pages and routes; off answers 404 (handler.py _MODULE_ROUTES)."""
+    return bool(SUPPORT.get("enabled", True))
+
 
 PLANS = ("free", *(p["id"] for p in PAID_PLANS))
 # Max items per plan; None = unlimited.

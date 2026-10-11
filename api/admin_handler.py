@@ -25,12 +25,12 @@ try:
     from lib.auth import get_token_claims
     from lib.response import ok, error, forbidden, not_found
     from lib import admins, params
-    from routes import admin, support
+    from routes import admin, entity_routes, support
 except ImportError:
     from api.lib.auth import get_token_claims
     from api.lib.response import ok, error, forbidden, not_found
     from api.lib import admins, params
-    from api.routes import admin, support
+    from api.routes import admin, entity_routes, support
 
 UID = r"(?P<uid>[A-Za-z0-9_-]{1,128})"
 
@@ -58,6 +58,8 @@ ROUTES = [
     ("DELETE", rf"/api/admin/items/{UID}/(?P<item_id>[A-Za-z0-9]{{1,64}})", admin.delete_item),
     ("POST", r"/api/admin/actions/(?P<task>daily-job|payments-sweep)", admin.run_task),
 ]
+# the spec's entities with a real backend (routes/entity_routes.py, scripts/new-entity.py --backend)
+ROUTES += entity_routes.ADMIN_ROUTES
 _COMPILED = [(m, re.compile(p + r"\Z"), fn) for m, p, fn in ROUTES]
 
 

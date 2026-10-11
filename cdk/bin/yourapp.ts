@@ -15,7 +15,8 @@ if (stage !== 'prod' && stage !== 'test') {
 new YourAppStack(app, stage === 'prod' ? 'YourAppStack' : 'YourAppTestStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID,
-    region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
+    // cdk.json context "region" (scripts/init.py writes the spec's site.awsRegion), else the CLI's default region
+    region: String(app.node.tryGetContext('region') ?? '') || process.env.CDK_DEFAULT_REGION || 'us-east-1',
   },
   domainName: 'yourapp.com',
   stage,
