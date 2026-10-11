@@ -57,7 +57,13 @@ def main(argv: list[str]) -> int:
         fx.write_images(gen, e, w)
     print(f"{'[dry run] ' if args.dry_run else ''}fixtures (seed {gen.seed}): "
           + ", ".join(f"{e.name} {len(rows[e.name])}" for e in wanted))
+    images = [(s, p) for s, p in w.log if "/mock-images/" in p]
+    w.log = [(s, p) for s, p in w.log if "/mock-images/" not in p]
     print(w.report())
+    changed = [s for s, _ in images if s != "unchanged"]
+    if images:
+        print(f"  placeholder images: {len(images) // 2} per site in {{frontend,admin}}/public/mock-images/"
+              + (f" ({len(changed)} file(s) written or removed)" if changed else " (up to date)"))
     if gen.notes:
         print("edge cases:\n" + "\n".join(f"  - {n}" for n in gen.notes))
     if args.sample:

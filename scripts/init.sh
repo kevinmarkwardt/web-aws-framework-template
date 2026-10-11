@@ -1,163 +1,80 @@
 #!/usr/bin/env bash
-# init.sh — Initialize a new project from web-aws-framework-template
+# init.sh: the interactive way in. Asks for the basics, writes a minimal site.spec.yaml (when there is none) and runs
+# scripts/init.py with it, which does the actual work (placeholders, config, languages; see its --help).
 #
-# Run this script once after cloning the template:
 #   ./scripts/init.sh
 #
-# It will prompt for your project details and replace all placeholder
-# values throughout the codebase.
-
+# Building a whole site with an AI agent? Skip this: the agent writes a full site.spec.yaml (ai/PLAYBOOK.md) and runs
+# python3 scripts/init.py --spec site.spec.yaml itself.
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+SPEC="$ROOT/site.spec.yaml"
 
-# Cross-platform sed -i (inline, for use with xargs via a helper below)
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  SED_INPLACE=(-i '')
+if [ ! -x .venv/bin/python ] || ! .venv/bin/python -c "import yaml, jsonschema" 2>/dev/null; then
+  echo "Installing the tooling into .venv (scripts/requirements.txt)..."
+  [ -x .venv/bin/python ] || python3 -m venv .venv
+  .venv/bin/pip install -q -r scripts/requirements.txt
+fi
+
+if [ -f "$SPEC" ]; then
+  echo "Using the existing site.spec.yaml (delete it to start over with questions)."
 else
-  SED_INPLACE=(-i)
+  echo "web-aws-framework-template: project setup"
+  echo
+  read -r -p "Project name (lowercase letters, digits, -; e.g. myapp): " NAME
+  NAME="$(echo "${NAME:-myapp}" | tr '[:upper:] ' '[:lower:]-')"
+  read -r -p "Display name (e.g. MyApp): " DISPLAY
+  DISPLAY="${DISPLAY:-MyApp}"
+  read -r -p "Domain (e.g. myapp.com): " DOMAIN
+  DOMAIN="${DOMAIN:-myapp.com}"
+  read -r -p "AWS account ID (12 digits, Enter to skip): " ACCOUNT
+  read -r -p "Admin email (alerts, disputes; Enter to skip): " ADMIN
+  read -r -p "Billing: none, subscriptions, credits or both [both]: " MODE
+  MODE="${MODE:-both}"
+
+  {
+    echo "# Written by scripts/init.sh. The full format: ai/site.spec.schema.json (example: ai/site.spec.example.yaml)."
+    echo "version: 1"
+    echo "site:"
+    echo "  name: $NAME"
+    echo "  displayName: \"$DISPLAY\""
+    echo "  domain: $DOMAIN"
+    [ -n "$ACCOUNT" ] && echo "  awsAccountId: \"$ACCOUNT\""
+    [ -n "$ADMIN" ] && echo "  adminEmail: $ADMIN"
+    echo "  awsRegion: us-east-1"
+    echo "modules:"
+    echo "  billing:"
+    echo "    mode: $MODE"
+    if [ "$MODE" = subscriptions ] || [ "$MODE" = both ]; then
+      echo "    plans:"
+      echo "      - { id: starter, name: Starter, monthlyUsd: 9, limits: { items: 100 } }"
+      echo "      - { id: pro, name: Pro, monthlyUsd: 19, limits: { items: null } }"
+    fi
+    if [ "$MODE" = credits ] || [ "$MODE" = both ]; then
+      echo "    packs: [{ usd: 5 }, { usd: 10 }, { usd: 20, bonusPct: 10 }, { usd: 50, bonusPct: 20 }]"
+    fi
+    echo "  i18n: { languages: [en] }"
+    echo "  support: true"
+    echo "entities: []"
+    echo "pages: []"
+  } > "$SPEC"
+  echo "Wrote site.spec.yaml."
 fi
 
-# Apply a sed expression to all files in $FILES
-sed_files() {
-  local expr="$1"
-  while IFS= read -r f; do
-    sed "${SED_INPLACE[@]}" "$expr" "$f"
-  done <<< "$FILES"
-}
+.venv/bin/python scripts/spec.py validate site.spec.yaml
+.venv/bin/python scripts/init.py --spec site.spec.yaml
 
-# Apply sed to a single specific file
-sedi() { sed "${SED_INPLACE[@]}" "$@"; }
+cat <<'EOF'
 
-echo ""
-echo -e "${BLUE}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║   web-aws-framework-template — Project Setup ║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════════════╝${NC}"
-echo ""
-echo "This script will customize the template for your project."
-echo "You can re-run it, but it only works on pristine template files."
-echo ""
-
-# ── Prompts ──────────────────────────────────────────────────────────────────
-
-read -r -p "Project name (lowercase, no spaces, e.g. 'myapp'): " PROJECT_NAME
-PROJECT_NAME="${PROJECT_NAME:-myapp}"
-PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-
-read -r -p "Display name (title case, e.g. 'MyApp'): " DISPLAY_NAME
-DISPLAY_NAME="${DISPLAY_NAME:-MyApp}"
-
-read -r -p "Domain name (e.g. 'myapp.com'): " DOMAIN
-DOMAIN="${DOMAIN:-myapp.com}"
-
-read -r -p "AWS Account ID (12 digits): " AWS_ACCOUNT_ID
-AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-123456789012}"
-
-echo ""
-echo -e "${YELLOW}Will apply these substitutions:${NC}"
-echo "  yourapp          → $PROJECT_NAME"
-echo "  YourApp          → $DISPLAY_NAME"
-echo "  yourapp.com      → $DOMAIN"
-echo "  YOUR_AWS_ACCOUNT_ID → $AWS_ACCOUNT_ID"
-echo ""
-read -r -p "Continue? [y/N] " CONFIRM
-if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
-  echo "Aborted."
-  exit 0
-fi
-
-# ── File targets ──────────────────────────────────────────────────────────────
-
-FILES=$(find . \
-  -not -path './.git/*' \
-  -not -path './node_modules/*' \
-  -not -path './frontend/node_modules/*' \
-  -not -path './admin/node_modules/*' \
-  -not -path './admin/dist/*' \
-  -not -path './packages/*/node_modules/*' \
-  -not -path './cdk/node_modules/*' \
-  -not -path './.venv/*' \
-  -not -path './__pycache__/*' \
-  -not -path './cdk/cdk.out/*' \
-  -not -path './frontend/dist/*' \
-  -not -path './build/*' \
-  -not -path './.venv*' \
-  \( -name '*.ts' -o -name '*.tsx' -o -name '*.py' -o -name '*.sh' \
-     -o -name '*.json' -o -name '*.md' -o -name '*.txt' -o -name '*.css' \
-     -o -name '*.html' -o -name '*.in' -o -name '*.yaml' -o -name '*.example' \) \
-  -type f)
-
-COUNT=$(echo "$FILES" | wc -l | tr -d ' ')
-echo ""
-echo -e "Updating ${GREEN}$COUNT${NC} files..."
-echo ""
-
-# ── Substitutions (order matters — longer strings first) ──────────────────────
-
-sed_files "s/YOUR_AWS_ACCOUNT_ID/$AWS_ACCOUNT_ID/g"
-echo -e "  ${GREEN}✓${NC} AWS Account ID"
-
-sed_files "s/yourapp\.com/$DOMAIN/g"
-echo -e "  ${GREEN}✓${NC} Domain name"
-
-sed_files "s/YourApp/$DISPLAY_NAME/g"
-echo -e "  ${GREEN}✓${NC} Display name"
-
-sed_files "s/yourapp/$PROJECT_NAME/g"
-echo -e "  ${GREEN}✓${NC} Project name"
-
-# ── Rename CDK files ──────────────────────────────────────────────────────────
-
-if [ -f "cdk/bin/yourapp.ts" ]; then
-  mv "cdk/bin/yourapp.ts" "cdk/bin/${PROJECT_NAME}.ts"
-  echo -e "  ${GREEN}✓${NC} Renamed cdk/bin/yourapp.ts → cdk/bin/${PROJECT_NAME}.ts"
-fi
-
-if [ -f "cdk/lib/yourapp-stack.ts" ]; then
-  mv "cdk/lib/yourapp-stack.ts" "cdk/lib/${PROJECT_NAME}-stack.ts"
-  echo -e "  ${GREEN}✓${NC} Renamed cdk/lib/yourapp-stack.ts → cdk/lib/${PROJECT_NAME}-stack.ts"
-fi
-
-# Fix the import in the renamed bin file
-if [ -f "cdk/bin/${PROJECT_NAME}.ts" ]; then
-  sedi "s|../lib/yourapp-stack|../lib/${PROJECT_NAME}-stack|g" "cdk/bin/${PROJECT_NAME}.ts"
-fi
-
-# Update cdk.json app entry
-if [ -f "cdk/cdk.json" ]; then
-  sedi "s|bin/yourapp.ts|bin/${PROJECT_NAME}.ts|g" cdk/cdk.json
-fi
-
-# ── Done ──────────────────────────────────────────────────────────────────────
-
-echo ""
-echo -e "${GREEN}✓ Done! Your project is ready.${NC}"
-echo ""
-echo "Next steps:"
-echo ""
-echo "  1. Ensure your domain has a hosted zone in AWS Route53"
-echo "     (or update cdk/lib/${PROJECT_NAME}-stack.ts if using a different DNS)"
-echo ""
-echo "  2. Deploy the test stage first (test.$DOMAIN), then prod ($DOMAIN):"
-echo "     STAGE=test ./scripts/deploy.sh"
-echo "     STAGE=prod ./scripts/deploy.sh"
-echo ""
-echo "  3. Make yourself an admin (sign up on the site first): admin.test.$DOMAIN / admin.$DOMAIN"
-echo "     .venv/bin/python scripts/make-admin.py test you@example.com"
-echo ""
-echo "  4. Stripe keys live in Secrets Manager ($PROJECT_NAME/{stage}/stripe), never in .env:"
-echo "     scripts/stripe-secret.sh test, then .venv/bin/python scripts/stripe-setup.py test --apply"
-echo ""
-echo "  5. Customize your app:"
-echo "     - Replace 'items' with your domain entity in:"
-echo "       api/routes/items.py, frontend/src/pages/dashboard/ItemsPage.tsx"
-echo "     - Update the landing page: frontend/src/pages/LandingPage.tsx"
-echo "     - Add your scheduled job logic: lambdas/daily-job/handler.py"
-echo ""
-echo "Good luck!"
-echo ""
+Next steps:
+  1. npm install, then scripts/verify.sh
+  2. A Route 53 hosted zone for your domain; deploy the test stage first, then prod:
+       STAGE=test ./scripts/deploy.sh      STAGE=prod ./scripts/deploy.sh
+  3. Sign up on the site, then make yourself an admin: .venv/bin/python scripts/make-admin.py test you@example.com
+  4. Stripe keys live in Secrets Manager, never in .env: scripts/stripe-secret.sh test, then
+     .venv/bin/python scripts/stripe-setup.py test --apply
+  5. Your domain: add entities to site.spec.yaml, then python3 scripts/new-entity.py --all and
+     python3 scripts/gen-fixtures.py (CLAUDE.md, "AI site builder").
+EOF

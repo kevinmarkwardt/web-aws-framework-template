@@ -1,0 +1,42 @@
+# Template CI: the template must stay buildable, and so must a site made from it. scripts/template-selftest.sh runs
+# verify.sh on the template, then builds ai/site.spec.example.yaml in a temporary copy (init.py, new-entity.py,
+# gen-fixtures.py, verify.sh) and gives every example entity a backend (verify.sh --prod). No AWS.
+# A site made from the template can delete this workflow (scripts/verify.sh is its own gate).
+name: template-ci
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+concurrency:
+  group: template-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            cdk/package-lock.json
+      - name: Python tooling
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q -r api/requirements.txt
+          .venv/bin/pip install -q -r tests/requirements-test.txt
+      - name: Node packages
+        run: |
+          npm ci --no-audit --no-fund
+          (cd cdk && npm ci --no-audit --no-fund)
+      - name: Template self-test
+        run: scripts/template-selftest.sh
