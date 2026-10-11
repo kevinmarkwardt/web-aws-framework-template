@@ -1,0 +1,9 @@
+@import "tailwindcss";
+/* the design tokens both sites share (brand, ink, line, chrome, ...): a reskin starts there */
+@import "../../packages/shared/src/theme.css";
+@source "../../packages/shared/src";
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
