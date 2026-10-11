@@ -534,16 +534,21 @@ function handler(event) {
       connect: ['https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com',
         'https://*.googlesyndication.com', 'https://*.doubleclick.net', 'https://*.google.com', 'https://*.adtrafficquality.google'],
     } : { script: [], frame: [], connect: [] };
+    // The test stage also serves the /__directions design preview: it frames its own pages and loads candidate fonts
+    // from Google Fonts. Prod builds don't contain the preview, so prod doesn't get those sources.
+    const preview = isProd ? { style: [], font: [], frame: [] } : {
+      style: ['https://fonts.googleapis.com'], font: ['https://fonts.gstatic.com'], frame: ["'self'"],
+    };
     const csp = (directives: Record<string, string[]>) =>
       Object.entries(directives).map(([k, v]) => [k, ...v].join(' ')).join('; ');
     const siteCsp = csp({
       'default-src': ["'self'"],
       'script-src': ["'self'", 'https://js.stripe.com', ...google.script],
-      'style-src': ["'self'", "'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'", ...preview.style],
       'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-      'font-src': ["'self'", 'data:'],
+      'font-src': ["'self'", 'data:', ...preview.font],
       'connect-src': ["'self'", cognitoOrigin, 'https://api.stripe.com', ...google.connect],
-      'frame-src': ['https://js.stripe.com', 'https://hooks.stripe.com', ...google.frame],
+      'frame-src': [...preview.frame, 'https://js.stripe.com', 'https://hooks.stripe.com', ...google.frame],
       'object-src': ["'none'"],
       'base-uri': ["'self'"],
       'form-action': ["'self'"],

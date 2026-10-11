@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, useContext } from 'react';
+import { lazy, useState, useEffect, useContext } from 'react';
 import { currentLanguage, languageChosen, LANGUAGE_CODES, switchLanguage, useTranslation } from '@yourapp/shared';
 import { getUser, logout } from './auth';
 import { AuthContext } from './auth-context';
@@ -20,6 +20,10 @@ import ReportsPage from './pages/dashboard/ReportsPage';
 import PlansPage from './pages/dashboard/PlansPage';
 import WalletPage from './pages/dashboard/WalletPage';
 import SupportPage from './pages/dashboard/SupportPage';
+
+// Design directions preview (playbook step 4): dev server and test builds only. VITE_STAGE is replaced at build time,
+// so in a prod build this is `null` and the whole design/ folder is left out of the bundle.
+const DirectionsPage = import.meta.env.VITE_STAGE !== 'prod' ? lazy(() => import('./design/DirectionsPage')) : null;
 
 function NoticePage({ message }: { message: string }) {
   const { t } = useTranslation();
@@ -101,6 +105,7 @@ function UserApp() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         {/* the spec's entities (scripts/new-entity.py): public list and detail pages */}
         {publicEntityRoutes}
+        {DirectionsPage && <Route path="/__directions/*" element={<DirectionsPage />} />}
         <Route
           path="/dashboard"
           element={

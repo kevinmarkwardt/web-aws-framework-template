@@ -10,6 +10,7 @@
     "./contracts": "./src/contracts/index.ts",
     "./mocks": "./src/mocks/browser.ts",
     "./fonts": "./src/fonts.generated.ts",
+    "./archetypes": "./src/archetypes/index.ts",
     "./i18n/site": "./src/i18n/site.ts",
     "./i18n/admin": "./src/i18n/admin.ts"
   },
@@ -19,7 +20,8 @@
   },
   "peerDependencies": {
     "aws-amplify": "^6.16.2",
-    "react": "^19.2.0"
+    "react": "^19.2.0",
+    "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

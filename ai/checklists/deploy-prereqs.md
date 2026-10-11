@@ -11,7 +11,7 @@ Go through these with the user before `STAGE=test scripts/deploy.sh`. Items mark
 | 5 | Stripe keys into Secrets Manager | `scripts/stripe-secret.sh test`. The user pastes the keys at the hidden prompt. **Never type or echo keys yourself** | **USER** |
 | 6 | Stripe products, prices and webhook | `python3 scripts/stripe-setup.py test`, after the first deploy has produced the API URL | AI |
 | 7 | SES domain identity | Created by CDK. The DNS records are added automatically when the zone is in Route 53. SES stays in sandbox until the user requests production access (see `docs/launch-checklist.md`) | AI |
-| 8 | Test-login key (username login on test) | `scripts/test-login-secret.sh` generates and stores a random key | AI |
+| 8 | Test-login key (username login on test) | Nothing to do: the test stack generates `<name>/test/test-login` itself | — |
 | 9 | Admin user | After the user signs up on test.<domain> with Cognito (not the username test login): `.venv/bin/python scripts/make-admin.py test <email>` | AI, after the user signs up |
 | 10 | Alarm email | Confirm the SNS subscription email (prod only; skip for test) | **USER** |
 
