@@ -446,20 +446,26 @@ def _iso(t: dt.datetime) -> str:
 
 
 def svg_placeholder(seed: int) -> str:
-    """A calm two-tone gradient with a soft shape: reads as 'a photo goes here' at any size."""
+    """A flat, low-saturation still life (a ground, a horizon, two shapes) and a small picture glyph: reads as 'a photo
+    goes here' at any size, tells cards apart, and never competes with the design (no gradients, no saturated color:
+    those read as AI filler; see ai/design-guidelines.md)."""
     rng = random.Random(seed)
     h = rng.random()
 
     def rgb(hh, s, v):
         r, g, b = colorsys.hsv_to_rgb(hh % 1, s, v)
         return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
-    a, b = rgb(h, 0.35, 0.92), rgb(h + rng.uniform(0.05, 0.15), 0.55, 0.62)
-    cx, cy, r = rng.randint(200, 600), rng.randint(150, 450), rng.randint(120, 260)
+    ground, far, near = rgb(h, 0.07, 0.9), rgb(h + 0.04, 0.12, 0.78), rgb(h + 0.08, 0.16, 0.62)
+    horizon = rng.randint(330, 420)
+    cx, r = rng.randint(180, 620), rng.randint(60, 110)
+    bx, bw, bh = rng.randint(80, 520), rng.randint(140, 220), rng.randint(90, 150)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">'
-            f'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{a}"/>'
-            f'<stop offset="1" stop-color="{b}"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/>'
-            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#fff" fill-opacity="0.16"/>'
-            f'<circle cx="{800 - cx}" cy="{600 - cy}" r="{r // 2}" fill="#000" fill-opacity="0.06"/></svg>\n')
+            f'<rect width="800" height="600" fill="{ground}"/>'
+            f'<rect y="{horizon}" width="800" height="{600 - horizon}" fill="{far}"/>'
+            f'<circle cx="{cx}" cy="{horizon - r - rng.randint(20, 80)}" r="{r}" fill="{far}"/>'
+            f'<rect x="{bx}" y="{horizon - bh // 2}" width="{bw}" height="{bh}" fill="{near}"/>'
+            f'<g transform="translate(752 552)" fill="none" stroke="{near}" stroke-width="3">'
+            f'<rect x="-24" y="-18" width="48" height="36"/><path d="M-24 10 -8 -4 4 8 12 0 24 10"/></g></svg>\n')
 
 
 def dump(rows: list[dict]) -> str:

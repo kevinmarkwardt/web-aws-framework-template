@@ -108,7 +108,19 @@ def _mix(a: str, b: str, pct: int) -> str:
     return f"color-mix(in oklch, {a} {pct}%, {b})"
 
 
-def color_vars(colors: dict) -> dict[str, str]:
+def dark_brand_scale(color: str, ground: str) -> dict[str, str]:
+    """--brand-50..950 for dark mode. The roles stay the same, so the direction flips: the soft steps (50-200, chip and
+    badge backgrounds) sink toward the dark ground, and the text steps (700+, links and selected text) get lighter than
+    the accent, never darker."""
+    toward_ground = {50: 18, 100: 26, 200: 40, 300: 58, 400: 76, 500: 90}   # % of the accent kept, rest is ground
+    toward_white = {700: 82, 800: 70, 900: 58, 950: 46}                     # % of the accent kept, rest is white
+    out = {f"--brand-{s}": _mix(color, ground, p) for s, p in toward_ground.items()}
+    out["--brand-600"] = color
+    out.update({f"--brand-{s}": _mix(color, "white", p) for s, p in toward_white.items()})
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0].rsplit("-", 1)[1])))
+
+
+def color_vars(colors: dict, dark: bool = False) -> dict[str, str]:
     """The spec's semantic colors (one mode) -> theme variables."""
     out: dict[str, str] = {}
     bg, panel = colors.get("bg"), colors.get("surface")
@@ -126,8 +138,11 @@ def color_vars(colors: dict) -> dict[str, str]:
         out["--faint"] = _mix(colors["muted"], bg or panel or "white", 72)
     if colors.get("line"):
         out["--line"] = colors["line"]
+        # control borders need 3:1 against the page (WCAG 1.4.11): the line pulled toward the ink
+        if colors.get("ink"):
+            out["--line-strong"] = _mix(colors["ink"], colors["line"], 30)
     if colors.get("accent"):
-        out.update(brand_scale(colors["accent"]))
+        out.update(dark_brand_scale(colors["accent"], bg or panel or "black") if dark else brand_scale(colors["accent"]))
     if colors.get("accentInk"):
         out["--brand-ink"] = colors["accentInk"]
     if colors.get("danger"):
@@ -153,7 +168,7 @@ def token_vars(tokens: dict) -> tuple[dict[str, str], dict[str, str], dict[str, 
     colors = dict(tokens.get("colors") or {})
     dark_colors = colors.pop("dark", None) or {}
     light.update(color_vars(colors))
-    dark.update(color_vars(dark_colors))
+    dark.update(color_vars(dark_colors, dark=True))
     for role, name in (tokens.get("fonts") or {}).items():
         family, how = font_family(name, role)
         light[f"--typeface-{role}"] = family

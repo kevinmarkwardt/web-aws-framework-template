@@ -217,12 +217,17 @@ def test_design_tokens_land_between_the_markers():
     tokens["colors"]["dark"] = {"bg": "#14110e", "ink": "#f4efe8", "accent": "#e07a4f"}
     css = design.apply_theme(THEME, tokens)
     head, rest = css.split("/* tokens:end */", 1)
-    assert "--ink: #1f1b16;" in head and "--surface: #faf7f2;" in head and "--panel: #ffffff;" in head
+    light = EXAMPLE["design"]["tokens"]["colors"]
+    assert f"--ink: {light['ink']};" in head and f"--surface: {light['bg']};" in head and f"--panel: {light['surface']};" in head
     assert "--warn: oklch(55% 0.16 49);" in head                    # not in the spec: kept
     assert all(f"--brand-{s}:" in head for s in design.BRAND_STEPS)
-    assert "--typeface-display: 'Fraunces Variable'" in head and "--corner-card: 0.75rem;" in head and "--density: 1;" in head
+    assert "--line-strong:" in head                                 # derived for 3:1 control borders
+    assert "--typeface-display: 'Newsreader Variable'" in head and "--corner-card:" in head and "--density: 1;" in head
     dark = rest.split("/* dark:end */")[0]
-    assert "--ink: #f4efe8;" in dark and "--surface: #14110e;" in dark and "--brand-600:" in dark
+    assert "--ink: #f4efe8;" in dark and "--surface: #14110e;" in dark and "--brand-600: #e07a4f;" in dark
+    # dark mode keeps the roles: soft steps sink toward the dark ground, text steps get lighter (toward white)
+    assert "--brand-50: color-mix(in oklch, #e07a4f 18%, #14110e);" in dark
+    assert "--brand-700: color-mix(in oklch, #e07a4f 82%, white);" in dark
     assert "@theme inline {\n  --color-ink: var(--ink);\n}" in css     # never touched
     assert design.apply_theme(css, tokens) == css                    # idempotent
     with pytest.raises(design.MarkersMissing):

@@ -64,12 +64,32 @@ pages:
 admin:
   extraTabs: []
 design:
-  tone: calm and premium
-  references: [nytimes cooking, kinfolk]
+  tone: editorial, trustworthy
+  references: [nytimes cooking, serious eats]
+  direction: "Broadsheet: serif headlines, ruled lines, numbered index, reading column"
   tokens:
-    colors: { bg: "#faf7f2", surface: "#ffffff", ink: "#1f1b16", muted: "#6b6258", line: "#e7e0d6", accent: "#b4532a", accentInk: "#ffffff", danger: "#b42318", success: "#2f7d4f" }
-    fonts: { display: "Fraunces", body: "Inter" }
-    radius: md
+    colors:
+      bg: "oklch(98.7% 0.004 85)"
+      surface: "oklch(99.7% 0.002 85)"
+      ink: "oklch(19% 0.01 70)"
+      muted: "oklch(42% 0.012 70)"
+      line: "oklch(88.5% 0.008 80)"
+      accent: "oklch(42% 0.085 160)"
+      accentInk: "oklch(99% 0.003 160)"
+      danger: "oklch(47% 0.16 27)"
+      success: "oklch(44% 0.1 150)"
+      dark:
+        bg: "oklch(17% 0.006 70)"
+        surface: "oklch(20.5% 0.007 70)"
+        ink: "oklch(93.5% 0.008 85)"
+        muted: "oklch(75% 0.01 85)"
+        line: "oklch(31% 0.01 70)"
+        accent: "oklch(78% 0.085 160)"
+        accentInk: "oklch(17% 0.02 160)"
+        danger: "oklch(76% 0.12 27)"
+        success: "oklch(77% 0.11 150)"
+    fonts: { display: "Newsreader", body: "Instrument Sans" }
+    radius: sm
     density: comfortable
 mocks:
   seed: 42
