@@ -2,18 +2,19 @@ import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth-context';
 import { logout } from '../../auth';
+import { creditsOn, shortDate, subscriptionsOn, units } from '../../billing';
+import { useAccountNotes } from '../../notes';
+import AccountBanner from '../../components/AccountBanner';
 
-const planLabels: Record<string, { text: string; className: string }> = {
-  free: { text: 'Free', className: 'bg-gray-100 text-gray-700' },
-  starter: { text: 'Starter', className: 'bg-indigo-100 text-indigo-700' },
-  pro: { text: 'Pro', className: 'bg-purple-100 text-purple-700' },
-};
+const badgeClass = (plan: string) =>
+  plan === 'free' ? 'bg-gray-100 text-gray-700' : 'bg-indigo-100 text-indigo-700';
 
 export default function DashboardLayout() {
   const { user, refresh } = useContext(AuthContext);
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { notes, dismiss } = useAccountNotes();
 
   const handleLogout = async () => {
     await logout();
@@ -22,13 +23,21 @@ export default function DashboardLayout() {
   };
 
   const plan = user?.plan || 'free';
-  const badge = planLabels[plan];
+  const mode = user?.billingMode;
 
+  // Billing pages appear only for the modules that are on (the API answers 404 for the others)
   const navItems = [
     { to: '/dashboard', label: 'Items', end: true },
+    ...(subscriptionsOn(mode) ? [{ to: '/dashboard/plans', label: 'Plans' }] : []),
+    ...(creditsOn(mode) ? [{ to: '/dashboard/wallet', label: 'Wallet' }] : []),
     { to: '/dashboard/settings', label: 'Settings' },
     { to: '/dashboard/reports', label: 'Reports' },
   ];
+
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      isActive ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+    }`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -46,18 +55,7 @@ export default function DashboardLayout() {
               </div>
               <nav className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`
-                    }
-                  >
+                  <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
                     {item.label}
                   </NavLink>
                 ))}
@@ -66,24 +64,49 @@ export default function DashboardLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-3">
-              <span className={`hidden sm:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${badge.className}`}>
-                {badge.text}
-              </span>
+              {creditsOn(mode) && user && (
+                <NavLink to="/dashboard/wallet" className="hidden sm:inline text-sm text-gray-700 hover:text-gray-900">
+                  {units(user.credits ?? 0, user.creditName)}
+                </NavLink>
+              )}
+              {subscriptionsOn(mode) && (
+                <span className={`hidden sm:inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full capitalize ${badgeClass(plan)}`}>
+                  {plan}
+                </span>
+              )}
               <div className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
                   className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                  aria-label={notes.length ? `Account menu, ${notes.length} alerts` : 'Account menu'}
                 >
                   <span className="hidden sm:inline">{user?.name || user?.email}</span>
+                  {notes.length > 0 && (
+                    <span className="bg-red-600 text-white text-[10px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+                      {notes.length}
+                    </span>
+                  )}
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                   </svg>
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100 sm:hidden">
                       {user?.email}
                     </div>
+                    {notes.map((n) => (
+                      <div key={n.id} className="px-4 py-3 border-b border-gray-100">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                          <button onClick={() => dismiss(n.id)} className="text-xs text-gray-400 hover:text-gray-700" aria-label="Dismiss alert">
+                            ✕
+                          </button>
+                        </div>
+                        {n.message && <p className="text-xs text-gray-600 mt-1">{n.message}</p>}
+                        <p className="text-[11px] text-gray-400 mt-1">{shortDate(n.createdAt)}</p>
+                      </div>
+                    ))}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -110,19 +133,7 @@ export default function DashboardLayout() {
           {mobileNavOpen && (
             <nav className="md:hidden pb-3 flex flex-col gap-1">
               {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={() => setMobileNavOpen(false)}
-                  className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg text-sm font-medium ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`
-                  }
-                >
+                <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileNavOpen(false)} className={navClass}>
                   {item.label}
                 </NavLink>
               ))}
@@ -133,6 +144,7 @@ export default function DashboardLayout() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {user && <AccountBanner user={user} />}
         <Outlet />
       </main>
     </div>

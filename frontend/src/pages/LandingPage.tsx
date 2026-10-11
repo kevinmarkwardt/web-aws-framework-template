@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchPublicConfig } from '../api';
+import { creditsOn, subscriptionsOn, units, usd, usePublicConfig } from '../billing';
 import { itemsLabel } from '../plans';
-import type { Plan } from '../types';
 
 const features = [
   {
@@ -67,68 +65,13 @@ const features = [
   },
 ];
 
-const tiers = [
-  {
-    plan: 'free' as const,
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    description: 'Get started and see if it fits your workflow.',
-    features: [
-      'Daily check frequency',
-      'Instant status change alerts',
-      'Weekly digest',
-      'Data retained forever',
-    ],
-    notIncluded: ['AI-powered insights', 'Monthly PDF report'],
-    cta: 'Get Started Free',
-    href: '/signup',
-    highlighted: false,
-  },
-  {
-    plan: 'starter' as const,
-    name: 'Starter',
-    price: '$9',
-    period: '/month',
-    description: 'For individuals managing an active workload.',
-    features: [
-      'Daily check frequency',
-      'Instant status change alerts',
-      'Weekly digest',
-      'Data retained forever',
-    ],
-    notIncluded: ['AI-powered insights', 'Monthly PDF report'],
-    cta: 'Start with Starter',
-    href: '/signup',
-    highlighted: true,
-  },
-  {
-    plan: 'pro' as const,
-    name: 'Pro',
-    price: '$19',
-    period: '/month',
-    description: 'For teams and power users who need full visibility.',
-    features: [
-      'Hourly check frequency',
-      'Instant status change alerts',
-      'Weekly digest',
-      'AI-powered insights',
-      'Monthly PDF report',
-      'Data retained forever',
-    ],
-    notIncluded: [],
-    cta: 'Go Pro',
-    href: '/signup',
-    highlighted: false,
-  },
-];
-
 export default function LandingPage() {
-  // Item limits are admin-editable (api/lib/config.py): shown when the API answers, left out otherwise
-  const [limits, setLimits] = useState<Record<Plan, number | null> | null>(null);
-  useEffect(() => {
-    fetchPublicConfig().then((c) => setLimits(c.planLimits)).catch(() => {});
-  }, []);
+  // Plans, prices, limits and credit packs come from the API (api/lib/config.py; limits are admin-editable). The
+  // pricing section shows the billing modules that are on, and nothing until the API answers.
+  const config = usePublicConfig();
+  const plans = subscriptionsOn(config?.billingMode) ? config?.plans ?? [] : [];
+  const credits = creditsOn(config?.billingMode) ? config?.credits : undefined;
+  const freeLimit = config?.planLimits?.free;
 
   return (
     <div className="min-h-screen bg-white">
@@ -180,7 +123,9 @@ export default function LandingPage() {
               View Pricing
             </a>
           </div>
-          <p className="mt-4 text-sm text-gray-500">Free plan includes 10 items. No credit card required.</p>
+          <p className="mt-4 text-sm text-gray-500">
+            {freeLimit !== undefined && `Free plan includes ${itemsLabel(freeLimit).toLowerCase()}. `}No credit card required.
+          </p>
         </div>
       </section>
 
@@ -246,70 +191,59 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-16 sm:py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900">Simple, transparent pricing</h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Start free. Upgrade when you need more.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {tiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`rounded-2xl p-8 flex flex-col ${
-                  tier.highlighted
-                    ? 'bg-white ring-2 ring-indigo-600 shadow-lg relative'
-                    : 'bg-white border border-gray-200 shadow-sm'
-                }`}
-              >
-                {tier.highlighted && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span className="bg-indigo-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                      Most Popular
-                    </span>
+      {(plans.length > 0 || credits) && (
+        <section id="pricing" className="py-16 sm:py-24 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold text-gray-900">Simple, transparent pricing</h2>
+              <p className="mt-4 text-lg text-gray-600">Start free. Upgrade when you need more.</p>
+            </div>
+            {plans.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                {plans.map((plan, i) => (
+                  <div key={plan.id} className={`rounded-2xl p-8 flex flex-col bg-white ${i === 1 ? 'ring-2 ring-indigo-600 shadow-lg' : 'border border-gray-200 shadow-sm'}`}>
+                    <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-gray-900">${plan.monthlyUsd}</span>
+                      <span className="text-gray-500">/month</span>
+                    </div>
+                    <Link to="/signup" className="mt-6 block text-center py-2.5 px-4 rounded-lg text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700">
+                      {plan.monthlyUsd === 0 ? 'Start free' : `Choose ${plan.name}`}
+                    </Link>
+                    <ul className="mt-8 space-y-3 flex-1">
+                      {[itemsLabel(plan.limits.items ?? null), ...(plan.features ?? [])].map((f) => (
+                        <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
+                          <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                )}
-                <h3 className="text-lg font-semibold text-gray-900">{tier.name}</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-gray-900">{tier.price}</span>
-                  <span className="text-gray-500">{tier.period}</span>
-                </div>
-                <p className="mt-3 text-sm text-gray-600">{tier.description}</p>
-                <Link
-                  to={tier.href}
-                  className={`mt-6 block text-center py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors ${
-                    tier.highlighted
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                      : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'
-                  }`}
-                >
-                  {tier.cta}
-                </Link>
-                <ul className="mt-8 space-y-3 flex-1">
-                  {[...(limits ? [itemsLabel(limits[tier.plan])] : []), ...tier.features].map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
-                      <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                  {tier.notIncluded.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-400">
-                      <svg className="w-5 h-5 text-gray-300 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+                ))}
               </div>
-            ))}
+            )}
+            {credits && (
+              <div className="mt-12 max-w-3xl mx-auto text-center">
+                <h3 className="text-xl font-semibold text-gray-900">Pay as you go</h3>
+                <p className="mt-2 text-gray-600">
+                  Buy {credits.creditName} when you need them ({credits.perDollar} = $1){credits.signupGift > 0 ? `; new accounts get ${units(credits.signupGift, credits.creditName)}` : ''}.
+                  Unused bought {credits.creditName} can be refunded within {credits.refundDays} days.
+                </p>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  {credits.packs.map((p) => (
+                    <div key={p.id} className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+                      <p className="font-semibold text-gray-900">{usd(p.payCents)}</p>
+                      <p className="text-sm text-gray-600">{units(p.credits, credits.creditName)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="py-16 sm:py-24">

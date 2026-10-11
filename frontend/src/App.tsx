@@ -15,6 +15,8 @@ import DashboardLayout from './pages/dashboard/DashboardLayout';
 import ItemsPage from './pages/dashboard/ItemsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
+import PlansPage from './pages/dashboard/PlansPage';
+import WalletPage from './pages/dashboard/WalletPage';
 
 // Admin pages — lazy loaded (only fetched on manager.yourapp.com)
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
@@ -140,6 +142,9 @@ function UserApp() {
           <Route index element={<ItemsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          {/* billing pages; hidden from the nav when their module is off (the API answers 404 then) */}
+          <Route path="plans" element={<PlansPage />} />
+          <Route path="wallet" element={<WalletPage />} />
         </Route>
       </Routes>
     </AuthContext.Provider>

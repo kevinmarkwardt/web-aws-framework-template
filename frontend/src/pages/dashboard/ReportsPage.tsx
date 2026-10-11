@@ -1,19 +1,13 @@
 import { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth-context';
-import { createCheckoutSession } from '../../api';
 
 export default function ReportsPage() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const isPro = user?.plan === 'pro';
 
-  const handleUpgrade = async () => {
-    try {
-      const { url } = await createCheckoutSession('pro');
-      window.location.href = url;
-    } catch {
-      // Error handled by api
-    }
-  };
+  const handleUpgrade = () => navigate('/dashboard/plans');
 
   if (!isPro) {
     return (
@@ -32,7 +26,7 @@ export default function ReportsPage() {
           onClick={handleUpgrade}
           className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
         >
-          Upgrade to Pro ($19/mo)
+          See the Pro plan
         </button>
       </div>
     );
