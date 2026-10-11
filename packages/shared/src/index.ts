@@ -14,3 +14,5 @@ export {
 export type { Column } from './ui';
 export type { AccountStatus, BillingMode } from './types';
 export { creditsOn, subscriptionsOn } from './types';
+export { TOTP_SIGN_IN_STEP, confirmTotpSignIn, disableTotp, finishTotpSetup, startTotpSetup, totpEnabled } from './mfa';
+export { QrCode, TotpCodeForm, TotpSetup } from './totp';

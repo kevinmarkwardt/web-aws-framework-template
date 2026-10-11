@@ -1,7 +1,9 @@
 import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login, MOCK_AUTH, TEST_LOGIN } from '../../auth';
+import { TOTP_SIGN_IN_STEP } from '@yourapp/shared';
+import { login, logout, MOCK_AUTH, TEST_LOGIN } from '../../auth';
 import { AuthContext } from '../../auth-context';
+import TotpSignInPage from './TotpSignInPage';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,15 +12,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { refresh } = useContext(AuthContext);
+  const [totp, setTotp] = useState(false);
+  const finish = async () => {
+    await refresh();
+    navigate('/dashboard');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      await refresh();
-      navigate('/dashboard');
+      const out = await login(email, password);
+      if (out.nextStep === TOTP_SIGN_IN_STEP) return setTotp(true);  // authenticator app: TotpSignInPage finishes
+      await finish();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
@@ -26,6 +33,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (totp) return <TotpSignInPage onDone={finish} onCancel={() => { setTotp(false); logout().catch(() => {}); }} />;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
