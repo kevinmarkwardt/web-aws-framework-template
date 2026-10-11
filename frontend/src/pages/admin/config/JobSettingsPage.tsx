@@ -50,15 +50,15 @@ export default function JobSettingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Daily Crawl Hour (UTC)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Daily Job Hour (UTC)</label>
             <input
               type="number"
               min="0"
               max="23"
-              value={config.jobSettings.dailyCrawlHourUtc}
+              value={config.jobSettings.dailyJobHourUtc}
               onChange={(e) => setConfig({
                 ...config,
-                jobSettings: { ...config.jobSettings, dailyCrawlHourUtc: parseInt(e.target.value) || 0 },
+                jobSettings: { ...config.jobSettings, dailyJobHourUtc: parseInt(e.target.value) || 0 },
               })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
@@ -79,14 +79,14 @@ export default function JobSettingsPage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={config.jobSettings.hourlyCrawlEnabled}
+                checked={config.jobSettings.hourlyJobEnabled}
                 onChange={(e) => setConfig({
                   ...config,
-                  jobSettings: { ...config.jobSettings, hourlyCrawlEnabled: e.target.checked },
+                  jobSettings: { ...config.jobSettings, hourlyJobEnabled: e.target.checked },
                 })}
                 className="rounded border-gray-300 text-indigo-600"
               />
-              <span className="text-sm text-gray-700">Hourly Pro Crawls</span>
+              <span className="text-sm text-gray-700">Hourly Job (Pro plan)</span>
             </label>
           </div>
         </div>

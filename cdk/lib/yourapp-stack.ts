@@ -43,7 +43,7 @@ export class YourAppStack extends cdk.Stack {
 
     // ========================================================================
     // DynamoDB — Single table design, provisioned mode (25 RCU/WCU free tier)
-    // Backend uses pk/sk with prefixed keys: USER#, LINK#, PITCH#
+    // Backend uses pk/sk with prefixed keys: USER#{id}|PROFILE, USER#{id}|ITEM#{id}, CONFIG|{name}
     // ========================================================================
     const mainTable = new dynamodb.Table(this, 'MainTable', {
       tableName: 'yourapp',
@@ -54,15 +54,6 @@ export class YourAppStack extends cdk.Stack {
       writeCapacity: 25,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-    });
-
-    // GSI: lookup user by email
-    mainTable.addGlobalSecondaryIndex({
-      indexName: 'email-index',
-      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL,
-      readCapacity: 2,
-      writeCapacity: 2,
     });
 
     // GSI: lookup user by stripeCustomerId (for webhook processing)
@@ -117,23 +108,6 @@ export class YourAppStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
-    // PDF report archive bucket
-    const reportsBucket = new s3.Bucket(this, 'ReportsBucket', {
-      bucketName: `yourapp-reports-${this.account}`,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      lifecycleRules: [
-        {
-          transitions: [
-            {
-              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
-              transitionAfter: cdk.Duration.days(90),
-            },
-          ],
-        },
-      ],
-    });
-
     // ========================================================================
     // SES Email Identity
     // ========================================================================
@@ -163,7 +137,6 @@ export class YourAppStack extends cdk.Stack {
       TABLE_NAME: mainTable.tableName,
       USER_POOL_ID: userPool.userPoolId,
       USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-      REPORTS_BUCKET: reportsBucket.bucketName,
       DOMAIN_NAME: domainName,
       FRONTEND_URL: `https://${domainName}`,
       SES_FROM_EMAIL: `noreply@${domainName}`,
@@ -212,7 +185,8 @@ export class YourAppStack extends cdk.Stack {
       environment: {
         TABLE_NAME: mainTable.tableName,
         FROM_EMAIL: `noreply@${domainName}`,
-        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-haiku-20241022-v1:0',
+        // Empty unless cdk.json context "bedrockModelId" names a current model / inference profile (lambdas/daily-job)
+        BEDROCK_MODEL_ID: String(this.node.tryGetContext('bedrockModelId') ?? ''),
       },
     });
 
@@ -423,11 +397,6 @@ function handler(event) {
     new cdk.CfnOutput(this, 'SpaBucketName', {
       value: spaBucket.bucketName,
       description: 'S3 bucket for SPA assets',
-    });
-
-    new cdk.CfnOutput(this, 'ReportsBucketName', {
-      value: reportsBucket.bucketName,
-      description: 'S3 bucket for PDF report archive',
     });
 
     new cdk.CfnOutput(this, 'TableName', {

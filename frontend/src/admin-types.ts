@@ -42,8 +42,8 @@ export interface SiteConfig {
   alertsEnabled: boolean;
   planLimits: { free: number; starter: number; pro: number };
   jobSettings: {
-    dailyCrawlHourUtc: number;
-    hourlyCrawlEnabled: boolean;
+    dailyJobHourUtc: number;
+    hourlyJobEnabled: boolean;
     rateLimitDelayMs: number;
   };
   emailTemplates: Record<string, string>;

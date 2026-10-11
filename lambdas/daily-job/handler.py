@@ -23,7 +23,9 @@ from boto3.dynamodb.conditions import Key
 
 TABLE_NAME = os.environ["TABLE_NAME"]
 FROM_EMAIL = os.environ["FROM_EMAIL"]
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-5-haiku-20241022-v1:0")
+# Set by the CDK stack from the `bedrockModelId` context value (cdk/cdk.json). Empty by default: pick a current model or
+# inference-profile id from the Bedrock console (and enable model access there) before turning on the example below.
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 dynamodb = boto3.resource("dynamodb")
@@ -66,22 +68,23 @@ def handler(event, context):
     # ----------------------------------------------------------------
     # Step 3: Optional — call Bedrock (Claude) for AI analysis
     # ----------------------------------------------------------------
-    # Uncomment to enable:
+    # Set `bedrockModelId` in cdk/cdk.json (deployed as BEDROCK_MODEL_ID), then uncomment:
     #
-    # ai_response = bedrock.invoke_model(
-    #     modelId=BEDROCK_MODEL_ID,
-    #     body=json.dumps({
-    #         "anthropic_version": "bedrock-2023-05-31",
-    #         "max_tokens": 512,
-    #         "messages": [{
-    #             "role": "user",
-    #             "content": f"Summarize these results: {json.dumps(results[:20])}"
-    #         }]
-    #     }),
-    #     contentType="application/json",
-    # )
-    # summary = json.loads(ai_response["body"].read())["content"][0]["text"]
-    # print(f"[daily-job] AI summary: {summary}")
+    # if BEDROCK_MODEL_ID:
+    #     ai_response = bedrock.invoke_model(
+    #         modelId=BEDROCK_MODEL_ID,
+    #         body=json.dumps({
+    #             "anthropic_version": "bedrock-2023-05-31",
+    #             "max_tokens": 512,
+    #             "messages": [{
+    #                 "role": "user",
+    #                 "content": f"Summarize these results: {json.dumps(results[:20])}",
+    #             }],
+    #         }),
+    #         contentType="application/json",
+    #     )
+    #     summary = json.loads(ai_response["body"].read())["content"][0]["text"]
+    #     print(f"[daily-job] AI summary: {summary}")
 
     # ----------------------------------------------------------------
     # Step 4: Optional — send summary email via SES

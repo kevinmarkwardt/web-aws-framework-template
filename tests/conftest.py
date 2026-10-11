@@ -25,14 +25,8 @@ os.environ["AWS_ACCESS_KEY_ID"] = "testing"
 os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 os.environ["AWS_SECURITY_TOKEN"] = "testing"
 os.environ["AWS_SESSION_TOKEN"] = "testing"
-os.environ["STRIPE_SECRET_KEY"] = "sk_test_fake"
-os.environ["STRIPE_WEBHOOK_SECRET"] = "whsec_test_fake"
-os.environ["STRIPE_STARTER_PRICE_ID"] = "price_starter_test"
-os.environ["STRIPE_PRO_PRICE_ID"] = "price_pro_test"
 os.environ["SES_FROM_EMAIL"] = "test@yourapp.com"
 os.environ["FRONTEND_URL"] = "https://yourapp.com"
-os.environ["REPORTS_BUCKET"] = "yourapp-reports-test"
-os.environ["BEDROCK_MODEL_ID"] = "anthropic.claude-3-haiku-20240307-v1:0"
 
 
 @pytest.fixture
@@ -59,15 +53,9 @@ def dynamodb_table(aws_credentials):
             AttributeDefinitions=[
                 {"AttributeName": "pk", "AttributeType": "S"},
                 {"AttributeName": "sk", "AttributeType": "S"},
-                {"AttributeName": "email", "AttributeType": "S"},
                 {"AttributeName": "stripeCustomerId", "AttributeType": "S"},
             ],
             GlobalSecondaryIndexes=[
-                {
-                    "IndexName": "email-index",
-                    "KeySchema": [{"AttributeName": "email", "KeyType": "HASH"}],
-                    "Projection": {"ProjectionType": "ALL"},
-                },
                 {
                     "IndexName": "stripe-customer-index",
                     "KeySchema": [{"AttributeName": "stripeCustomerId", "KeyType": "HASH"}],

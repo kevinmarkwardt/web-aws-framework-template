@@ -15,7 +15,6 @@ const navGroups = [
     label: 'App Data',
     items: [
       { to: '/data/items', label: 'Items' },
-      { to: '/data/second-entity', label: 'Second Entity' },
     ],
   },
   {

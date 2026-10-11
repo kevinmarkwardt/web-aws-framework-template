@@ -23,7 +23,6 @@ const AdminUsers = lazy(() => import('./pages/admin/UsersPage'));
 const AdminHealth = lazy(() => import('./pages/admin/HealthPage'));
 const AdminBilling = lazy(() => import('./pages/admin/BillingPage'));
 const AdminItems = lazy(() => import('./pages/admin/data/ItemsPage'));
-const AdminSecondEntity = lazy(() => import('./pages/admin/data/SecondEntityPage'));
 const AdminFeatureToggles = lazy(() => import('./pages/admin/config/FeatureTogglesPage'));
 const AdminPlanLimits = lazy(() => import('./pages/admin/config/PlanLimitsPage'));
 const AdminJobSettings = lazy(() => import('./pages/admin/config/JobSettingsPage'));
@@ -76,7 +75,6 @@ function AdminApp() {
           <Route path="billing" element={<AdminBilling />} />
           <Route path="health" element={<AdminHealth />} />
           <Route path="data/items" element={<AdminItems />} />
-          <Route path="data/second-entity" element={<AdminSecondEntity />} />
           <Route path="config/features" element={<AdminFeatureToggles />} />
           <Route path="config/plans" element={<AdminPlanLimits />} />
           <Route path="config/jobs" element={<AdminJobSettings />} />
