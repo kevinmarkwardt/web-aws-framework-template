@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../../auth-context';
 import { createCheckoutSession } from '../../api';
 
 export default function ReportsPage() {

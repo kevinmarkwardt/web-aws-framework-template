@@ -112,9 +112,6 @@ def increment_item_count(user_id: str, delta: int = 1):
 
 # --- Items ---
 
-ITEM_LIMITS = {"free": 10, "starter": 100, "pro": float("inf")}
-
-
 def get_items(user_id: str) -> list[dict]:
     table = _get_table()
     resp = table.query(

@@ -41,6 +41,12 @@ def handler(event, context):
     """
     table = dynamodb.Table(TABLE_NAME)
 
+    # The admin site's "Processing Enabled" toggle (CONFIG | GLOBAL jobsEnabled; defaults in api/lib/config.py)
+    site_config = table.get_item(Key={"pk": "CONFIG", "sk": "GLOBAL"}).get("Item") or {}
+    if site_config.get("jobsEnabled") is False:
+        print("[daily-job] Skipped: jobsEnabled is off in the admin config")
+        return {"statusCode": 200, "body": json.dumps({"skipped": True})}
+
     # ----------------------------------------------------------------
     # Step 1: Query DynamoDB for items to process
     # ----------------------------------------------------------------

@@ -1,5 +1,23 @@
 import { getToken } from './auth';
-import type { Item, CreateItemRequest, UpdateItemRequest, User, UserSettings } from './types';
+import type { Item, CreateItemRequest, UpdateItemRequest, PublicConfig, User, UserSettings } from './types';
+
+/** An API refusal with the server's machine-readable code (MAINTENANCE, SIGNUPS_CLOSED, PLAN_LIMIT, ...). */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** Public, no sign-in: maintenance/sign-up switches and plan limits (GET /api/public-config). */
+export async function fetchPublicConfig(): Promise<PublicConfig> {
+  const res = await fetch('/api/public-config');
+  if (!res.ok) throw new ApiError(`Request failed (${res.status})`, res.status);
+  return res.json();
+}
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken();
@@ -26,12 +44,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     const body = await res.json().catch(() => ({}));
     const message = body.error || body.message;
     if (message) {
-      throw new Error(message);
+      throw new ApiError(message, res.status, body.code);
     }
     if (res.status >= 500) {
-      throw new Error('Something went wrong on our end. Please try again in a few minutes.');
+      throw new ApiError('Something went wrong on our end. Please try again in a few minutes.', res.status);
     }
-    throw new Error(`Request failed (${res.status})`);
+    throw new ApiError(`Request failed (${res.status})`, res.status);
   }
 
   return res.json();

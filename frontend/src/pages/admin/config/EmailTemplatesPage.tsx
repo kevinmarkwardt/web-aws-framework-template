@@ -12,7 +12,7 @@ export default function EmailTemplatesPage() {
   useEffect(() => {
     fetchConfig()
       .then(setConfig)
-      .catch((e) => setError(e.message))
+      .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -24,8 +24,8 @@ export default function EmailTemplatesPage() {
       await updateConfig({ emailTemplates: config.emailTemplates });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setSaving(false);
     }

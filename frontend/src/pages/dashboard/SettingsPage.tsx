@@ -1,26 +1,25 @@
 import { useState, useContext } from 'react';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../../auth-context';
 import { updateSettings, updateName, createPortalSession, createCheckoutSession, changePlan, cancelPlan } from '../../api';
 import type { Plan } from '../../types';
+import { itemsLabel } from '../../plans';
 
-const planDetails: Record<Plan, { name: string; price: string; features: string[]; limit: number | null }> = {
+// Display copy only. Item limits come from the API (GET /api/account planLimits), which the admin site edits.
+const planDetails: Record<Plan, { name: string; price: string; features: string[] }> = {
   free: {
     name: 'Free',
     price: '$0/month',
-    features: ['10 items (free plan)', 'Daily processing', 'Instant alerts', 'Weekly digest'],
-    limit: 5,
+    features: ['Daily processing', 'Instant alerts', 'Weekly digest'],
   },
   starter: {
     name: 'Starter',
     price: '$9/month',
-    features: ['100 items', 'Daily processing', 'Advanced features'],
-    limit: 50,
+    features: ['Daily processing', 'Advanced features'],
   },
   pro: {
     name: 'Pro',
     price: '$19/month',
-    features: ['Unlimited items', 'Hourly processing', 'AI scoring', 'Monthly reports'],
-    limit: null,
+    features: ['Hourly processing', 'AI scoring', 'Monthly reports'],
   },
 };
 
@@ -58,8 +57,8 @@ export default function SettingsPage() {
       setEditingName(false);
       setNameSaved(true);
       setTimeout(() => setNameSaved(false), 2000);
-    } catch (err: any) {
-      setNameError(err.message || 'Failed to update name');
+    } catch (err) {
+      setNameError((err as Error).message || 'Failed to update name');
     } finally {
       setSavingName(false);
     }
@@ -110,8 +109,8 @@ export default function SettingsPage() {
       } else {
         await refresh();
       }
-    } catch (err: any) {
-      setPlanError(err.message || 'Failed to change plan');
+    } catch (err) {
+      setPlanError((err as Error).message || 'Failed to change plan');
     } finally {
       setLoadingPlan(null);
     }
@@ -124,8 +123,8 @@ export default function SettingsPage() {
     try {
       await cancelPlan();
       await refresh();
-    } catch (err: any) {
-      setPlanError(err.message || 'Failed to cancel subscription');
+    } catch (err) {
+      setPlanError((err as Error).message || 'Failed to cancel subscription');
     } finally {
       setLoadingPlan(null);
     }
@@ -133,6 +132,7 @@ export default function SettingsPage() {
 
   const currentPlan = user?.plan || 'free';
   const itemCount = user?.itemCount || 0;
+  const limitOf = (plan: Plan) => user?.planLimits?.[plan] ?? null;
 
   return (
     <div className="max-w-4xl">
@@ -203,7 +203,7 @@ export default function SettingsPage() {
         {showCancelConfirm && (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm font-medium text-amber-900 mb-3">
-              Are you sure you want to cancel your subscription? You'll be downgraded to the free plan (10 items).
+              Are you sure you want to cancel your subscription? You'll be downgraded to the free plan ({itemsLabel(limitOf('free'))}).
             </p>
             <div className="flex gap-2">
               <button
@@ -234,7 +234,7 @@ export default function SettingsPage() {
             const isCurrent = currentPlan === plan;
             const isHigher = PLAN_RANK[plan] > PLAN_RANK[currentPlan];
             const isLower = PLAN_RANK[plan] < PLAN_RANK[currentPlan];
-            const targetLimit = details.limit;
+            const targetLimit = limitOf(plan);
             const overLimit = targetLimit !== null && itemCount > targetLimit;
             const isLoading = loadingPlan === plan;
 
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-bold text-gray-900">{details.name}</h3>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{details.price}</p>
                 <ul className="mt-4 space-y-2">
-                  {details.features.map((f) => (
+                  {[itemsLabel(targetLimit), ...details.features].map((f) => (
                     <li key={f} className="text-sm text-gray-600 flex items-center gap-2">
                       <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />

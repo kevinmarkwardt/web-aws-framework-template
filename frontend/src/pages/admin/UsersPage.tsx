@@ -12,15 +12,19 @@ export default function UsersPage() {
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [search, setSearch] = useState('');
 
-  const load = () => {
-    setLoading(true);
+  const [reloads, setReloads] = useState(0);
+
+  useEffect(() => {
     fetchUsers()
       .then(setUsers)
-      .catch((e) => setError(e.message))
+      .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
-  };
+  }, [reloads]);
 
-  useEffect(() => { load(); }, []);
+  const load = () => {
+    setLoading(true);
+    setReloads((n) => n + 1);
+  };
 
   const toggleExpand = async (userId: string) => {
     if (expandedId === userId) {
@@ -32,8 +36,8 @@ export default function UsersPage() {
     try {
       const d = await fetchUserDetail(userId);
       setDetail(d);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     }
   };
 

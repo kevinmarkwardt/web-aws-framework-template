@@ -9,16 +9,22 @@ export default function AdminItemsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // The search that is loaded: the status filter applies at once, the text on Enter / Search; `n` forces a reload.
+  const [query, setQuery] = useState({ status: '', q: '', n: 0 });
 
-  const loadItems = () => {
+  useEffect(() => {
+    let current = true;
+    fetchAllItems({ status: query.status || undefined, q: query.q || undefined })
+      .then((data) => { if (current) setItems(data); })
+      .catch((e: Error) => { if (current) setError(e.message); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [query]);
+
+  const loadItems = (status = statusFilter) => {
     setLoading(true);
-    fetchAllItems({ status: statusFilter || undefined, q: search || undefined })
-      .then(setItems)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+    setQuery((prev) => ({ status, q: search, n: prev.n + 1 }));
   };
-
-  useEffect(() => { loadItems(); }, [statusFilter]);
 
   const handleDeleteItem = async (userId: string, itemId: string) => {
     if (!confirm('Delete this item?')) return;
@@ -45,11 +51,11 @@ export default function AdminItemsPage() {
           onKeyDown={(e) => e.key === 'Enter' && loadItems()}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm flex-1"
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); loadItems(e.target.value); }} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
           <option value="">All statuses</option>
           {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <button onClick={loadItems} className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Search</button>
+        <button onClick={() => loadItems()} className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Search</button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

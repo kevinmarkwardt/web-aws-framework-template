@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../../auth-context';
 import { logout } from '../../auth';
 
 const planLabels: Record<string, { text: string; className: string }> = {

@@ -12,7 +12,7 @@ export default function PlanLimitsPage() {
   useEffect(() => {
     fetchConfig()
       .then(setConfig)
-      .catch((e) => setError(e.message))
+      .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -24,8 +24,8 @@ export default function PlanLimitsPage() {
       await updateConfig({ planLimits: config.planLimits });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -54,11 +54,17 @@ export default function PlanLimitsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{plan} — Max Items</label>
               <input
                 type="number"
-                value={config.planLimits[plan]}
-                onChange={(e) => setConfig({
-                  ...config,
-                  planLimits: { ...config.planLimits, [plan]: parseInt(e.target.value) || 0 },
-                })}
+                min="0"
+                placeholder="Unlimited"
+                value={config.planLimits[plan] ?? ''}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setConfig({
+                    ...config,
+                    // empty = unlimited (null); the API enforces these on item create and plan downgrades
+                    planLimits: { ...config.planLimits, [plan]: Number.isNaN(n) ? null : Math.max(0, n) },
+                  });
+                }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>

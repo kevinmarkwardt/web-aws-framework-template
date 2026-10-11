@@ -15,15 +15,19 @@ export default function HealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = () => {
-    setLoading(true);
+  const [reloads, setReloads] = useState(0);
+
+  useEffect(() => {
     fetchHealth()
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [reloads]);
 
-  useEffect(() => { load(); }, []);
+  const load = () => {
+    setLoading(true);
+    setReloads((n) => n + 1);
+  };
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>;
   if (error) return <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700">{error}</div>;

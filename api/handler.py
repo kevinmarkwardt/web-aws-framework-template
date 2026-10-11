@@ -6,7 +6,6 @@ Routes requests based on method + path to route modules.
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 import os
@@ -19,16 +18,27 @@ if _dir not in sys.path:
 
 try:
     from lib.auth import get_user_id
-    from lib.response import ok, unauthorized, not_found, error
+    from lib.response import ok, unauthorized, not_found, error, unavailable
+    from lib import config, params
     from routes import items, account, billing, admin
 except ImportError:
     from api.lib.auth import get_user_id
-    from api.lib.response import ok, unauthorized, not_found, error
+    from api.lib.response import ok, unauthorized, not_found, error, unavailable
+    from api.lib import config, params
     from api.routes import items, account, billing, admin
+
+MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
 
 
 def lambda_handler(event, context):
     """Main API handler routed via CloudFront /api/* -> Function URL."""
+    try:
+        return _dispatch(event)
+    except params.BadRequest as e:  # malformed body or field (lib/params.py)
+        return error(str(e), 400)
+
+
+def _dispatch(event: dict) -> dict:
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
     path = event.get("requestContext", {}).get("http", {}).get("path", "")
 
@@ -42,13 +52,22 @@ def lambda_handler(event, context):
     if method == "OPTIONS":
         return ok({"ok": True})
 
-    # Stripe webhook — no JWT auth, uses Stripe signature
+    # Stripe webhook — no JWT auth, uses Stripe signature (keeps working in maintenance mode)
     if method == "POST" and path == "/api/webhooks/stripe":
         return billing.handle_webhook(event)
 
-    # Admin routes — use separate auth (Secrets Manager JWT)
+    # Admin routes — use separate auth (Secrets Manager JWT); never blocked by maintenance mode
     if path.startswith("/api/admin/"):
         return _admin_route(method, path, event)
+
+    # Public, no auth: the switches and limits the site shows before sign-in (landing page, sign-up form)
+    if method == "GET" and path == "/api/public-config":
+        site = config.get_site_config()
+        return ok({k: site[k] for k in ("maintenanceMode", "signupsEnabled", "planLimits")})
+
+    # Maintenance mode (admin site, Feature Toggles): every user route answers 503 until it is turned off
+    if config.get_site_config()["maintenanceMode"]:
+        return unavailable(MAINTENANCE_MESSAGE)
 
     # All other routes require JWT auth
     user_id = get_user_id(event)

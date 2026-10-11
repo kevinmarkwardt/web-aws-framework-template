@@ -27,6 +27,39 @@ os.environ["AWS_SECURITY_TOKEN"] = "testing"
 os.environ["AWS_SESSION_TOKEN"] = "testing"
 os.environ["SES_FROM_EMAIL"] = "test@yourapp.com"
 os.environ["FRONTEND_URL"] = "https://yourapp.com"
+os.environ["STAGE"] = "prod"
+os.environ.pop("ORIGIN_VERIFY", None)  # no CloudFront in tests: tests/test_origin_verify.py sets it where needed
+os.environ.pop("TEST_LOGIN", None)
+
+
+def _both(name: str):
+    """A lib/routes module under both names it can be imported as: tests import api.lib.x, while api/handler.py (which
+    puts api/ on sys.path, as Lambda does) imports lib.x. They are separate module objects with separate state."""
+    import importlib
+
+    mods = [importlib.import_module(f"api.{name}")]
+    if name in sys.modules:
+        mods.append(sys.modules[name])
+    return mods
+
+
+def _reset_module_state():
+    for m in _both("lib.db"):
+        m._table = None
+    for m in _both("lib.config"):
+        m._cache = None
+    for m in _both("lib.admin_auth"):
+        m._secret_cache = None
+    for m in _both("routes.billing"):
+        m.invalidate_caches()
+
+
+@pytest.fixture(autouse=True)
+def fresh_module_state():
+    """Module-level caches (DynamoDB table handle, site config, secrets) start empty in every test."""
+    _reset_module_state()
+    yield
+    _reset_module_state()
 
 
 @pytest.fixture
@@ -66,13 +99,12 @@ def dynamodb_table(aws_credentials):
         )
         table.meta.client.get_waiter("table_exists").wait(TableName="yourapp-test")
 
-        # Reset the db module's cached table reference so it picks up the mock
-        import api.lib.db as db_module
-        db_module._table = None
+        # Reset the cached table references so they pick up the mock
+        _reset_module_state()
 
         yield table
 
-        db_module._table = None
+        _reset_module_state()
 
 
 @pytest.fixture

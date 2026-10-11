@@ -12,8 +12,18 @@ export interface User {
   name: string;
   plan: Plan;
   itemCount: number;
+  /** This user's plan limit; null = unlimited. From the admin config (api/lib/config.py), never hardcoded here. */
+  itemLimit: number | null;
+  /** Every plan's item limit (null = unlimited), for the plan picker. */
+  planLimits: Record<Plan, number | null>;
   createdAt?: string;
   settings: UserSettings;
+}
+
+export interface PublicConfig {
+  maintenanceMode: boolean;
+  signupsEnabled: boolean;
+  planLimits: Record<Plan, number | null>;
 }
 
 export interface Item {

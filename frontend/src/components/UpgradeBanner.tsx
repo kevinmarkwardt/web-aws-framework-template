@@ -1,21 +1,22 @@
 import { useState } from 'react';
-import type { Plan } from '../types';
+import type { User } from '../types';
 import { createCheckoutSession } from '../api';
+import { atLimit, itemsLabel } from '../plans';
 
 interface UpgradeBannerProps {
-  plan: Plan;
-  itemCount: number;
+  user: User;
+  /** The live count on the page (the account's itemCount is only as fresh as the last account load). */
+  itemCount?: number;
 }
 
-export default function UpgradeBanner({ plan, itemCount }: UpgradeBannerProps) {
+/** Shown once a free or starter user reaches their plan's item limit (limits come from GET /api/account). */
+export default function UpgradeBanner({ user, itemCount = user.itemCount }: UpgradeBannerProps) {
   const [loading, setLoading] = useState(false);
-  const limit = plan === 'free' ? 5 : plan === 'starter' ? 50 : Infinity;
-  const atLimit = itemCount >= limit;
+  if (user.plan === 'pro' || !atLimit(itemCount, user.itemLimit)) return null;
 
-  if (!atLimit || plan === 'pro') return null;
-
-  const targetPlan = plan === 'free' ? 'starter' : 'pro';
-  const targetLimit = targetPlan === 'starter' ? '50' : 'unlimited';
+  const targetPlan = user.plan === 'free' ? 'starter' : 'pro';
+  const targetName = targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1);
+  const targetLimit = user.planLimits?.[targetPlan] ?? null;
 
   const handleUpgrade = async () => {
     setLoading(true);
@@ -31,11 +32,10 @@ export default function UpgradeBanner({ plan, itemCount }: UpgradeBannerProps) {
     <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
         <p className="text-sm font-medium text-indigo-900">
-          You've reached your {limit}-item limit
+          You've reached your plan's limit of {itemsLabel(user.itemLimit).toLowerCase()}
         </p>
         <p className="text-sm text-indigo-700 mt-0.5">
-          Upgrade to {targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1)} for up to{' '}
-          {targetLimit} items.
+          Upgrade to {targetName} for {targetLimit === null ? 'unlimited items' : `up to ${itemsLabel(targetLimit)}`}.
         </p>
       </div>
       <button
@@ -52,7 +52,7 @@ export default function UpgradeBanner({ plan, itemCount }: UpgradeBannerProps) {
             Redirecting...
           </span>
         ) : (
-          `Upgrade to ${targetPlan.charAt(0).toUpperCase() + targetPlan.slice(1)}`
+          `Upgrade to ${targetName}`
         )}
       </button>
     </div>

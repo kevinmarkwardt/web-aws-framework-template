@@ -40,14 +40,14 @@ export interface SiteConfig {
   signupsEnabled: boolean;
   jobsEnabled: boolean;
   alertsEnabled: boolean;
-  planLimits: { free: number; starter: number; pro: number };
+  /** Max items per plan; null = unlimited (api/lib/config.py) */
+  planLimits: { free: number | null; starter: number | null; pro: number | null };
   jobSettings: {
     dailyJobHourUtc: number;
     hourlyJobEnabled: boolean;
     rateLimitDelayMs: number;
   };
   emailTemplates: Record<string, string>;
-  pricingDisplay: Record<string, { name: string; price: number; features: string[] }>;
 }
 
 export interface StripeConfig {

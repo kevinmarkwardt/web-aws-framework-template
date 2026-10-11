@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../auth';
+import { fetchPublicConfig } from '../../api';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -10,6 +11,11 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  // the admin site's "Signups Enabled" switch (the API also refuses new profiles while it is off)
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    fetchPublicConfig().then((c) => setClosed(!c.signupsEnabled)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +61,11 @@ export default function SignupPage() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-sm sm:rounded-xl sm:px-10 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {closed && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg p-3">
+                New sign-ups are closed right now. Please check back later.
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
                 {error}
@@ -115,7 +126,7 @@ export default function SignupPage() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || closed}
               className="w-full flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Creating account...' : 'Create account'}

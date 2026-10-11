@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, useContext, createContext, lazy, Suspense } from 'react';
-import { getUser } from './auth';
+import { useState, useEffect, useContext, lazy, Suspense } from 'react';
+import { getUser, logout } from './auth';
+import { AuthContext } from './auth-context';
 import type { User } from './types';
-import { fetchAccount } from './api';
+import { ApiError, fetchAccount } from './api';
 import { hasAdminToken } from './admin-api';
 
 import LandingPage from './pages/LandingPage';
@@ -28,20 +29,23 @@ const AdminPlanLimits = lazy(() => import('./pages/admin/config/PlanLimitsPage')
 const AdminJobSettings = lazy(() => import('./pages/admin/config/JobSettingsPage'));
 const AdminEmailTemplates = lazy(() => import('./pages/admin/config/EmailTemplatesPage'));
 
-interface AuthContextValue {
-  user: User | null;
-  loading: boolean;
-  refresh: () => Promise<void>;
+function NoticePage({ message }: { message: string }) {
+  const signOut = async () => {
+    await logout().catch(() => {});
+    window.location.assign('/');
+  };
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
+      <p className="text-lg text-gray-900">{message}</p>
+      <button onClick={signOut} className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+        Sign out
+      </button>
+    </div>
+  );
 }
 
-export const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  loading: true,
-  refresh: async () => {},
-});
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, notice } = useContext(AuthContext);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -49,6 +53,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  if (!user && notice) return <NoticePage message={notice} />;
   if (!user) return <Navigate to="/login" />;
   return <>{children}</>;
 }
@@ -86,30 +91,38 @@ function AdminApp() {
   );
 }
 
+/** The signed-in account, or why there is none to show (maintenance mode, sign-ups closed). */
+async function loadAccount(): Promise<{ account: User | null; notice: string | null }> {
+  try {
+    return { account: (await getUser()) ? await fetchAccount() : null, notice: null };
+  } catch (e) {
+    // say so instead of bouncing back to the login page
+    const shown = e instanceof ApiError && (e.code === 'MAINTENANCE' || e.code === 'SIGNUPS_CLOSED');
+    return { account: null, notice: shown ? e.message : null };
+  }
+}
+
 function UserApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = async () => {
-    try {
-      const cognitoUser = await getUser();
-      if (cognitoUser) {
-        const account = await fetchAccount();
-        setUser(account);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    }
+    const r = await loadAccount();
+    setUser(r.account);
+    setNotice(r.notice);
   };
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
+    loadAccount().then((r) => {
+      setUser(r.account);
+      setNotice(r.notice);
+      setLoading(false);
+    });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, refresh }}>
+    <AuthContext.Provider value={{ user, loading, notice, refresh }}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />

@@ -6,14 +6,12 @@ This is the generic CRUD template. Rename 'items' to your domain entity
 
 from __future__ import annotations
 
-import json
-
 import ulid
 
 try:
-    from lib import db, response
+    from lib import config, db, params, response
 except ImportError:
-    from api.lib import db, response
+    from api.lib import config, db, params, response
 
 
 def list_items(user_id: str, event: dict) -> dict:
@@ -29,21 +27,22 @@ def create_item(user_id: str, event: dict) -> dict:
         return response.error("User not found", 404)
 
     plan = user.get("plan", "free")
-    current_count = user.get("itemCount", 0)
-    limit = db.ITEM_LIMITS.get(plan, 10)
+    current_count = int(user.get("itemCount", 0))
+    limit = config.plan_limit(plan)  # admin-editable (CONFIG | GLOBAL planLimits); None = unlimited
 
-    body = json.loads(event.get("body", "{}"))
-    name = body.get("name", "").strip()
-    status = body.get("status", "ACTIVE").strip()
+    body = params.body(event)
+    name = params.text(body, "name").strip()
+    status = params.text(body, "status", "ACTIVE").strip() or "ACTIVE"
 
     if not name:
         return response.error("name is required", 400)
 
-    if current_count >= limit:
+    if limit is not None and current_count >= limit:
         return response.error(
-            f"Plan limit reached. {plan.title()} plan allows {int(limit)} items. "
+            f"Plan limit reached. {plan.title()} plan allows {limit} items. "
             f"You have {current_count}.",
             403,
+            "PLAN_LIMIT",
         )
 
     item_id = str(ulid.ULID())
@@ -58,12 +57,16 @@ def update_item(user_id: str, item_id: str, event: dict) -> dict:
     if not existing:
         return response.not_found("Item not found")
 
-    body = json.loads(event.get("body", "{}"))
+    body = params.body(event)
     updates = {}
     if "name" in body:
-        updates["name"] = body["name"].strip()
+        updates["name"] = params.text(body, "name").strip()
+        if not updates["name"]:
+            return response.error("name cannot be empty", 400)
     if "status" in body:
-        updates["status"] = body["status"].strip()
+        updates["status"] = params.text(body, "status").strip()
+    if not updates:
+        return response.ok(existing)
 
     updated = db.update_item(user_id, item_id, updates)
     return response.ok(updated)

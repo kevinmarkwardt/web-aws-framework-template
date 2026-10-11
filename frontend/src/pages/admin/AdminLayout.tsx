@@ -56,7 +56,7 @@ export default function AdminLayout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    end={'end' in item ? (item as any).end : undefined}
+                    end={'end' in item ? Boolean(item.end) : undefined}
                     className={({ isActive }) =>
                       `block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                         isActive

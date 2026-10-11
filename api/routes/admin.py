@@ -16,7 +16,8 @@ try:
         delete_item, update_item, increment_item_count,
         get_config as db_get_config, put_config as db_put_config,
     )
-    from lib.response import ok, error, unauthorized, not_found, forbidden
+    from lib import config, params
+    from lib.response import ok, error, unauthorized, not_found
     from routes import billing
 except ImportError:
     from api.lib.admin_auth import verify_admin_login, verify_admin_token
@@ -26,34 +27,21 @@ except ImportError:
         delete_item, update_item, increment_item_count,
         get_config as db_get_config, put_config as db_put_config,
     )
-    from api.lib.response import ok, error, unauthorized, not_found, forbidden
+    from api.lib import config, params
+    from api.lib.response import ok, error, unauthorized, not_found
     from api.routes import billing
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 
+STAGE = os.environ.get("STAGE", "prod")
+TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+API_FUNCTION = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "yourapp-api")  # set by Lambda itself
+DAILY_JOB_FUNCTION = os.environ.get("DAILY_JOB_FUNCTION", "yourapp-daily-job")  # set by the CDK stack per stage
+
+
 def _parse_body(event: dict) -> dict:
-    import base64 as b64
-
-    body = event.get("body", "{}")
-    is_b64 = event.get("isBase64Encoded", False)
-
-    if is_b64 and isinstance(body, str):
-        body = b64.b64decode(body).decode("utf-8")
-
-    if isinstance(body, str):
-        try:
-            return json.loads(body)
-        except json.JSONDecodeError:
-            # Function URL may base64-encode without setting isBase64Encoded
-            # (e.g. when CloudFront strips Content-Type). Try b64 as fallback.
-            try:
-                body = b64.b64decode(body).decode("utf-8")
-                return json.loads(body)
-            except Exception:
-                pass
-            raise
-    return body if isinstance(body, dict) else {}
+    return params.body(event)
 
 
 def _require_admin(event: dict):
@@ -227,9 +215,7 @@ def get_health(event: dict) -> dict:
     now = datetime.now(timezone.utc)
     start = now - timedelta(hours=24)
 
-    functions = [
-        "yourapp-api", "yourapp-daily-job",
-    ]
+    functions = [API_FUNCTION, DAILY_JOB_FUNCTION]
     lambda_stats = {}
     for fn in functions:
         queries = [
@@ -253,7 +239,7 @@ def get_health(event: dict) -> dict:
             lambda_stats[fn] = {"invocations": 0, "errors": 0, "avgDurationMs": 0}
 
     try:
-        table_desc = ddb.describe_table(TableName="yourapp")["Table"]
+        table_desc = ddb.describe_table(TableName=TABLE_NAME)["Table"]
         ddb_stats = {
             "itemCount": table_desc.get("ItemCount", 0),
             "tableSizeBytes": table_desc.get("TableSizeBytes", 0),
@@ -291,7 +277,7 @@ def trigger_daily_job(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="yourapp-daily-job",
+        FunctionName=DAILY_JOB_FUNCTION,
         InvocationType="Event",
         Payload="{}",
     )
@@ -304,7 +290,7 @@ def trigger_digest(event: dict) -> dict:
         return auth_err
     client = boto3.client("lambda", region_name=REGION)
     client.invoke(
-        FunctionName="yourapp-daily-job",
+        FunctionName=DAILY_JOB_FUNCTION,
         InvocationType="Event",
         Payload="{}",
     )
@@ -313,44 +299,25 @@ def trigger_digest(event: dict) -> dict:
 
 # --- Site Config ---
 
-CONFIG_PK = "CONFIG"
-CONFIG_SK = "GLOBAL"
-
-DEFAULT_CONFIG = {
-    "maintenanceMode": False,
-    "signupsEnabled": True,
-    "planLimits": {"free": 10, "starter": 100, "pro": 999999},
-}
-
-
 def get_config(event: dict) -> dict:
+    """The effective site config: defaults merged with the stored CONFIG | GLOBAL record (lib/config.py)."""
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
-    table = _get_table()
-    resp = table.get_item(Key={"pk": CONFIG_PK, "sk": CONFIG_SK})
-    config = resp.get("Item")
-    if not config:
-        return ok(DEFAULT_CONFIG)
-    config.pop("pk", None)
-    config.pop("sk", None)
-    return ok(config)
+    return ok(config.get_site_config(fresh=True))
 
 
 def update_config(event: dict) -> dict:
+    """Merges the sections sent into the stored config (a page that saves one section keeps the others)."""
     auth_err = _require_admin(event)
     if auth_err:
         return auth_err
-    body = _parse_body(event)
-    table = _get_table()
-    item = {"pk": CONFIG_PK, "sk": CONFIG_SK, **body}
-    table.put_item(Item=item)
-    return ok({"updated": True})
+    return ok({"updated": True, "config": config.save_site_config(_parse_body(event))})
 
 
 # --- Stripe Config ---
 
-STRIPE_SECRET_NAME = "yourapp/stripe"
+STRIPE_SECRET_NAME = os.environ.get("STRIPE_SECRET_NAME", f"yourapp/{STAGE}/stripe")
 
 
 def _mask_secret(value: str) -> str:

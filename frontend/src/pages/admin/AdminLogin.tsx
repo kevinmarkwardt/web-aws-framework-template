@@ -19,8 +19,8 @@ export default function AdminLogin({ onLogin }: Props) {
     try {
       await adminLogin(email, password);
       onLogin();
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err) {
+      setError((err as Error).message || 'Login failed');
     } finally {
       setLoading(false);
     }

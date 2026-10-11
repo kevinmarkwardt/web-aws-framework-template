@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { fetchPublicConfig } from '../api';
+import { itemsLabel } from '../plans';
+import type { Plan } from '../types';
 
 const features = [
   {
@@ -65,12 +69,12 @@ const features = [
 
 const tiers = [
   {
+    plan: 'free' as const,
     name: 'Free',
     price: '$0',
     period: 'forever',
     description: 'Get started and see if it fits your workflow.',
     features: [
-      '10 monitored items',
       'Daily check frequency',
       'Instant status change alerts',
       'Weekly digest',
@@ -82,12 +86,12 @@ const tiers = [
     highlighted: false,
   },
   {
+    plan: 'starter' as const,
     name: 'Starter',
     price: '$9',
     period: '/month',
     description: 'For individuals managing an active workload.',
     features: [
-      '100 monitored items',
       'Daily check frequency',
       'Instant status change alerts',
       'Weekly digest',
@@ -99,12 +103,12 @@ const tiers = [
     highlighted: true,
   },
   {
+    plan: 'pro' as const,
     name: 'Pro',
     price: '$19',
     period: '/month',
     description: 'For teams and power users who need full visibility.',
     features: [
-      'Unlimited monitored items',
       'Hourly check frequency',
       'Instant status change alerts',
       'Weekly digest',
@@ -120,6 +124,12 @@ const tiers = [
 ];
 
 export default function LandingPage() {
+  // Item limits are admin-editable (api/lib/config.py): shown when the API answers, left out otherwise
+  const [limits, setLimits] = useState<Record<Plan, number | null> | null>(null);
+  useEffect(() => {
+    fetchPublicConfig().then((c) => setLimits(c.planLimits)).catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
@@ -278,7 +288,7 @@ export default function LandingPage() {
                   {tier.cta}
                 </Link>
                 <ul className="mt-8 space-y-3 flex-1">
-                  {tier.features.map((f) => (
+                  {[...(limits ? [itemsLabel(limits[tier.plan])] : []), ...tier.features].map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
                       <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />

@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { AuthContext } from '../../auth-context';
 import { fetchItems, createItem, deleteItem } from '../../api';
 import type { Item, CreateItemRequest } from '../../types';
 import ItemsTable from '../../components/ItemsTable';
 import AddItemForm from '../../components/AddItemForm';
+import UpgradeBanner from '../../components/UpgradeBanner';
 
 export default function ItemsPage() {
+  const { user } = useContext(AuthContext);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,6 +57,7 @@ export default function ItemsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Items</h1>
           <p className="text-sm text-gray-500 mt-1">
             {items.length} item{items.length !== 1 ? 's' : ''}
+            {user && user.itemLimit !== null && ` of ${user.itemLimit} on your plan`}
           </p>
         </div>
         <button
@@ -63,6 +67,8 @@ export default function ItemsPage() {
           + Add Item
         </button>
       </div>
+
+      {user && <UpgradeBanner user={user} itemCount={items.length} />}
 
       {error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>

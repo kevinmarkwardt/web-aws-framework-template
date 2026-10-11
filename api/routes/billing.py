@@ -11,15 +11,16 @@ import boto3
 import stripe
 
 try:
-    from lib import db, response
+    from lib import config, db, params, response
 except ImportError:
-    from api.lib import db, response
+    from api.lib import config, db, params, response
 
 logger = logging.getLogger(__name__)
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://yourapp.com")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
-STRIPE_SECRET_NAME = "yourapp/stripe"
+STAGE = os.environ.get("STAGE", "prod")
+STRIPE_SECRET_NAME = os.environ.get("STRIPE_SECRET_NAME", f"yourapp/{STAGE}/stripe")
 
 _PLAN_RANK = {"free": 0, "starter": 1, "pro": 2}
 
@@ -56,20 +57,18 @@ def _get_price_ids() -> dict:
     now = time.time()
     if _prices_cache and (now - _prices_ts) < _CACHE_TTL:
         return _prices_cache
-    config = db.get_config("STRIPE") or {}
+    stripe_cfg = db.get_config("STRIPE") or {}
     _prices_cache = {
-        "starter": config.get("starterPriceId", ""),
-        "pro": config.get("proPriceId", ""),
+        "starter": stripe_cfg.get("starterPriceId", ""),
+        "pro": stripe_cfg.get("proPriceId", ""),
     }
     _prices_ts = now
     return _prices_cache
 
 
 def _ensure_stripe_key():
-    """Set stripe.api_key lazily from Secrets Manager."""
-    if not stripe.api_key:
-        secrets = _get_stripe_secrets()
-        stripe.api_key = secrets.get("secretKey", "")
+    """Set stripe.api_key from Secrets Manager (cached 5 min), so a key changed on the admin site takes effect."""
+    stripe.api_key = _get_stripe_secrets().get("secretKey", "")
 
 
 def invalidate_caches():
@@ -87,8 +86,8 @@ def create_checkout(user_id: str, event: dict) -> dict:
     _ensure_stripe_key()
     price_ids = _get_price_ids()
 
-    body = json.loads(event.get("body", "{}"))
-    plan = body.get("plan", "").lower()
+    body = params.body(event)
+    plan = params.text(body, "plan").lower()
     if plan not in price_ids:
         return response.error("Invalid plan. Must be 'starter' or 'pro'.")
 
@@ -176,8 +175,8 @@ def change_plan(user_id: str, event: dict) -> dict:
     """Change subscription plan (upgrade or downgrade between paid tiers)."""
     _ensure_stripe_key()
 
-    body = json.loads(event.get("body", "{}"))
-    plan = body.get("plan", "").lower()
+    body = params.body(event)
+    plan = params.text(body, "plan").lower()
     if plan not in ("free", "starter", "pro"):
         return response.error("Invalid plan. Must be 'free', 'starter', or 'pro'.")
 
@@ -220,12 +219,12 @@ def change_plan(user_id: str, event: dict) -> dict:
     target_rank = _PLAN_RANK[plan]
     current_rank = _PLAN_RANK.get(current, 0)
     if target_rank < current_rank:
-        limit = db.ITEM_LIMITS[plan]
-        item_count = user.get("itemCount", 0)
-        if item_count > limit:
+        limit = config.plan_limit(plan)
+        item_count = int(user.get("itemCount", 0))
+        if limit is not None and item_count > limit:
             return response.error(
-                f"You have {item_count} items but {plan} allows {int(limit)}. "
-                f"Remove {item_count - int(limit)} items to downgrade.",
+                f"You have {item_count} items but {plan} allows {limit}. "
+                f"Remove {item_count - limit} items to downgrade.",
                 409,
             )
 
@@ -276,12 +275,12 @@ def cancel_plan(user_id: str, event: dict, user: dict = None) -> dict:
         return response.error("Already on free plan.")
 
     # Block if item count exceeds free limit
-    limit = db.ITEM_LIMITS["free"]
-    item_count = user.get("itemCount", 0)
-    if item_count > limit:
+    limit = config.plan_limit("free")
+    item_count = int(user.get("itemCount", 0))
+    if limit is not None and item_count > limit:
         return response.error(
-            f"You have {item_count} items but free allows {int(limit)}. "
-            f"Delete {item_count - int(limit)} items to cancel.",
+            f"You have {item_count} items but free allows {limit}. "
+            f"Delete {item_count - limit} items to cancel.",
             409,
         )
 
