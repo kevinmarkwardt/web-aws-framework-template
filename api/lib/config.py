@@ -64,6 +64,15 @@ BILLING: dict = {
 # Trust and safety (api/lib/accounts.py): warnings expire, the Nth active one bans read-only for banDays.
 ACCOUNT_RULES: dict = {"warningDays": 90, "warningsToBan": 3, "banDays": 365}
 
+# Support requests (api/routes/support.py; spec modules.support). Topic id -> label, in the order the form shows them.
+# Each request and follow-up emails ADMIN_EMAIL; the limits keep that (and the 400 KB DynamoDB item) in check.
+SUPPORT: dict = {
+    "topics": {"billing": "Billing or payments", "account": "My account", "bug": "Something isn't working",
+               "other": "Something else"},
+    "maxOpen": 3,            # open requests per customer
+    "followUpsPerDay": 10,   # a customer's follow-ups on one request per UTC day
+}
+
 PLANS = ("free", *(p["id"] for p in PAID_PLANS))
 # Max items per plan; None = unlimited.
 DEFAULT_PLAN_LIMITS: dict[str, int | None] = {p["id"]: p["limits"].get("items") for p in (FREE_PLAN, *PAID_PLANS)}

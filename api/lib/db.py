@@ -1,7 +1,15 @@
-"""DynamoDB helpers for single-table design."""
+"""DynamoDB helpers for single-table design.
+
+Listing an entity type across all users (the admin site's Users and Items tabs) never scans the table: records that can
+be listed carry `listPk` (their type: "USER", "ITEM", ...) and `createdAt`, the keys of the KEYS_ONLY GSI `list-index`.
+`list_page` reads one page newest first and fetches the records themselves in one batch. Only creation writes the
+index (later updates to a profile or item never touch it). Give your own entity's records a listPk to list them too.
+"""
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 from datetime import datetime, timezone
 
@@ -11,6 +19,7 @@ from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
 TABLE_NAME = os.environ.get("TABLE_NAME", "yourapp")
+LIST_INDEX = "list-index"  # partition listPk (the record type), sort createdAt; KEYS_ONLY (cdk stack)
 
 _table = None
 _client = None
@@ -135,6 +144,7 @@ def create_user(user_id: str, email: str, name: str = "") -> dict:
         "plan": "free",
         "itemCount": 0,
         "createdAt": now,
+        "listPk": "USER",  # list-index: the admin Users tab
         "settings": {
             "alertsEnabled": True,
             "digestEnabled": True,
@@ -145,35 +155,6 @@ def create_user(user_id: str, email: str, name: str = "") -> dict:
     # Empty strings are invalid for GSI key attributes.
     table.put_item(Item=item)
     return item
-
-
-def update_user_plan(user_id: str, plan: str, stripe_customer_id: str = None,
-                     stripe_subscription_id: str = None):
-    table = _get_table()
-    expr_parts = ["#plan = :plan"]
-    names = {"#plan": "plan"}
-    values = {":plan": plan}
-    if stripe_customer_id:
-        expr_parts.append("stripeCustomerId = :sci")
-        values[":sci"] = stripe_customer_id
-    if stripe_subscription_id:
-        expr_parts.append("stripeSubscriptionId = :ssi")
-        values[":ssi"] = stripe_subscription_id
-    table.update_item(
-        Key={"pk": f"USER#{user_id}", "sk": "PROFILE"},
-        UpdateExpression="SET " + ", ".join(expr_parts),
-        ExpressionAttributeNames=names,
-        ExpressionAttributeValues=values,
-    )
-
-
-def clear_user_subscription(user_id: str):
-    """Remove stale stripeSubscriptionId from user profile."""
-    table = _get_table()
-    table.update_item(
-        Key={"pk": f"USER#{user_id}", "sk": "PROFILE"},
-        UpdateExpression="REMOVE stripeSubscriptionId",
-    )
 
 
 def update_user_name(user_id: str, name: str):
@@ -232,6 +213,7 @@ def create_item(user_id: str, item_id: str, name: str, status: str = "ACTIVE") -
         "status": status,
         "createdAt": now,
         "updatedAt": now,
+        "listPk": "ITEM",  # list-index: the admin Items tab
     }
     table.put_item(Item=item)
     return item
@@ -281,22 +263,62 @@ def put_config(config_key: str, data: dict):
     table.put_item(Item=item)
 
 
-# --- Scan helpers (for worker Lambdas) ---
+# --- Listing a record type across users (list-index; admin site) ---
 
-def scan_all_items(filter_plan: str = None) -> list[dict]:
-    """Scan all items. Used by worker Lambdas."""
-    table = _get_table()
-    items = []
-    params = {
-        "FilterExpression": Key("sk").begins_with("ITEM#"),
-    }
+class BadCursor(ValueError):
+    """A list cursor that isn't one list_page returned."""
+
+
+def _cursor_out(key: dict | None) -> str | None:
+    return base64.urlsafe_b64encode(json.dumps(key, sort_keys=True).encode()).decode() if key else None
+
+
+def _cursor_in(cursor: str | None) -> dict | None:
+    if not cursor:
+        return None
+    try:
+        key = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+    except (ValueError, TypeError):
+        raise BadCursor("bad cursor") from None
+    if not isinstance(key, dict) or set(key) != {"pk", "sk", "listPk", "createdAt"} or not all(isinstance(v, str) for v in key.values()):
+        raise BadCursor("bad cursor")
+    return key
+
+
+def list_page(kind: str, limit: int = 50, cursor: str | None = None) -> tuple[list[dict], str | None]:
+    """One page of `kind` records (listPk), newest first, and the cursor for the next page (None at the end). A Query on
+    the KEYS_ONLY list-index plus one BatchGetItem for the records: never a table scan."""
+    kwargs = {"IndexName": LIST_INDEX, "KeyConditionExpression": Key("listPk").eq(kind), "ScanIndexForward": False,
+              "Limit": max(1, min(int(limit), 100))}
+    start = _cursor_in(cursor)
+    if start:
+        kwargs["ExclusiveStartKey"] = start
+    resp = _get_table().query(**kwargs)
+    keys = [{"pk": k["pk"], "sk": k["sk"]} for k in resp.get("Items", [])]
+    found = {(r["pk"], r["sk"]): r for r in batch_get(keys)}
+    rows = [found[(k["pk"], k["sk"])] for k in keys if (k["pk"], k["sk"]) in found]
+    return rows, _cursor_out(resp.get("LastEvaluatedKey"))
+
+
+def list_all(kind: str, page: int = 100):
+    """Every `kind` record, newest first, a page at a time (generator). Reads them all: for totals on small sites."""
+    cursor = None
     while True:
-        resp = table.scan(**params)
-        items.extend(resp.get("Items", []))
+        rows, cursor = list_page(kind, page, cursor)
+        yield from rows
+        if not cursor:
+            return
+
+
+def count(kind: str) -> int:
+    """How many `kind` records there are (a COUNT query on list-index; the records themselves aren't read)."""
+    total, kwargs = 0, {"IndexName": LIST_INDEX, "KeyConditionExpression": Key("listPk").eq(kind), "Select": "COUNT"}
+    while True:
+        resp = _get_table().query(**kwargs)
+        total += resp.get("Count", 0)
         if "LastEvaluatedKey" not in resp:
-            break
-        params["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
-    return items
+            return total
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 def get_user_by_stripe_customer(customer_id: str) -> dict | None:
@@ -311,19 +333,3 @@ def get_user_by_stripe_customer(customer_id: str) -> dict | None:
     )
     items = resp.get("Items", [])
     return items[0] if items else None
-
-
-def scan_all_users() -> list[dict]:
-    """Scan all user profiles."""
-    table = _get_table()
-    items = []
-    params = {
-        "FilterExpression": Key("sk").eq("PROFILE"),
-    }
-    while True:
-        resp = table.scan(**params)
-        items.extend(resp.get("Items", []))
-        if "LastEvaluatedKey" not in resp:
-            break
-        params["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
-    return items

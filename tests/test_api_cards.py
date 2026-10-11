@@ -1,5 +1,5 @@
 """Saved cards, auto reload, country gating and local-price hints (adapted from Never Ending Gallery's
-test_api_support_cards.py; support tickets are phase 4)."""
+test_api_support_cards.py; support tickets are in test_api_support.py)."""
 
 import json
 import sys

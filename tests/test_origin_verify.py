@@ -14,8 +14,7 @@ def _event(path, method="GET", headers=None, body=None):
 def test_without_the_cloudfront_secret_every_route_is_refused(dynamodb_table, monkeypatch):
     monkeypatch.setenv("ORIGIN_VERIFY", "s3cret")
     for path, method in (("/api/public-config", "GET"), ("/api/webhooks/stripe", "POST"), ("/api/account", "GET"),
-                         ("/api/admin/overview", "GET"), ("/api/admin/login", "POST"), ("/api/test-login", "POST"),
-                         ("/api/items", "OPTIONS")):
+                         ("/api/support", "POST"), ("/api/test-login", "POST"), ("/api/items", "OPTIONS")):
         assert lambda_handler(_event(path, method), None)["statusCode"] == 403, path
         assert lambda_handler(_event(path, method, {"X-Origin-Verify": "s3cre"}), None)["statusCode"] == 403, path
     ok = lambda_handler(_event("/api/public-config", headers={"x-origin-verify": "s3cret"}), None)  # any header case

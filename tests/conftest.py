@@ -51,8 +51,6 @@ def _reset_module_state():
         m._table = None
     for m in _both("lib.config"):
         m._cache = None
-    for m in _both("lib.admin_auth"):
-        m._secret_cache = None
     for m in _both("lib.stripe_config"):
         m.reset_cache()
         m._http.clear()
@@ -102,12 +100,20 @@ def dynamodb_table(aws_credentials):
                 {"AttributeName": "pk", "AttributeType": "S"},
                 {"AttributeName": "sk", "AttributeType": "S"},
                 {"AttributeName": "stripeCustomerId", "AttributeType": "S"},
+                {"AttributeName": "listPk", "AttributeType": "S"},
+                {"AttributeName": "createdAt", "AttributeType": "S"},
             ],
             GlobalSecondaryIndexes=[
                 {
                     "IndexName": "stripe-customer-index",
                     "KeySchema": [{"AttributeName": "stripeCustomerId", "KeyType": "HASH"}],
                     "Projection": {"ProjectionType": "ALL"},
+                },
+                {
+                    "IndexName": "list-index",
+                    "KeySchema": [{"AttributeName": "listPk", "KeyType": "HASH"},
+                                  {"AttributeName": "createdAt", "KeyType": "RANGE"}],
+                    "Projection": {"ProjectionType": "KEYS_ONLY"},
                 },
             ],
             BillingMode="PAY_PER_REQUEST",
@@ -156,7 +162,8 @@ def sample_pro_user():
 def create_test_user(dynamodb_table):
     """Factory fixture to insert a user into DynamoDB."""
     def _create(user_id="user-123", email="test@example.com", plan="free",
-                item_count=0, stripe_customer_id="", stripe_subscription_id=""):
+                item_count=0, stripe_customer_id="", stripe_subscription_id="", created_at="2026-01-01T00:00:00+00:00",
+                **extra):
         item = {
             "pk": f"USER#{user_id}",
             "sk": "PROFILE",
@@ -164,7 +171,9 @@ def create_test_user(dynamodb_table):
             "email": email,
             "plan": plan,
             "itemCount": item_count,
-            "createdAt": "2026-01-01T00:00:00+00:00",
+            "createdAt": created_at,
+            "listPk": "USER",
+            **extra,
             "settings": {
                 "alertsEnabled": True,
                 "digestEnabled": True,
@@ -194,6 +203,7 @@ def create_test_item(dynamodb_table):
             "name": name,
             "status": status,
             "createdAt": "2026-01-01T00:00:00+00:00",
+            "listPk": "ITEM",
         })
         return item_id
     return _create
@@ -281,3 +291,37 @@ def billing_cfg(monkeypatch):
 def billing_mode(monkeypatch):
     """set("credits") etc.: BILLING_MODE for this test."""
     return lambda mode: monkeypatch.setenv("BILLING_MODE", mode)
+
+
+# ---- admin API (api/admin_handler.py)
+
+@pytest.fixture
+def admin_who(dynamodb_table, monkeypatch):
+    """Requests through api.admin_handler as an admin. state["uid"] is the caller (None: no token), state["groups"] the
+    token's cognito:groups, state["live"] the groups Cognito answers live. The admin profile (isAdmin) exists."""
+    import api.admin_handler as admin_handler
+
+    state = {"uid": "admin1", "groups": ["admins"], "live": {"admins"}}
+
+    def claims(event):
+        if not state["uid"]:
+            return {}
+        return {"sub": state["uid"], "cognito:username": state["uid"], "cognito:groups": list(state["groups"]),
+                "email": f"{state['uid']}@example.com", "token_use": "id"}
+    monkeypatch.setattr(admin_handler, "get_token_claims", claims)
+    for m in _both("lib.admins"):
+        monkeypatch.setattr(m, "cognito_groups", lambda username: set(state["live"]))
+    dynamodb_table.put_item(Item={"pk": "USER#admin1", "sk": "PROFILE", "userId": "admin1", "email": "admin1@example.com",
+                                  "isAdmin": True, "listPk": "USER", "createdAt": "2025-06-01T00:00:00+00:00"})
+    return state
+
+
+def admin_call(path, method="GET", body=None, status=200, qs=None, headers=None):
+    """A request through api.admin_handler; asserts the status and returns the JSON body."""
+    import api.admin_handler as admin_handler
+
+    event = {"requestContext": {"http": {"method": method, "path": path}}, "headers": headers or {},
+             "queryStringParameters": qs, "body": json.dumps(body) if body is not None else None}
+    resp = admin_handler.lambda_handler(event, None)
+    assert resp["statusCode"] == status, resp
+    return json.loads(resp["body"])

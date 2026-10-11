@@ -9,8 +9,8 @@ import pytest
 
 import api.handler as handler
 from api.lib import config
-from api.routes import account, admin, items, billing, webhooks
-from tests.conftest import make_api_event
+from api.routes import account, items, billing, webhooks
+from tests.conftest import admin_call, make_api_event
 
 
 def _call(method, path, body=None):
@@ -28,10 +28,9 @@ def signed_in(monkeypatch):
 
 
 @pytest.fixture
-def as_admin(monkeypatch):
-    for mod in (admin, sys.modules.get("routes.admin")):
-        if mod:
-            monkeypatch.setattr(mod, "verify_admin_token", lambda event: True)
+def as_admin(admin_who):
+    """Admin requests go to the admin Lambda (api/admin_handler.py) as an admin (tests/conftest.py admin_who)."""
+    return admin_who
 
 
 def _store(dynamodb_table, **cfg):
@@ -47,7 +46,7 @@ class TestDefaults:
         assert cfg["emailTemplates"]  # the admin Email Templates page lists these
 
     def test_admin_get_returns_defaults_without_a_record(self, dynamodb_table, as_admin):
-        body = _json(_call("GET", "/api/admin/config"))
+        body = admin_call("/api/admin/config")
         assert body["planLimits"]["free"] == 10 and "emailTemplates" in body and "jobSettings" in body
 
     def test_old_record_missing_keys_is_filled_in(self, dynamodb_table):
@@ -63,9 +62,9 @@ class TestDefaults:
 
 class TestAdminSave:
     def test_saving_one_section_keeps_the_others(self, dynamodb_table, as_admin):
-        assert _call("PUT", "/api/admin/config", {"signupsEnabled": False})["statusCode"] == 200
-        assert _call("PUT", "/api/admin/config", {"planLimits": {"free": 3}})["statusCode"] == 200
-        cfg = _json(_call("GET", "/api/admin/config"))
+        admin_call("/api/admin/config", "PUT", {"signupsEnabled": False})
+        admin_call("/api/admin/config", "PUT", {"planLimits": {"free": 3}})
+        cfg = admin_call("/api/admin/config")
         assert cfg["signupsEnabled"] is False
         assert cfg["planLimits"] == {"free": 3, "starter": 100, "pro": None}
 
@@ -78,11 +77,10 @@ class TestAdminSave:
         {"somethingElse": 1},
     ])
     def test_bad_values_are_a_400(self, dynamodb_table, as_admin, body):
-        resp = _call("PUT", "/api/admin/config", body)
-        assert resp["statusCode"] == 400, body
+        admin_call("/api/admin/config", "PUT", body, status=400)
 
     def test_unlimited_is_null(self, dynamodb_table, as_admin):
-        _call("PUT", "/api/admin/config", {"planLimits": {"starter": None}})
+        admin_call("/api/admin/config", "PUT", {"planLimits": {"starter": None}})
         assert config.plan_limit("starter") is None
 
 
@@ -131,7 +129,7 @@ class TestMaintenanceMode:
 
     def test_admin_public_config_and_webhooks_keep_working(self, dynamodb_table, as_admin, monkeypatch):
         _store(dynamodb_table, maintenanceMode=True)
-        assert _call("GET", "/api/admin/config")["statusCode"] == 200
+        admin_call("/api/admin/config")  # the admin Lambda never applies maintenance mode
         assert _json(_call("GET", "/api/public-config"))["maintenanceMode"] is True
         for mod in (webhooks, sys.modules.get("routes.webhooks")):
             if mod:
@@ -166,21 +164,3 @@ class TestBadInput:
         assert _call("POST", "/api/items", "{not json")["statusCode"] == 400
         assert _call("POST", "/api/items", "[1, 2]")["statusCode"] == 400
         assert _call("POST", "/api/items", {"name": 5})["statusCode"] == 400
-
-
-class TestAdminSecretCache:
-    def test_secret_is_read_once_per_five_minutes(self, monkeypatch):
-        from api.lib import admin_auth
-
-        calls = []
-
-        class FakeSM:
-            def get_secret_value(self, SecretId):
-                calls.append(SecretId)
-                return {"SecretString": json.dumps({"email": "a@b.c", "passwordHash": "x", "jwtSecret": "k" * 32})}
-
-        monkeypatch.setattr(admin_auth.boto3, "client", lambda *a, **kw: FakeSM())
-        event = {"headers": {"authorization": "Bearer nope"}}
-        assert admin_auth.verify_admin_token(event) is False
-        assert admin_auth.verify_admin_token(event) is False
-        assert calls == ["yourapp/prod/admin-credentials"]

@@ -46,9 +46,15 @@ def test_username_login_creates_an_account(test_stage):
     assert items["statusCode"] == 200
 
 
-def test_test_tokens_are_not_admin_tokens(test_stage):
+def test_test_tokens_are_not_admin_tokens(test_stage, monkeypatch):
+    import api.admin_handler as admin_handler
+
     token = json.loads(_login("admin")["body"])["token"]
-    assert handler.lambda_handler(_event("/api/admin/users", token=token), None)["statusCode"] == 401
+    assert handler.lambda_handler(_event("/api/admin/users", token=token), None)["statusCode"] == 404  # user API: no admin
+    test_stage.update_item(Key={"pk": "USER#t-admin", "sk": "PROFILE"}, UpdateExpression="SET isAdmin = :t",
+                           ExpressionAttributeValues={":t": True})
+    # even with the flag set and test login on in the same process (the local API), a test token is never an admin
+    assert admin_handler.lambda_handler(_event("/api/admin/users", token=token), None)["statusCode"] == 403
 
 
 def test_bad_usernames_and_forged_tokens(test_stage):

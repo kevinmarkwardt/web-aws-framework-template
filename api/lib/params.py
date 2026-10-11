@@ -6,9 +6,11 @@ The helpers raise BadRequest; handler.py turns it into a 400 with the message, s
 from __future__ import annotations
 
 import base64
+import datetime as dt
 import hmac
 import json
 import os
+import re
 
 
 class BadRequest(Exception):
@@ -54,3 +56,37 @@ def from_cloudfront(event: dict | None) -> bool:
     No ORIGIN_VERIFY (local API, tests): every request passes."""
     secret = os.environ.get("ORIGIN_VERIFY", "")
     return not secret or hmac.compare_digest(header(event, "x-origin-verify").encode(), secret.encode())
+
+
+def method_path(event: dict) -> tuple[str, str]:
+    """(method, path) of a Function URL event, or of an API Gateway v1 event."""
+    http = (event.get("requestContext") or {}).get("http") or {}
+    return http.get("method") or event.get("httpMethod", ""), http.get("path") or event.get("path", "")
+
+
+def query(event: dict, name: str, default: str = "") -> str:
+    """A query string parameter ("" or default when absent)."""
+    value = (event.get("queryStringParameters") or {}).get(name)
+    return default if value in (None, "") else str(value)
+
+
+def query_int(event: dict, name: str, default: int, lo: int, hi: int) -> int:
+    """A whole-number query parameter between lo and hi (default when absent; anything else -> BadRequest)."""
+    raw = query(event, name)
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise BadRequest(f"{name} must be a whole number") from None
+    if not lo <= value <= hi:
+        raise BadRequest(f"{name} must be between {lo} and {hi}")
+    return value
+
+
+def day(event: dict, name: str = "day") -> str:
+    """A UTC day YYYY-MM-DD from the query string; today (UTC) when absent. The logs and payments are filed by UTC day."""
+    value = query(event, name) or dt.datetime.now(dt.timezone.utc).date().isoformat()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise BadRequest(f"{name} must be a date like 2026-10-11")
+    return value

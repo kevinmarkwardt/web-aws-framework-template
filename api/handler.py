@@ -1,7 +1,8 @@
-"""YourApp API Handler — Lambda entry point.
+"""YourApp API Handler — the user API Lambda's entry point.
 
-Single Lambda handling all HTTP routes via Function URL.
-Routes requests based on method + path to route modules.
+Handles the site's /api/* routes via its Function URL (behind the site's CloudFront distribution), plus the scheduled
+payments sweep. The admin API (/api/admin/*) is a separate Lambda, admin_handler.py, behind the admin site's own
+distribution: this one answers 404 for every /api/admin/* path.
 """
 
 from __future__ import annotations
@@ -20,12 +21,12 @@ try:
     from lib.auth import get_token_claims, get_user_id
     from lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
     from lib import auth, config, params, payments
-    from routes import items, account, billing, admin, cards, wallet, webhooks
+    from routes import items, account, billing, cards, support, wallet, webhooks
 except ImportError:
     from api.lib.auth import get_token_claims, get_user_id
     from api.lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
     from api.lib import auth, config, params, payments
-    from api.routes import items, account, billing, admin, cards, wallet, webhooks
+    from api.routes import items, account, billing, cards, support, wallet, webhooks
 
 MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
 SWEEP_TASK = "payments-sweep"
@@ -68,14 +69,7 @@ def _payments_sweep(context) -> dict:
 
 
 def _dispatch(event: dict) -> dict:
-    method = event.get("requestContext", {}).get("http", {}).get("method", "")
-    path = event.get("requestContext", {}).get("http", {}).get("path", "")
-
-    # Also support API Gateway v1 format
-    if not method:
-        method = event.get("httpMethod", "")
-    if not path:
-        path = event.get("path", "")
+    method, path = params.method_path(event)  # Function URL, or API Gateway v1
 
     # CORS preflight
     if method == "OPTIONS":
@@ -89,9 +83,9 @@ def _dispatch(event: dict) -> dict:
     if method == "POST" and path == "/api/test-login":
         return _test_login(event)
 
-    # Admin routes — use separate auth (Secrets Manager JWT); never blocked by maintenance mode
-    if path.startswith("/api/admin/"):
-        return _admin_route(method, path, event)
+    # The admin API is another Lambda (admin_handler.py) on the admin site's own distribution; never served here
+    if path == "/api/admin" or path.startswith("/api/admin/"):
+        return not_found(f"No route: {method} {path}")
 
     # Public, no auth: the switches and limits the site shows before sign-in (landing page, sign-up form)
     if method == "GET" and path == "/api/public-config":
@@ -222,6 +216,17 @@ def _route(method: str, path: str, user_id: str, event: dict) -> dict:
     if method == "POST" and path == "/api/wallet/refund":
         return wallet.request_refund(user_id, event)
 
+    # --- Support requests (answered on the admin site) ---
+    if path == "/api/support":
+        if method == "GET":
+            return support.mine(user_id)
+        if method == "POST":
+            return support.create(user_id, _email(event), event)
+
+    m = re.match(rf"^/api/support/({support.TICKET_ID})$", path)
+    if m and method == "POST":
+        return support.comment(user_id, m.group(1), event)
+
     # --- Billing ---
     if method == "POST" and path == "/api/billing/checkout":
         return billing.create_checkout(user_id, event)
@@ -241,62 +246,3 @@ def _route(method: str, path: str, user_id: str, event: dict) -> dict:
 def _email(event: dict) -> str:
     """The signed-in user's email from the token (receipts); the routes fall back to the profile's copy."""
     return str(get_token_claims(event).get("email") or "")
-
-
-def _admin_route(method: str, path: str, event: dict) -> dict:
-    # Login doesn't require admin JWT
-    if method == "POST" and path == "/api/admin/login":
-        return admin.login(event)
-
-    # All other admin routes require admin JWT
-    if method == "GET" and path == "/api/admin/overview":
-        return admin.get_overview(event)
-
-    if method == "GET" and path == "/api/admin/users":
-        return admin.list_users(event)
-
-    m = re.match(r"^/api/admin/users/([A-Za-z0-9-]+)$", path)
-    if m:
-        uid = m.group(1)
-        if method == "GET":
-            return admin.get_user_detail(event, uid)
-        if method == "PUT":
-            return admin.update_user(event, uid)
-        if method == "DELETE":
-            return admin.delete_user_account(event, uid)
-
-    if method == "GET" and path == "/api/admin/items":
-        return admin.list_all_items(event)
-
-    m = re.match(r"^/api/admin/items/([A-Za-z0-9-]+)/([A-Za-z0-9]+)$", path)
-    if m:
-        uid, iid = m.group(1), m.group(2)
-        if method == "PUT":
-            return admin.update_admin_item(event, uid, iid)
-        if method == "DELETE":
-            return admin.delete_admin_item(event, uid, iid)
-
-    if method == "GET" and path == "/api/admin/health":
-        return admin.get_health(event)
-
-    if method == "POST" and path == "/api/admin/actions/trigger-daily-job":
-        return admin.trigger_daily_job(event)
-
-    if method == "POST" and path == "/api/admin/actions/send-digest":
-        return admin.trigger_digest(event)
-
-    # Stripe config
-    if path == "/api/admin/config/stripe":
-        if method == "GET":
-            return admin.get_stripe_config(event)
-        if method == "PUT":
-            return admin.update_stripe_config(event)
-
-    # Site config
-    if method == "GET" and path == "/api/admin/config":
-        return admin.get_config(event)
-
-    if method == "PUT" and path == "/api/admin/config":
-        return admin.update_config(event)
-
-    return not_found(f"No admin route: {method} {path}")
