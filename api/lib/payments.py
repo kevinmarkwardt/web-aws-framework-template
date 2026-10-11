@@ -35,8 +35,10 @@ from boto3.dynamodb.conditions import Key
 
 try:
     from lib import config, db, logs, credits, mail, notes, stripe_config
+    from lib.i18n import Text
 except ImportError:
     from api.lib import config, db, logs, credits, mail, notes, stripe_config
+    from api.lib.i18n import Text
 
 log = logging.getLogger("yourapp.payments")
 PENDING_AFTER_S = 60  # a reserved refund older than this lost its request (the API Lambda stops at 30 s): reconcile it
@@ -441,8 +443,11 @@ def refund_to_card(user_id: str, amount: int | None, reason: str, actor: str, po
     if amount <= 0 and not (forfeit_bonus and cap <= 0):  # a ban with nothing to refund still forfeits the bonus
         raise RefundError("Nothing to refund" if cap <= 0 else "Enter an amount above zero")
     if amount > cap:
-        raise RefundError(f"At most {credits.fmt(cap)} ({credits.usd(cap)}) can be refunded to the card"
-                          + (f"; paid {credits.unit_name()} are refundable for {credits.REFUND_DAYS} days after their top-up" if policy == "window" else ""))
+        values = {"amount": credits.fmt(cap), "usd": credits.usd(cap)}
+        if policy == "window":
+            raise RefundError(Text("At most {amount} ({usd}) can be refunded to the card; paid {unit} are refundable for {days} "
+                                   "days after their top-up", unit=credits.unit_name(), days=credits.REFUND_DAYS, **values))
+        raise RefundError(Text("At most {amount} ({usd}) can be refunded to the card", **values))
     left, done, bonus_out, refunded, failed = amount, [], 0, 0, None
     try:
         for pay, most, pack_bonus, base in plan:
@@ -552,7 +557,8 @@ def _send(user_id: str, row: dict) -> dict:
             log.exception("card refund %s: no answer from Stripe; it stays pending", key)
             return {**out, "refundId": None, "status": "pending"}
         _give_back(user_id, row, f"{type(e).__name__}: {e}"[:300])
-        raise RefundError(f"The refund to your card didn't go through, so the {credits.unit_name()} are back in your balance. Try again later.") from e
+        raise RefundError(Text("The refund to your card didn't go through, so the {unit} are back in your balance. Try again later.",
+                               unit=credits.unit_name())) from e
     _finish(user_id, row, re.id, re.status)
     return {**out, "refundId": re.id, "status": re.status}
 

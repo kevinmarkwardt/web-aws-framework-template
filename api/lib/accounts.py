@@ -23,9 +23,11 @@ import logging
 from boto3.dynamodb.conditions import Key
 
 try:
-    from lib import config, db, logs, mail, notes
+    from lib import config, db, i18n, logs, mail, notes
+    from lib.i18n import Text
 except ImportError:
-    from api.lib import config, db, logs, mail, notes
+    from api.lib import config, db, i18n, logs, mail, notes
+    from api.lib.i18n import Text
 
 log = logging.getLogger("yourapp.accounts")
 
@@ -69,9 +71,9 @@ def can_spend(user_id: str, p: dict | None = None) -> tuple[bool, str]:
     p = profile(user_id) if p is None else p
     s = status(p)
     if s == "banned":
-        return False, f"This account is banned until {p.get('bannedUntil', '')[:10]}. You can still sign in and view your data."
+        return False, Text("This account is banned until {date}. You can still sign in and view your data.", date=p.get("bannedUntil", "")[:10])
     if s == "suspended":
-        return False, "Payments are paused on this account while we look into an issue. Contact support."
+        return False, Text("Payments are paused on this account while we look into an issue. Contact support.")
     return True, ""
 
 
@@ -79,7 +81,7 @@ def can_write(user_id: str, p: dict | None = None) -> tuple[bool, str]:
     """Creating or changing the app's own records: refused only while banned (read-only)."""
     p = profile(user_id) if p is None else p
     if status(p) == "banned":
-        return False, f"This account is read-only until {p.get('bannedUntil', '')[:10]}."
+        return False, Text("This account is read-only until {date}.", date=p.get("bannedUntil", "")[:10])
     return True, ""
 
 
@@ -116,10 +118,13 @@ def add_warning(user_id: str, reason: str, actor: str = "system", ref: str = "")
     if count >= limit:
         ban(user_id, f"{count} warnings in {_rules()['warningDays']} days (latest: {reason})", actor="system")
     else:
-        msg = (f"Your account received a warning: {reason}. This is warning {count} of {limit - 1}; warnings expire "
-               f"after {_rules()['warningDays']} days." + (" One more will make the account read-only." if count == limit - 1 else ""))
-        notes.add(user_id, "warning", "Account warning", msg)
-        mail.to_user(user_id, f"A warning on your {mail.APP_NAME} account", msg)
+        lang = i18n.user_language(user_id)
+        msg = i18n.t("Your account received a warning: {reason}. This is warning {count} of {max}; warnings expire after "
+                     "{days} days.", lang, reason=reason, count=count, max=limit - 1, days=_rules()["warningDays"])
+        if count == limit - 1:
+            msg += " " + i18n.t("One more will make the account read-only.", lang)
+        notes.add(user_id, "warning", i18n.t("Account warning", lang), msg)
+        mail.to_user(user_id, i18n.t("A warning on your {app} account", lang, app=mail.APP_NAME), msg)
     return item
 
 
@@ -175,11 +180,15 @@ def ban(user_id: str, reason: str, actor: str, days: int | None = None) -> dict:
                           "Cancel it in the Stripe dashboard.")
     logs.audit(actor, "user.ban", f"user:{user_id}", reason, before={"status": status(before)},
                after={"status": "banned", "bannedUntil": until, "refundedCents": refunded, "subscriptionCancelled": cancelled})
-    msg = (f"Your {mail.APP_NAME} account is read-only until {until[:10]} ({reason}). You can still sign in and view your data."
-           + (f" Your unused paid balance, ${refunded / 100:,.2f}, has been refunded to your card." if refunded else "")
-           + (" Your subscription has been cancelled." if cancelled else ""))
-    notes.add(user_id, "banned", "Account restricted", msg)
-    mail.to_user(user_id, f"Your {mail.APP_NAME} account has been restricted", msg)
+    lang = i18n.user_language(user_id)
+    msg = i18n.t("Your {app} account is read-only until {date} ({reason}). You can still sign in and view your data.", lang,
+                 app=mail.APP_NAME, date=until[:10], reason=reason)
+    if refunded:
+        msg += " " + i18n.t("Your unused paid balance, {amount}, has been refunded to your card.", lang, amount=f"${refunded / 100:,.2f}")
+    if cancelled:
+        msg += " " + i18n.t("Your subscription has been cancelled.", lang)
+    notes.add(user_id, "banned", i18n.t("Account restricted", lang), msg)
+    mail.to_user(user_id, i18n.t("Your {app} account has been restricted", lang, app=mail.APP_NAME), msg)
     return {"bannedUntil": until, "refundedCents": refunded, "subscriptionCancelled": cancelled}
 
 

@@ -28,9 +28,9 @@ import uuid
 from boto3.dynamodb.conditions import Key
 
 try:
-    from lib import config, db, logs, mail, notes, params, response
+    from lib import config, db, i18n, logs, mail, notes, params, response
 except ImportError:
-    from api.lib import config, db, logs, mail, notes, params, response
+    from api.lib import config, db, i18n, logs, mail, notes, params, response
 
 MAX_TEXT = 4000
 MAX_TICKET_BYTES = 300_000    # past this the customer can't add more (a reply still fits under DynamoDB's 400 KB)
@@ -98,7 +98,7 @@ def create(user_id: str, email: str, event: dict) -> dict:
         return response.error("Please write at least a sentence so we can help", 400)
     max_open = int(config.SUPPORT["maxOpen"])
     if sum(1 for x in _mine(user_id) if x.get("status") == "open") >= max_open:
-        return response.error(f"You have {max_open} open requests. Add to one of them, or wait for an answer.", 429, "TOO_MANY_OPEN")
+        return response.error("You have {n} open requests. Add to one of them, or wait for an answer.", 429, "TOO_MANY_OPEN", n=max_open)
     profile = db.get_user(user_id) or {}
     now, tid = _now(), uuid.uuid4().hex[:12]
     ticket = {"pk": f"SUPPORT#{tid}", "sk": "TICKET", "id": tid, "userId": user_id, "email": profile.get("email") or email,
@@ -170,8 +170,10 @@ def admin_update(event: dict, actor: str, tid: str) -> dict:
         t.update_item(Key={"pk": ticket["pk"], "sk": "TICKET"},
                       UpdateExpression="SET replies = list_append(if_not_exists(replies, :e), :r), updatedAt = :n",
                       ExpressionAttributeValues={":e": [], ":r": [{"at": now, "by": "support", "admin": actor, "text": reply}], ":n": now})
-        notes.add(ticket["userId"], "support", "Support replied", reply[:500])
-        mail.to_user(ticket["userId"], f"{mail.APP_NAME} support replied", f"{reply}\n\nYour request:\n{ticket['message']}")
+        lang = i18n.user_language(ticket["userId"])
+        notes.add(ticket["userId"], "support", i18n.t("Support replied", lang), reply[:500])
+        mail.to_user(ticket["userId"], i18n.t("{app} support replied", lang, app=mail.APP_NAME),
+                     i18n.t("{reply}\n\nYour request:\n{request}", lang, reply=reply, request=ticket["message"]), pref="emailSupport")
     if status and status != ticket["status"]:
         q = f"{ticket['createdAt']}#{tid}"
         db.transact([

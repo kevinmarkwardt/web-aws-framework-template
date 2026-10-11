@@ -26,8 +26,10 @@ from botocore.exceptions import ClientError
 
 try:
     from lib import config, db
+    from lib.i18n import Text
 except ImportError:
     from api.lib import config, db
+    from api.lib.i18n import Text
 
 PER_DOLLAR = 100
 REFUND_DAYS = int(config.BILLING["refundDays"])
@@ -346,18 +348,18 @@ def set_referrer(user_id: str, code: str) -> str:
     """Record who invited this account: only a new account (under 7 days) that has never topped up. Returns why not."""
     row = _table().get_item(Key={"pk": f"REFCODE#{code.strip().lower()}", "sk": "REFCODE"}).get("Item")
     if not row:
-        return "Unknown invite code"
+        return Text("Unknown invite code")
     referrer = row["userId"]
     if referrer == user_id:
-        return "You can't invite yourself"
+        return Text("You can't invite yourself")
     p = profile(user_id)
     created = p.get("createdAt", "")
     # firstTopUpAt stays after a refund clears hasToppedUp: a refunded account can't add an inviter and top up again
     if p.get("hasToppedUp") or p.get("firstTopUpAt") or (created and created < (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).isoformat()):
-        return "Invite codes only work on new accounts"
+        return Text("Invite codes only work on new accounts")
     if not db.conditional(_table().update_item, Key=_profile_key(user_id), UpdateExpression="SET referredBy = :r",
                           ConditionExpression="attribute_not_exists(referredBy)", ExpressionAttributeValues={":r": referrer}):
-        return "This account already has an inviter"
+        return Text("This account already has an inviter")
     return ""
 
 

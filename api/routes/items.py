@@ -46,12 +46,8 @@ def create_item(user_id: str, event: dict) -> dict:
         return response.error("name is required", 400)
 
     if limit is not None and current_count >= limit:
-        return response.error(
-            f"Plan limit reached. {plan.title()} plan allows {limit} items. "
-            f"You have {current_count}.",
-            403,
-            "PLAN_LIMIT",
-        )
+        return response.error("Plan limit reached. The {plan} plan allows {limit} items. You have {count}.", 403, "PLAN_LIMIT",
+                              plan=plan.title(), limit=limit, count=current_count)
 
     item_id = str(ulid.ULID())
     item = db.create_item(user_id, item_id, name, status)

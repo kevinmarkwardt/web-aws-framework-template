@@ -12,9 +12,14 @@ import json
 import os
 import re
 
+try:
+    from lib.i18n import Text
+except ImportError:
+    from api.lib.i18n import Text
+
 
 class BadRequest(Exception):
-    """The request can't be used as sent; the message is shown to the caller."""
+    """The request can't be used as sent; the message (English, or an i18n.Text) is shown to the caller, translated."""
 
 
 def body(event: dict) -> dict:
@@ -39,7 +44,7 @@ def text(data: dict, name: str, default: str = "") -> str:
     if value is None:
         return default
     if not isinstance(value, str):
-        raise BadRequest(f"{name} must be text")
+        raise BadRequest(Text("{name} must be text", name=name))
     return value
 
 
@@ -78,9 +83,9 @@ def query_int(event: dict, name: str, default: int, lo: int, hi: int) -> int:
     try:
         value = int(raw)
     except ValueError:
-        raise BadRequest(f"{name} must be a whole number") from None
+        raise BadRequest(Text("{name} must be a whole number", name=name)) from None
     if not lo <= value <= hi:
-        raise BadRequest(f"{name} must be between {lo} and {hi}")
+        raise BadRequest(Text("{name} must be between {lo} and {hi}", name=name, lo=lo, hi=hi))
     return value
 
 
@@ -88,5 +93,5 @@ def day(event: dict, name: str = "day") -> str:
     """A UTC day YYYY-MM-DD from the query string; today (UTC) when absent. The logs and payments are filed by UTC day."""
     value = query(event, name) or dt.datetime.now(dt.timezone.utc).date().isoformat()
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-        raise BadRequest(f"{name} must be a date like 2026-10-11")
+        raise BadRequest(Text("{name} must be a date like 2026-10-11", name=name))
     return value

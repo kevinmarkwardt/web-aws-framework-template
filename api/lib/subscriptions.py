@@ -20,9 +20,9 @@ import logging
 import time
 
 try:
-    from lib import config, db, logs, mail, notes, payments, stripe_config
+    from lib import config, db, i18n, logs, mail, notes, payments, stripe_config
 except ImportError:
-    from api.lib import config, db, logs, mail, notes, payments, stripe_config
+    from api.lib import config, db, i18n, logs, mail, notes, payments, stripe_config
 
 log = logging.getLogger("yourapp.subscriptions")
 
@@ -262,7 +262,9 @@ def _invoice_paid(inv: dict) -> str:
         db._get_table().update_item(Key=_key(uid), UpdateExpression="SET subscriptionStatus = :s REMOVE paymentFailedAt",
                                     ExpressionAttributeValues={":s": "active"})
     if was_failing:
-        notes.add(uid, "billing", "Payment received", "Your subscription payment went through; your plan is fully active again.")
+        lang = i18n.user_language(uid)
+        notes.add(uid, "billing", i18n.t("Payment received", lang),
+                  i18n.t("Your subscription payment went through; your plan is fully active again.", lang))
     return f"{uid} invoice {inv.get('id')} paid"
 
 
@@ -284,10 +286,11 @@ def _invoice_failed(inv: dict) -> str:
     if first:  # once per invoice, however many retries fail
         p = db.get_user(uid) or {}
         until = (grace_until(p) or now)[:10]
-        msg = (f"We couldn't take your subscription payment. Your plan stays active until {until}; update your card in "
-               "the billing portal (Plans page) to keep it.")
-        notes.add(uid, "billing", "Subscription payment failed", msg)
-        mail.to_user(uid, f"{mail.APP_NAME}: your subscription payment failed", msg)
+        lang = i18n.user_language(uid)
+        msg = i18n.t("We couldn't take your subscription payment. Your plan stays active until {date}; update your card in "
+                     "the billing portal (Plans page) to keep it.", lang, date=until)
+        notes.add(uid, "billing", i18n.t("Subscription payment failed", lang), msg)
+        mail.to_user(uid, i18n.t("{app}: your subscription payment failed", lang, app=mail.APP_NAME), msg, pref="emailBilling")
     return f"{uid} invoice {inv.get('id')} failed (grace)"
 
 

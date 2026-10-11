@@ -19,9 +19,11 @@ import time
 from botocore.exceptions import ClientError
 
 try:
-    from lib import accounts, config, credits, db, notes
+    from lib import accounts, config, credits, db, i18n, notes
+    from lib.i18n import Text
 except ImportError:
-    from api.lib import accounts, config, credits, db, notes
+    from api.lib import accounts, config, credits, db, i18n, notes
+    from api.lib.i18n import Text
 
 log = logging.getLogger("yourapp.autoreload")
 
@@ -63,12 +65,12 @@ def save(user_id: str, body: dict) -> dict | str:
     try:
         below = int(body.get("below", _cfg()["defaultBelow"]))
     except (TypeError, ValueError):
-        return f"The trigger must be a whole number of {credits.unit_name()}"
+        return Text("The trigger must be a whole number of {unit}", unit=credits.unit_name())
     pack_id = str(body.get("packId") or _default_pack())
     if not 0 < below <= MAX_BELOW:
-        return f"Choose a trigger between 1 and {MAX_BELOW:,} {credits.unit_name()}"
+        return Text("Choose a trigger between 1 and {max} {unit}", max=f"{MAX_BELOW:,}", unit=credits.unit_name())
     if not config.pack(pack_id):
-        return "Unknown pack"
+        return Text("Unknown pack")
     p = credits.profile(user_id)
     if on:
         ok, why = accounts.can_spend(user_id, p)
@@ -76,10 +78,10 @@ def save(user_id: str, body: dict) -> dict | str:
             return why
         try:
             if not _has_card(user_id, p):
-                return "Add a card first"
+                return Text("Add a card first")
         except Exception:  # noqa: BLE001 - Stripe down, or the customer was deleted there: say so, never a 500
             log.exception("card check for %s failed", user_id)
-            return "We couldn't check your saved card just now; try again in a minute"
+            return Text("We couldn't check your saved card just now; try again in a minute")
     db._get_table().update_item(Key={"pk": f"USER#{user_id}", "sk": "PROFILE"},
                                 UpdateExpression="SET autoReloadOn = :o, autoReloadBelow = :b, autoReloadPack = :p",
                                 ExpressionAttributeValues={":o": on, ":b": below, ":p": pack_id})
@@ -115,8 +117,10 @@ def _count_today(user_id: str) -> str:
     try:  # tell them once a day that it has stopped for today
         db._get_table().update_item(Key=key, UpdateExpression="SET capNoted = :t", ConditionExpression="attribute_not_exists(capNoted)",
                                     ExpressionAttributeValues={":t": True})
-        notes.add(user_id, "reload_failed", "Auto reload paused for today",
-                  f"It already ran {cap} times today, the daily limit. It starts again tomorrow, or add {credits.unit_name()} yourself now.")
+        lang = i18n.user_language(user_id)
+        notes.add(user_id, "reload_failed", i18n.t("Auto reload paused for today", lang),
+                  i18n.t("It already ran {n} times today, the daily limit. It starts again tomorrow, or add {unit} yourself now.",
+                         lang, n=cap, unit=credits.unit_name()))
     except ClientError:
         pass
     return ""
@@ -125,8 +129,10 @@ def _count_today(user_id: str) -> str:
 def _fail(user_id: str, why: str) -> None:
     db._get_table().update_item(Key={"pk": f"USER#{user_id}", "sk": "PROFILE"}, UpdateExpression="SET autoReloadOn = :f",
                                 ExpressionAttributeValues={":f": False})
-    notes.add(user_id, "reload_failed", "Auto reload didn't go through",
-              f"{why} Auto reload is now off; check your card on the Wallet page and turn it back on.")
+    lang = i18n.user_language(user_id)
+    notes.add(user_id, "reload_failed", i18n.t("Auto reload didn't go through", lang),
+              i18n.t("{why} Auto reload is now off; check your card on the Wallet page and turn it back on.", lang,
+                     why=i18n.translate(why, lang)))
 
 
 def run(user_id: str) -> str:
@@ -147,7 +153,7 @@ def run(user_id: str) -> str:
         return "failed"
     pack = config.pack(s["packId"])
     if not pack:
-        _fail(user_id, "The pack you chose isn't sold any more.")
+        _fail(user_id, Text("The pack you chose isn't sold any more."))
         return "failed"
     slot = _count_today(user_id)
     if not slot:
@@ -159,20 +165,26 @@ def run(user_id: str) -> str:
     except wallet.ChargeError as e:
         if e.unknown:  # Stripe didn't answer in time: if it went through, the webhook credits it
             return "pending"  # (auto reload stays on; today's count and the lock stop a rerun)
-        _fail(user_id, f"Your card was declined: {str(e).rstrip('.')}." if e.status == 402 else str(e).rstrip(".") + ".")
+        reason = i18n.message_of(e)
+        _fail(user_id, Text("Your card was declined: {reason}.", reason=str(reason).rstrip(".")) if e.status == 402
+              else reason if i18n.is_text(reason) else str(reason).rstrip(".") + ".")
         return "failed"
     d = pi.to_dict() if hasattr(pi, "to_dict") else dict(pi)
     if d.get("status") == "succeeded":
         wallet.credit_intent(d)
-        notes.add(user_id, "reload", f"Auto reload: {credits.fmt(amount)} added",
-                  f"Your balance went under {credits.fmt(s['below'])}, so {credits.usd(pay)} was charged to your default card. "
-                  f"New balance: {credits.fmt(credits.balance(credits.profile(user_id))['credits'])}.")
+        lang = i18n.user_language(user_id)
+        notes.add(user_id, "reload", i18n.t("Auto reload: {amount} added", lang, amount=credits.fmt(amount)),
+                  i18n.t("Your balance went under {below}, so {usd} was charged to your default card. New balance: {balance}.", lang,
+                         below=credits.fmt(s["below"]), usd=credits.usd(pay),
+                         balance=credits.fmt(credits.balance(credits.profile(user_id))["credits"])))
         return "added"
     if d.get("status") == "processing":
-        notes.add(user_id, "reload", "Auto reload is processing",
-                  f"{credits.usd(pay)} for {credits.fmt(amount)} is waiting on your bank; they arrive as soon as it clears.")
+        lang = i18n.user_language(user_id)
+        notes.add(user_id, "reload", i18n.t("Auto reload is processing", lang),
+                  i18n.t("{usd} for {amount} is waiting on your bank; they arrive as soon as it clears.", lang,
+                         usd=credits.usd(pay), amount=credits.fmt(amount)))
         return "pending"
-    _fail(user_id, "Your bank wants to confirm this payment, which can't happen automatically.")
+    _fail(user_id, Text("Your bank wants to confirm this payment, which can't happen automatically."))
     return "failed"
 
 

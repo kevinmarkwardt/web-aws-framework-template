@@ -21,11 +21,11 @@ import time
 import stripe
 
 try:
-    from lib import accounts, autoreload, config, credits, db, fx, logs, payments, regions, response, stripe_config
+    from lib import accounts, autoreload, config, credits, db, fx, i18n, logs, payments, regions, response, stripe_config
     from lib.params import body as _body
     from routes import cards
 except ImportError:
-    from api.lib import accounts, autoreload, config, credits, db, fx, logs, payments, regions, response, stripe_config
+    from api.lib import accounts, autoreload, config, credits, db, fx, i18n, logs, payments, regions, response, stripe_config
     from api.lib.params import body as _body
     from api.routes import cards
 
@@ -145,7 +145,8 @@ class ChargeError(Exception):
     def response(self) -> dict:
         """The error answer, with `outcome` for the site: "unknown" (resend with the SAME requestId: Stripe answers with
         the first attempt's result instead of charging again) or "declined" (nothing was charged: a new attempt)."""
-        return response.ok({"error": str(self), "outcome": "unknown" if self.unknown else "declined"}, self.status)
+        return response.ok({"error": str(self), "message": i18n.translate(i18n.message_of(self)),
+                            "outcome": "unknown" if self.unknown else "declined"}, self.status)
 
 
 def charge_saved_card(user_id: str, email: str, pack_id: str, pay: int, amount: int, key_parts: tuple, pm_id: str = "",
@@ -182,21 +183,21 @@ def charge_saved_card(user_id: str, email: str, pack_id: str, pay: int, amount: 
                 raise ChargeError(STILL_PROCESSING, 504, unknown=True) from e
             if isinstance(e, stripe.APIConnectionError):  # no answer in time: it may have gone through; never "failed"
                 raise ChargeError(STILL_PROCESSING, 504, unknown=True) from e
-            msg = getattr(getattr(e, "error", None), "message", None) or getattr(e, "user_message", None) or "The payment didn't go through"
-            raise ChargeError(str(msg), 402) from e
+            msg = getattr(getattr(e, "error", None), "message", None) or getattr(e, "user_message", None) or i18n.Text("The payment didn't go through")
+            raise ChargeError(msg if i18n.is_text(msg) else str(msg), 402) from e
 
 
 def _pack(body: dict) -> tuple[str, int, int] | str:
     pack_id = str(body.get("packId", "") or "")
     if pack_id:
         pack = config.pack(pack_id)
-        return (pack_id, pack["payCents"], pack["credits"]) if pack else "Unknown pack"
+        return (pack_id, pack["payCents"], pack["credits"]) if pack else i18n.Text("Unknown pack")
     custom = _custom()
     if not custom:
-        return "Choose a pack"
+        return i18n.Text("Choose a pack")
     raw = body.get("customUsd")
     if isinstance(raw, bool) or not isinstance(raw, int) or not custom["minUsd"] <= raw <= custom["maxUsd"]:
-        return f"Choose a whole-dollar amount between ${custom['minUsd']} and ${custom['maxUsd']}"
+        return i18n.Text("Choose a whole-dollar amount between ${min} and ${max}", min=custom["minUsd"], max=custom["maxUsd"])
     return "custom", raw * 100, raw * 100
 
 
@@ -276,5 +277,5 @@ def request_refund(user_id: str, event: dict) -> dict:
     try:
         out = payments.refund_selected(user_id, [str(x) for x in pis][:100], f"user:{user_id}", str(body.get("reason") or "")[:500])
     except payments.RefundError as e:
-        return response.error(str(e), 400)
+        return response.error(i18n.message_of(e), 400)
     return response.ok({**out, **credits.balance(_profile(user_id))})

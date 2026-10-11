@@ -77,7 +77,7 @@ def _plan_arg(event: dict, allow_free: bool) -> str | dict:
     plan = params.text(params.body(event), "plan").strip().lower()
     allowed = (["free"] if allow_free else []) + subscriptions.paid_plan_ids()
     if plan not in allowed:
-        return response.error(f"Invalid plan. Choose one of: {', '.join(allowed)}.", 400)
+        return response.error("Invalid plan. Choose one of: {plans}.", 400, plans=", ".join(allowed))
     return plan
 
 
@@ -141,7 +141,8 @@ def _over_limit(user: dict, plan: str) -> dict | None:
     limit = config.plan_limit(plan)
     count = int(user.get("itemCount", 0))
     if limit is not None and count > limit:
-        return response.error(f"You have {count} items but {plan} allows {limit}. Remove {count - limit} to switch.", 409, "PLAN_LIMIT")
+        return response.error("You have {count} items but {plan} allows {limit}. Remove {extra} to switch.", 409, "PLAN_LIMIT",
+                              count=count, plan=plan, limit=limit, extra=count - limit)
     return None
 
 

@@ -20,12 +20,12 @@ if _dir not in sys.path:
 try:
     from lib.auth import get_token_claims, get_user_id
     from lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
-    from lib import auth, config, params, payments
+    from lib import auth, config, i18n, params, payments
     from routes import items, account, billing, cards, support, wallet, webhooks
 except ImportError:
     from api.lib.auth import get_token_claims, get_user_id
     from api.lib.response import ok, unauthorized, not_found, error, forbidden, unavailable
-    from api.lib import auth, config, params, payments
+    from api.lib import auth, config, i18n, params, payments
     from api.routes import items, account, billing, cards, support, wallet, webhooks
 
 MAINTENANCE_MESSAGE = "YourApp is down for maintenance. Please try again soon."
@@ -39,10 +39,11 @@ def lambda_handler(event, context):
         return _payments_sweep(context)
     if not params.from_cloudfront(event):  # went around CloudFront (the Function URL itself is public)
         return forbidden()
+    i18n.use(event)  # X-Language: error messages in the site's language (lib/i18n.py)
     try:
         return _dispatch(event)
     except params.BadRequest as e:  # malformed body or field (lib/params.py)
-        return error(str(e), 400)
+        return error(i18n.message_of(e), 400)
 
 
 def _is_payments_sweep(event) -> bool:
@@ -85,7 +86,7 @@ def _dispatch(event: dict) -> dict:
 
     # The admin API is another Lambda (admin_handler.py) on the admin site's own distribution; never served here
     if path == "/api/admin" or path.startswith("/api/admin/"):
-        return not_found(f"No route: {method} {path}")
+        return not_found("No route: {method} {path}", method=method, path=path)
 
     # Public, no auth: the switches and limits the site shows before sign-in (landing page, sign-up form)
     if method == "GET" and path == "/api/public-config":
@@ -134,7 +135,7 @@ def _module_off(path: str) -> bool:
 
 def _test_login(event: dict) -> dict:
     if not auth.TEST_LOGIN:
-        return not_found("No route: POST /api/test-login")
+        return not_found("No route: {method} {path}", method="POST", path="/api/test-login")
     username = params.text(params.body(event), "username").strip().lower()
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,31}", username):
         return error("Use 2-32 letters, numbers, - or _", 400)
@@ -143,7 +144,7 @@ def _test_login(event: dict) -> dict:
 
 def _route(method: str, path: str, user_id: str, event: dict) -> dict:
     if _module_off(path):
-        return not_found(f"No route: {method} {path}")
+        return not_found("No route: {method} {path}", method=method, path=path)
 
     # --- Items ---
     if method == "GET" and path == "/api/items":
@@ -163,9 +164,6 @@ def _route(method: str, path: str, user_id: str, event: dict) -> dict:
     # --- Account ---
     if method == "GET" and path == "/api/account":
         return account.get_account(user_id, event)
-
-    if method == "PUT" and path == "/api/account/name":
-        return account.update_name(user_id, event)
 
     if method == "PUT" and path == "/api/account/settings":
         return account.update_settings(user_id, event)
@@ -240,7 +238,7 @@ def _route(method: str, path: str, user_id: str, event: dict) -> dict:
     if method == "POST" and path == "/api/billing/cancel":
         return billing.cancel_plan(user_id, event)
 
-    return not_found(f"No route: {method} {path}")
+    return not_found("No route: {method} {path}", method=method, path=path)
 
 
 def _email(event: dict) -> str:

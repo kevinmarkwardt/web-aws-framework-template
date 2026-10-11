@@ -17,11 +17,13 @@ import os
 
 try:
     from lib import config, params, response
+    from lib.i18n import Text
 except ImportError:
     from api.lib import config, params, response
+    from api.lib.i18n import Text
 
-NOT_HERE = "Payments aren't available in your country yet."
-CARD_NOT_ACCEPTED = "Cards issued in that country can't be used here yet. Use a card from a supported country."
+NOT_HERE = Text("Payments aren't available in your country yet.")
+CARD_NOT_ACCEPTED = Text("Cards issued in that country can't be used here yet. Use a card from a supported country.")
 
 
 def countries() -> list[str]:
