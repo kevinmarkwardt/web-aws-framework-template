@@ -45,17 +45,17 @@ echo ""
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
-read -p "Project name (lowercase, no spaces, e.g. 'myapp'): " PROJECT_NAME
+read -r -p "Project name (lowercase, no spaces, e.g. 'myapp'): " PROJECT_NAME
 PROJECT_NAME="${PROJECT_NAME:-myapp}"
 PROJECT_NAME=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
 
-read -p "Display name (title case, e.g. 'MyApp'): " DISPLAY_NAME
+read -r -p "Display name (title case, e.g. 'MyApp'): " DISPLAY_NAME
 DISPLAY_NAME="${DISPLAY_NAME:-MyApp}"
 
-read -p "Domain name (e.g. 'myapp.com'): " DOMAIN
+read -r -p "Domain name (e.g. 'myapp.com'): " DOMAIN
 DOMAIN="${DOMAIN:-myapp.com}"
 
-read -p "AWS Account ID (12 digits): " AWS_ACCOUNT_ID
+read -r -p "AWS Account ID (12 digits): " AWS_ACCOUNT_ID
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-123456789012}"
 
 echo ""
@@ -65,7 +65,7 @@ echo "  YourApp          → $DISPLAY_NAME"
 echo "  yourapp.com      → $DOMAIN"
 echo "  YOUR_AWS_ACCOUNT_ID → $AWS_ACCOUNT_ID"
 echo ""
-read -p "Continue? [y/N] " CONFIRM
+read -r -p "Continue? [y/N] " CONFIRM
 if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
   echo "Aborted."
   exit 0
@@ -82,9 +82,11 @@ FILES=$(find . \
   -not -path './__pycache__/*' \
   -not -path './cdk/cdk.out/*' \
   -not -path './frontend/dist/*' \
+  -not -path './build/*' \
+  -not -path './.venv*' \
   \( -name '*.ts' -o -name '*.tsx' -o -name '*.py' -o -name '*.sh' \
      -o -name '*.json' -o -name '*.md' -o -name '*.txt' -o -name '*.css' \
-     -o -name '*.example' \) \
+     -o -name '*.html' -o -name '*.in' -o -name '*.yaml' -o -name '*.example' \) \
   -type f)
 
 COUNT=$(echo "$FILES" | wc -l | tr -d ' ')
@@ -136,19 +138,18 @@ echo -e "${GREEN}✓ Done! Your project is ready.${NC}"
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Copy the environment template and fill in your secrets:"
-echo "     cp .env.example .env"
-echo "     # Fill in: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,"
-echo "     # STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO"
-echo ""
-echo "  2. Ensure your domain is registered in AWS Route53"
+echo "  1. Ensure your domain has a hosted zone in AWS Route53"
 echo "     (or update cdk/lib/${PROJECT_NAME}-stack.ts if using a different DNS)"
 echo ""
-echo "  3. Deploy to AWS:"
-echo "     ./scripts/deploy.sh"
+echo "  2. Deploy the test stage first (test.$DOMAIN), then prod ($DOMAIN):"
+echo "     STAGE=test ./scripts/deploy.sh"
+echo "     STAGE=prod ./scripts/deploy.sh"
 echo ""
-echo "  4. Set up your admin credentials:"
-echo "     ./scripts/setup-admin.sh"
+echo "  3. Set up admin credentials for each stage:"
+echo "     STAGE=test ./scripts/setup-admin.sh you@example.com"
+echo ""
+echo "  4. Stripe keys live in Secrets Manager ($PROJECT_NAME/{stage}/stripe), never in .env:"
+echo "     enter them on the admin site's Billing page (manager.test.$DOMAIN / manager.$DOMAIN)"
 echo ""
 echo "  5. Customize your app:"
 echo "     - Replace 'items' with your domain entity in:"

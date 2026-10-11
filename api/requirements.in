@@ -1,0 +1,7 @@
+# The API Lambda's direct dependencies. Edit this file, then run scripts/lock-api-deps.sh to rewrite requirements.txt
+# (exact versions + hashes). boto3 is pinned too so local runs and the Lambda use the same version.
+boto3>=1.34.0
+python-jose[cryptography]>=3.3.0
+stripe>=8.0.0
+python-ulid>=2.0.0
+bcrypt>=4.0.0

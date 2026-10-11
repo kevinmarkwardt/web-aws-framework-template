@@ -1,79 +1,39 @@
 #!/usr/bin/env bash
-# YourApp — Lambda-only deploy
-# Packages each Lambda with dependencies and updates function code via AWS CLI.
+# YourApp — Lambda code-only deploy (no CDK): bundle, zip and update each function's code via the AWS CLI.
+# Faster than a full deploy for code changes; environment, IAM or new functions need scripts/deploy.sh.
+#
+# Usage: STAGE=test|prod scripts/deploy-lambdas.sh [api|daily-job|...]   (no name: all)
+# Function names follow the stack's convention: $PREFIX-<name> (yourapp-api, yourapp-test-daily-job, ...).
 set -euo pipefail
 
-PROJ_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REGION="us-east-1"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REGION="${AWS_REGION:-us-east-1}"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-echo "========================================="
-echo "  YourApp — Lambda Deploy"
-echo "========================================="
+. "$ROOT/scripts/lib/stage.sh"
+resolve_stage
 
-# Lambda name -> source directory mapping
-declare -A LAMBDAS=(
-  ["yourapp-api"]="$PROJ_ROOT/api"
-  ["yourapp-daily-job"]="$PROJ_ROOT/lambdas/daily-job"
-)
+if [ "$STAGE" = prod ] && [ "${YES:-}" != 1 ]; then
+  [ -t 0 ] || { echo "deploy-lambdas: prod needs a typed confirmation (or YES=1)" >&2; exit 1; }
+  read -r -p "Update PROD Lambda code? Type prod to continue: " answer
+  [ "$answer" = prod ] || { echo "cancelled" >&2; exit 1; }
+fi
 
-# Allow deploying a single Lambda: ./deploy-lambdas.sh yourapp-api
-FILTER="${1:-}"
+echo "== bundling ($STAGE)"
+"$ROOT/scripts/bundle-lambdas.sh" "$@"   # stops on any pip error
 
-for func_name in "${!LAMBDAS[@]}"; do
-  if [ -n "$FILTER" ] && [ "$func_name" != "$FILTER" ]; then
-    continue
-  fi
+names=("$@")
+if [ ${#names[@]} -eq 0 ]; then
+  for d in "$ROOT"/build/*/; do names+=("$(basename "$d")"); done
+fi
 
-  src_dir="${LAMBDAS[$func_name]}"
-  zip_file="$TMP_DIR/${func_name}.zip"
-
-  echo ""
-  echo "Packaging $func_name..."
-
-  # Create a clean package directory
-  pkg_dir="$TMP_DIR/pkg-${func_name}"
-  mkdir -p "$pkg_dir"
-
-  # Install dependencies if requirements.txt exists
-  if [ -f "$src_dir/requirements.txt" ]; then
-    pip install -q -r "$src_dir/requirements.txt" -t "$pkg_dir/" \
-      --platform manylinux2014_aarch64 \
-      --implementation cp \
-      --python-version 3.12 \
-      --only-binary :all: 2>/dev/null || true
-  fi
-
-  # Copy source files
-  cp -r "$src_dir/"*.py "$pkg_dir/" 2>/dev/null || true
-  # Copy sub-packages (e.g., api/lib/, api/routes/)
-  for subdir in "$src_dir"/*/; do
-    if [ -d "$subdir" ] && [ "$(basename "$subdir")" != "__pycache__" ]; then
-      cp -r "$subdir" "$pkg_dir/"
-    fi
-  done
-
-  # Create zip
-  cd "$pkg_dir"
-  zip -q -r "$zip_file" . -x '__pycache__/*' '*.pyc'
-  cd "$PROJ_ROOT"
-
-  ZIP_SIZE=$(du -h "$zip_file" | cut -f1)
-  echo "  Packaged: $ZIP_SIZE"
-
-  # Update function code
-  echo "  Updating $func_name..."
-  aws lambda update-function-code \
-    --function-name "$func_name" \
-    --zip-file "fileb://${zip_file}" \
-    --region "$REGION" \
-    --output text --query 'LastModified'
-
-  echo "  Done: $func_name"
+for name in "${names[@]}"; do
+  func="$PREFIX-$name"
+  zip_file="$TMP_DIR/$name.zip"
+  (cd "$ROOT/build/$name" && zip -q -r "$zip_file" . -x '__pycache__/*' '*.pyc')
+  echo "== $func ($(du -h "$zip_file" | cut -f1))"
+  aws lambda update-function-code --function-name "$func" --zip-file "fileb://$zip_file" \
+    --region "$REGION" --output text --query 'LastModified'
 done
-
-echo ""
-echo "========================================="
-echo "  All Lambdas deployed."
-echo "========================================="
+echo "== done"
