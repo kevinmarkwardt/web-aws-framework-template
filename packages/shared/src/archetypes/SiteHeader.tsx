@@ -19,11 +19,11 @@ export function SiteHeader({ brand, nav, right, variant = 'bar', sticky = true }
   const { t } = useTranslation();
   const link = ({ isActive }: { isActive: boolean }) =>
     cx('text-sm font-medium transition-colors', isActive ? 'text-ink' : 'text-muted hover:text-ink');
-  const navLinks = nav.map((n) =>
+  const navLinks = nav.map((n, i) =>
     n.href.startsWith('/') ? (
-      <NavLink key={n.href} to={n.href} className={link} onClick={() => setOpen(false)}>{n.label}</NavLink>
+      <NavLink key={`${i}${n.href}`} to={n.href} className={link} onClick={() => setOpen(false)}>{n.label}</NavLink>
     ) : (
-      <SmartLink key={n.href} href={n.href} className="text-sm font-medium text-muted hover:text-ink">{n.label}</SmartLink>
+      <SmartLink key={`${i}${n.href}`} href={n.href} className="text-sm font-medium text-muted hover:text-ink">{n.label}</SmartLink>
     ));
 
   return (
