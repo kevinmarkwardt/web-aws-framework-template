@@ -171,10 +171,17 @@ class MarkersMissing(Exception):
 
 
 def write_block(css: str, block: str, values: dict[str, str]) -> str:
-    """Set `values` inside /* {block}:begin */ ... /* {block}:end */ (others kept, new ones appended)."""
-    m = re.search(rf"(/\*\s*{block}:begin\s*\*/)(.*?)([ \t]*/\*\s*{block}:end\s*\*/)", css, re.S)
-    if not m:
+    """Set `values` inside every /* {block}:begin */ ... /* {block}:end */ (others kept, new ones appended).
+    theme.css repeats the dark block (OS dark mode, and data-theme="dark"), so all copies are written."""
+    matches = list(re.finditer(rf"(/\*\s*{block}:begin\s*\*/)(.*?)([ \t]*/\*\s*{block}:end\s*\*/)", css, re.S))
+    if not matches:
         raise MarkersMissing(f"/* {block}:begin */ ... /* {block}:end */ not found")
+    for m in reversed(matches):
+        css = _write_one(css, m, values)
+    return css
+
+
+def _write_one(css: str, m: re.Match, values: dict[str, str]) -> str:
     body = m.group(2)
     indent = re.search(r"\n([ \t]*)--", body)
     pad = indent.group(1) if indent else "  "

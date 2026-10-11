@@ -79,6 +79,7 @@
 }
 
 :root[data-theme="dark"] {
+  /* dark:begin */
   --ink: oklch(94% 0.006 264.5);
   --muted: oklch(76% 0.015 260);
   --faint: oklch(64% 0.02 262);
@@ -94,6 +95,7 @@
   --brand-200: oklch(40% 0.12 277);
   --brand-600: oklch(60% 0.22 277);
   --brand-700: oklch(66% 0.2 277);
+  /* dark:end */
   color-scheme: dark;
 }
 
