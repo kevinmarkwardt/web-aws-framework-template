@@ -15,6 +15,11 @@
       "freeIncludes": "Free plan includes {{items}}. ",
       "noCard": "No card needed."
     },
+    "graphic": {
+      "label": "A lens moving over a pile of shapes that stand for watched pages, magnifying each one as it checks it",
+      "checking": "Checking",
+      "changed": "Changed"
+    },
     "demo": {
       "title": "Monitoring",
       "count_one": "{{count}} item",
@@ -52,6 +57,10 @@
       "eyebrow": "How it works",
       "title": "Set it up once. Hear about it only when it matters.",
       "body": "Add what you want watched and pick how often. Everything else happens on its own: checks run, changes are compared, and you get one clear message.",
+      "list": {
+        "title": "One list, always current",
+        "desc": "Everything you watch, when it was last checked, and what changed, in one place."
+      },
       "add": {
         "title": "Add anything with a URL",
         "desc": "Paste a page, a feed or an API endpoint. Give it a label and a note so future you remembers why."

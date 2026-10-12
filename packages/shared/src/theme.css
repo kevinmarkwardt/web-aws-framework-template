@@ -173,6 +173,15 @@
   gap: calc(1.5rem * var(--density));
 }
 
+/* The landing hero graphic's slow pulse around the changed page (only rendered when motion is allowed). */
+@keyframes hero-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.12); opacity: 0.25; }
+}
+@utility hero-pulse {
+  animation: hero-pulse 2.4s ease-in-out infinite;
+}
+
 /* Long-form text inside archetypes (Detail body, ProseArchetype). Plain CSS so it needs no typography plugin. */
 @utility prose-body {
   color: var(--ink);

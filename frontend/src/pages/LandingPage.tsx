@@ -11,6 +11,7 @@ import { creditsOn, subscriptionsOn, units, usd, usePublicConfig } from '../bill
 import { itemsLabel } from '../plans';
 import { SITE } from '../site';
 import { AddDemo, DiffDemo, DigestDemo, LiveMonitor, ScheduleDemo } from './landing/demos';
+import HeroGraphic from './landing/HeroGraphic';
 
 const eyebrow = 'font-mono text-xs uppercase tracking-[0.12em] text-brand-700';
 
@@ -55,6 +56,7 @@ export default function LandingPage() {
   const faq = t('landing.faq.items', { returnObjects: true }) as { q: string; a: string }[];
 
   const steps = [
+    { key: 'list', demo: <LiveMonitor /> },
     { key: 'add', demo: <AddDemo /> },
     { key: 'schedule', demo: <ScheduleDemo /> },
     { key: 'alerts', demo: <DiffDemo /> },
@@ -101,7 +103,7 @@ export default function LandingPage() {
             </Reveal>
           </div>
           <div className="flex items-center pb-14 lg:border-l lg:border-line lg:py-20 lg:pl-12">
-            <Reveal delay={200} y={24} className="w-full"><LiveMonitor /></Reveal>
+            <Reveal delay={200} y={24} className="w-full"><HeroGraphic /></Reveal>
           </div>
         </Container>
       </section>
