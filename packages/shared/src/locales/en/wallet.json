@@ -1,0 +1,80 @@
+{
+  "wallet": {
+    "title": "Wallet",
+    "testMode": "Test mode",
+    "cardLabel": "{{brand}} •••• {{last4}}",
+    "messages": {
+      "cardAdded": "Card added.",
+      "paymentComplete": "Payment complete.",
+      "stillProcessing": "Your payment is still processing.",
+      "processing": "Your payment is processing; it arrives as soon as it clears."
+    },
+    "balance": {
+      "title": "Balance",
+      "breakdown": "{{bought}} bought, {{bonus}} bonus. {{perDollar}} {{name}} = $1. Bought {{name}} are used first.",
+      "onHold": "{{amount}} on hold, released {{date}}.",
+      "costs": "Costs: {{list}}"
+    },
+    "buy": {
+      "title": "Add {{name}}",
+      "countryBlocked": "Payments aren't available in your country yet.",
+      "noCard": "Add a card to buy {{name}}. Your card details stay with Stripe.",
+      "addCard": "Add a card",
+      "payWith": "Pay with",
+      "defaultSuffix": " (default)",
+      "notAcceptedSuffix": " (not accepted)",
+      "packBonus": "+{{bonus}} bonus",
+      "localPrice": "≈ {{amount}} {{currency}}",
+      "otherAmount": "Other amount: $",
+      "buy": "Buy",
+      "customRange": "${{min}}–${{max}}, no bonus"
+    },
+    "cards": {
+      "title": "Saved cards",
+      "expires": "exp {{month}}/{{year}}",
+      "default": "default",
+      "notAccepted": "not accepted here",
+      "makeDefault": "Make default",
+      "remove": "Remove",
+      "removeWarning": "Top-ups made with this card could still be refunded ({{amount}}). After you remove it they can't be.",
+      "removeAnyway": "Remove anyway",
+      "keep": "Keep it",
+      "addAnother": "Add another card"
+    },
+    "autoReload": {
+      "title": "Auto reload",
+      "whenUnder": "When my balance goes under",
+      "buyPack": "{{name}}, buy",
+      "packOption": "{{price}} ({{credits}})",
+      "withDefaultCard": "with my default card.",
+      "save": "Save",
+      "limits_one": "At most once a day. A decline turns it off.",
+      "limits_other": "At most {{count}} times a day. A decline turns it off.",
+      "savedOn": "Auto reload is on.",
+      "savedOff": "Auto reload is off."
+    },
+    "refunds": {
+      "title": "Refunds",
+      "explain": "Unused bought {{name}} can go back to the card within {{days}} days of buying them (from an hour after). A pack's bonus goes with it, and bonus already spent comes off the refund. Refundable now: {{amount}}.",
+      "request": "Request a refund",
+      "noTopUps": "No top-ups yet.",
+      "row": "{{date}}: {{paid}} for {{credits}}{{card}} —",
+      "rowCard": " (•••• {{last4}})",
+      "refundable": "{{amount}} refundable",
+      "until": " until {{time}}",
+      "used": "Used: {{list}}",
+      "reasonPlaceholder": "Reason (optional)",
+      "refundAmount": "Refund {{amount}}",
+      "cancel": "Cancel",
+      "sent": "{{amount}} is on its way back to your card."
+    },
+    "history": {
+      "title": "History",
+      "empty": "Nothing yet.",
+      "date": "Date",
+      "what": "What",
+      "amount": "Amount",
+      "balance": "Balance"
+    }
+  }
+}

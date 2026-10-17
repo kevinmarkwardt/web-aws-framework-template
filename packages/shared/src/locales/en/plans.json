@@ -1,0 +1,26 @@
+{
+  "plans": {
+    "title": "Plans",
+    "paymentFailed": {
+      "lead": "Your last subscription payment failed.",
+      "onFree": "Your account is on the free plan until a payment goes through.",
+      "graceUntil": "Your plan stays active until {{date}}.",
+      "updateCard": "Update your card"
+    },
+    "errors": {
+      "changeFailed": "Failed to change plan",
+      "cancelFailed": "Failed to cancel"
+    },
+    "confirmCancel": "Cancel your subscription now? You'll move to the free plan ({{limit}}).",
+    "cancelSubscription": "Cancel subscription",
+    "keepPlan": "Keep plan",
+    "current": "Current plan",
+    "perMonth": "/month",
+    "working": "Working...",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade",
+    "overLimit_one": "You have {{count}} item (limit {{limit}}). Remove {{remove}} to switch.",
+    "overLimit_other": "You have {{count}} items (limit {{limit}}). Remove {{remove}} to switch.",
+    "portal": "Cards and invoices (Stripe billing portal) →"
+  }
+}

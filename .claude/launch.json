@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-mock",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": ["-d", "Ubuntu-24.04", "--", "bash", "-lc", "cd ~/workspace/yourapp 2>/dev/null || cd ~/workspace/web-aws-framework-template; [ -d node_modules ] || npm ci --silent; cd frontend && npx vite --mode mock --host 0.0.0.0 --port 5175 --strictPort"],
+      "port": 5175
+    },
+    {
+      "name": "admin-mock",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": ["-d", "Ubuntu-24.04", "--", "bash", "-lc", "cd ~/workspace/yourapp 2>/dev/null || cd ~/workspace/web-aws-framework-template; [ -d node_modules ] || npm ci --silent; cd admin && npx vite --mode mock --host 0.0.0.0 --port 5176 --strictPort"],
+      "port": 5176
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": ["-d", "Ubuntu-24.04", "--", "bash", "-lc", "cd ~/workspace/yourapp 2>/dev/null || cd ~/workspace/web-aws-framework-template; STAGE=${STAGE:-test} scripts/local-test.sh api"],
+      "port": 3000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": ["-d", "Ubuntu-24.04", "--", "bash", "-lc", "cd ~/workspace/yourapp 2>/dev/null || cd ~/workspace/web-aws-framework-template; STAGE=${STAGE:-test} scripts/local-test.sh web"],
+      "port": 5173
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "wsl.exe",
+      "runtimeArgs": ["-d", "Ubuntu-24.04", "--", "bash", "-lc", "cd ~/workspace/yourapp 2>/dev/null || cd ~/workspace/web-aws-framework-template; STAGE=${STAGE:-test} scripts/local-test.sh admin"],
+      "port": 5174
+    }
+  ]
+}

@@ -1,123 +1,112 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect, useContext, createContext, lazy, Suspense } from 'react';
-import { getUser } from './auth';
+import { lazy, useState, useEffect, useContext } from 'react';
+import { currentLanguage, languageChosen, LANGUAGE_CODES, switchLanguage, useTranslation } from '@yourapp/shared';
+import { getUser, logout } from './auth';
+import { AuthContext } from './auth-context';
 import type { User } from './types';
-import { fetchAccount } from './api';
-import { hasAdminToken } from './admin-api';
+import { ApiError, fetchAccount } from './api';
 
 import LandingPage from './pages/LandingPage';
+import LegalPage from './pages/LegalPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
 import VerifyPage from './pages/auth/VerifyPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
-import ItemsPage from './pages/dashboard/ItemsPage';
+import HomePage from './pages/dashboard/HomePage';
+import ItemsPage from './pages/dashboard/ItemsPage'; // example:items (scripts/init.py removes these lines once the spec has entities)
+import { dashboardEntityRoutes, publicEntityRoutes } from './entities/routes.gen';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import ReportsPage from './pages/dashboard/ReportsPage';
+import PlansPage from './pages/dashboard/PlansPage';
+import WalletPage from './pages/dashboard/WalletPage';
+import SupportPage from './pages/dashboard/SupportPage';
 
-// Admin pages — lazy loaded (only fetched on manager.yourapp.com)
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
-const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
-const AdminOverview = lazy(() => import('./pages/admin/OverviewPage'));
-const AdminUsers = lazy(() => import('./pages/admin/UsersPage'));
-const AdminHealth = lazy(() => import('./pages/admin/HealthPage'));
-const AdminBilling = lazy(() => import('./pages/admin/BillingPage'));
-const AdminItems = lazy(() => import('./pages/admin/data/ItemsPage'));
-const AdminSecondEntity = lazy(() => import('./pages/admin/data/SecondEntityPage'));
-const AdminFeatureToggles = lazy(() => import('./pages/admin/config/FeatureTogglesPage'));
-const AdminPlanLimits = lazy(() => import('./pages/admin/config/PlanLimitsPage'));
-const AdminJobSettings = lazy(() => import('./pages/admin/config/JobSettingsPage'));
-const AdminEmailTemplates = lazy(() => import('./pages/admin/config/EmailTemplatesPage'));
+// Design directions preview (playbook step 4): dev server and test builds only. VITE_STAGE is replaced at build time,
+// so in a prod build this is `null` and the whole design/ folder is left out of the bundle.
+const DirectionsPage = import.meta.env.VITE_STAGE !== 'prod' ? lazy(() => import('./design/DirectionsPage')) : null;
 
-interface AuthContextValue {
-  user: User | null;
-  loading: boolean;
-  refresh: () => Promise<void>;
+function NoticePage({ message }: { message: string }) {
+  const { t } = useTranslation();
+  const signOut = async () => {
+    await logout().catch(() => {});
+    window.location.assign('/');
+  };
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
+      <p className="text-lg text-ink">{message}</p>
+      <button onClick={signOut} className="text-sm font-medium text-brand-600 hover:text-brand-500">
+        {t('app.signOut')}
+      </button>
+    </div>
+  );
 }
 
-export const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  loading: true,
-  refresh: async () => {},
-});
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, notice } = useContext(AuthContext);
+  const { t } = useTranslation();
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      <div className="flex items-center justify-center min-h-screen" aria-label={t('common.loading')}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
       </div>
     );
   }
+  if (!user && notice) return <NoticePage message={notice} />;
   if (!user) return <Navigate to="/login" />;
   return <>{children}</>;
 }
 
-const isManagerHost = window.location.hostname.startsWith('manager.');
-
-function AdminApp() {
-  const [authenticated, setAuthenticated] = useState(hasAdminToken());
-
-  if (!authenticated) {
-    return (
-      <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-900"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400" /></div>}>
-        <AdminLogin onLogin={() => setAuthenticated(true)} />
-      </Suspense>
-    );
+/** The signed-in account, or why there is none to show (maintenance mode, sign-ups closed). */
+async function loadAccount(): Promise<{ account: User | null; notice: string | null }> {
+  try {
+    return { account: (await getUser()) ? await fetchAccount() : null, notice: null };
+  } catch (e) {
+    // say so instead of bouncing back to the login page
+    const shown = e instanceof ApiError && (e.code === 'MAINTENANCE' || e.code === 'SIGNUPS_CLOSED');
+    return { account: null, notice: shown ? e.message : null };
   }
+}
 
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}>
-      <Routes>
-        <Route element={<AdminLayout />}>
-          <Route index element={<AdminOverview />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="billing" element={<AdminBilling />} />
-          <Route path="health" element={<AdminHealth />} />
-          <Route path="data/items" element={<AdminItems />} />
-          <Route path="data/second-entity" element={<AdminSecondEntity />} />
-          <Route path="config/features" element={<AdminFeatureToggles />} />
-          <Route path="config/plans" element={<AdminPlanLimits />} />
-          <Route path="config/jobs" element={<AdminJobSettings />} />
-          <Route path="config/email" element={<AdminEmailTemplates />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Suspense>
-  );
+/** On a device where the visitor hasn't picked a language, the one saved on their profile wins (Settings). */
+function adoptProfileLanguage(account: User | null) {
+  const lang = account?.language;
+  if (lang && !languageChosen() && LANGUAGE_CODES.includes(lang) && lang !== currentLanguage()) switchLanguage(lang);
 }
 
 function UserApp() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = async () => {
-    try {
-      const cognitoUser = await getUser();
-      if (cognitoUser) {
-        const account = await fetchAccount();
-        setUser(account);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    }
+    const r = await loadAccount();
+    setUser(r.account);
+    setNotice(r.notice);
   };
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
+    loadAccount().then((r) => {
+      adoptProfileLanguage(r.account);
+      setUser(r.account);
+      setNotice(r.notice);
+      setLoading(false);
+    });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, refresh }}>
+    <AuthContext.Provider value={{ user, loading, notice, refresh }}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/terms" element={<LegalPage doc="terms" />} />
+        <Route path="/privacy" element={<LegalPage doc="privacy" />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        {/* the spec's entities (scripts/new-entity.py): public list and detail pages */}
+        {publicEntityRoutes}
+        {DirectionsPage && <Route path="/__directions/*" element={<DirectionsPage />} />}
         <Route
           path="/dashboard"
           element={
@@ -126,15 +115,23 @@ function UserApp() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ItemsPage />} />
+          <Route index element={<HomePage />} />
+          <Route path="items" element={<ItemsPage />} /> {/* example:items */}
+          {/* the spec's entities: my records, forms, signed-in-only entities */}
+          {dashboardEntityRoutes}
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          {/* billing pages; hidden from the nav when their module is off (the API answers 404 then) */}
+          <Route path="plans" element={<PlansPage />} />
+          <Route path="wallet" element={<WalletPage />} />
+          <Route path="support" element={<SupportPage />} />
         </Route>
       </Routes>
     </AuthContext.Provider>
   );
 }
 
+/** The user site. The admin site is its own app (admin/) on admin.<domain>, with its own sign-in. */
 export default function App() {
-  return isManagerHost ? <AdminApp /> : <UserApp />;
+  return <UserApp />;
 }

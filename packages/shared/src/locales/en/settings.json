@@ -1,0 +1,46 @@
+{
+  "settings": {
+    "title": "Settings",
+    "save": "Save",
+    "saved": "Saved",
+    "saveFailed": "Couldn't save your settings. Try again.",
+    "tabs": {
+      "profile": "Profile",
+      "payment": "Payment",
+      "notifications": "Notifications"
+    },
+    "profile": {
+      "name": "Name",
+      "nameRequired": "Name cannot be empty.",
+      "email": "Email",
+      "emailHint": "The address you sign in with.",
+      "language": "Language",
+      "languageHint": "The site and our emails to you use this language."
+    },
+    "payment": {
+      "planTitle": "Plan",
+      "plan": "You're on the {{plan}} plan.",
+      "planHint": "Change plans, update your card or cancel on the Plans page.",
+      "planLink": "Go to Plans",
+      "walletTitle": "Wallet",
+      "balance": "Balance: {{balance}}",
+      "walletHint": "Add funds, manage saved cards, set up auto reload and request refunds on the Wallet page.",
+      "walletLink": "Go to Wallet"
+    },
+    "notifications": {
+      "intro": "Choose which emails you get. Emails about your account's standing and payments you made always arrive.",
+      "emailSupport": {
+        "label": "Support replies",
+        "hint": "Email me when support answers one of my requests."
+      },
+      "emailBilling": {
+        "label": "Billing notices",
+        "hint": "Email me when a renewal fails or something else needs my attention."
+      },
+      "emailNews": {
+        "label": "News and tips",
+        "hint": "Occasional emails about new features."
+      }
+    }
+  }
+}

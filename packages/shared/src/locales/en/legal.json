@@ -1,0 +1,190 @@
+{
+  "legal": {
+    "updated": "Last updated: {{date}}",
+    "contents": "On this page",
+    "otherDoc": {
+      "terms": "Read our Privacy Policy",
+      "privacy": "Read our Terms of Service"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "intro": [
+        "These terms cover your use of {{displayName}} at {{domain}}. By creating an account or using the site, you agree to them. If you don't agree, please don't use the site.",
+        "{{displayName}} is run by [TODO: legal entity name], [TODO: registered address] (\"we\", \"us\"). Questions about these terms go to {{contactEmail}}."
+      ],
+      "sections": [
+        {
+          "h": "1. Who can use the site",
+          "p": [
+            "You must be at least 16 years old, or the age of digital consent where you live if that is higher, to create an account. [TODO: confirm the minimum age for your audience.]",
+            "You are responsible for your account and for keeping your sign-in details safe. Tell us at {{contactEmail}} if you think someone else has used it."
+          ]
+        },
+        {
+          "h": "2. Using the site",
+          "p": [
+            "Use the site only for lawful purposes and as it is meant to be used. You agree not to:",
+            "- break the law or someone else's rights, including their privacy and intellectual property",
+            "- upload anything harmful, such as malware, or try to get around our security or limits",
+            "- use automated tools to overload, scrape or disrupt the site",
+            "- pretend to be someone else, or use the site to send spam or harass anyone"
+          ]
+        },
+        {
+          "h": "3. Warnings, suspension and bans",
+          "p": [
+            "If an account breaks these terms, we may warn it, pause its payments while we look into a problem, or make it read-only for a period. Warnings expire after a while; several warnings in a short time make the account read-only automatically. You will see each warning in your account alerts and by email.",
+            "A read-only account can still sign in and see its data. When we make an account read-only, any unused paid balance is refunded to the card it came from, and bonus balances are forfeited.",
+            "If you think we made a mistake, contact support from your account or write to {{contactEmail}}."
+          ]
+        },
+        {
+          "h": "4. Payments, plans and refunds",
+          "p": [
+            "Prices are shown on the site before you pay. Payments are processed by Stripe; we never see or store your full card number.",
+            "Subscriptions renew automatically until you cancel them on the Plans page. If a renewal fails, your plan stays active for a short grace period while you update your card.",
+            "Prepaid balances can be refunded to your card within the refund window shown on the Wallet page, less anything you have already used. Bonus amounts are not refundable.",
+            "[TODO: adjust this section to the billing you offer, and add any consumer rights that apply where you sell.]"
+          ]
+        },
+        {
+          "h": "5. Your content",
+          "p": [
+            "You keep the rights to what you put on the site. You give us permission to store and show it as needed to run the site for you.",
+            "You confirm you have the right to share what you upload, and that it doesn't break these terms."
+          ]
+        },
+        {
+          "h": "6. Our content",
+          "p": [
+            "The site, its design and its software belong to us or our licensors. You may not copy or resell them except as these terms allow."
+          ]
+        },
+        {
+          "h": "7. Availability and changes to the site",
+          "p": [
+            "We work to keep the site running but can't promise it will always be available or free of errors. We may change, pause or stop features, and we may take the site down for maintenance."
+          ]
+        },
+        {
+          "h": "8. Disclaimers and limits on liability",
+          "p": [
+            "The site is provided \"as is\". To the extent the law allows, we are not liable for indirect or consequential losses, and our total liability to you is limited to what you paid us in the 12 months before the claim.",
+            "Nothing in these terms limits rights you have under consumer law that can't be limited. [TODO: have a lawyer review this section.]"
+          ]
+        },
+        {
+          "h": "9. Closing your account",
+          "p": [
+            "You can stop using the site at any time and ask us to close your account at {{contactEmail}}. We may close accounts that break these terms."
+          ]
+        },
+        {
+          "h": "10. Changes to these terms",
+          "p": [
+            "We may update these terms. If a change matters, we will tell you on the site or by email before it takes effect. Using the site after that means you accept the new terms."
+          ]
+        },
+        {
+          "h": "11. Governing law",
+          "p": [
+            "These terms are governed by the laws of [TODO: country or state], and disputes go to the courts there, unless the law where you live says otherwise."
+          ]
+        },
+        {
+          "h": "12. Contact",
+          "p": [
+            "[TODO: legal entity name], [TODO: registered address]. Email: {{contactEmail}}."
+          ]
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": [
+        "This policy explains what information {{displayName}} collects when you use {{domain}}, why, and the choices you have.",
+        "The site is run by [TODO: legal entity name], [TODO: registered address], which is responsible for your data. Privacy questions go to {{contactEmail}}."
+      ],
+      "sections": [
+        {
+          "h": "1. What we collect",
+          "p": [
+            "- Account details: your email address, the name you give us, your language and your notification choices.",
+            "- What you create on the site, and your support requests and our replies.",
+            "- Payment records: what you bought, when, and the card's brand, last four digits and country. Stripe handles the card itself.",
+            "- Technical data: your IP address and country, browser and device type, and logs of requests, kept to run and secure the site."
+          ]
+        },
+        {
+          "h": "2. How we use it",
+          "p": [
+            "- to provide the site and your account, and to keep them secure",
+            "- to take payments, give refunds and prevent fraud",
+            "- to send emails about your account, such as support replies, billing problems and account warnings",
+            "- to understand how the site is used and improve it, if analytics are turned on (section 4)"
+          ]
+        },
+        {
+          "h": "3. Legal bases",
+          "p": [
+            "Where the GDPR or similar laws apply, we use your data to perform our contract with you, to meet legal obligations, for our legitimate interests in running a safe and working service, and, for analytics and advertising cookies, with your consent."
+          ]
+        },
+        {
+          "h": "4. Cookies, analytics and ads",
+          "p": [
+            "We use your browser's storage to keep you signed in and to remember your language.",
+            "If the site uses Google Analytics or Google AdSense, Google may set cookies to measure visits or show ads. In the EEA, the UK and Switzerland these stay off until you agree in the consent message, and you can change your choice at any time. [TODO: remove this section's last paragraph if you use neither.]"
+          ]
+        },
+        {
+          "h": "5. Who we share it with",
+          "p": [
+            "We don't sell your personal data. We share it only with the services that run the site for us, under contracts that protect it:",
+            "- Amazon Web Services (hosting, sign-in and email)",
+            "- Stripe (payments)",
+            "- Google (analytics and ads, if turned on)",
+            "We may also share data when the law requires it, or to protect our users and the site."
+          ]
+        },
+        {
+          "h": "6. International transfers",
+          "p": [
+            "Our providers may process data outside your country. Where the law requires it, transfers are covered by safeguards such as standard contractual clauses."
+          ]
+        },
+        {
+          "h": "7. How long we keep it",
+          "p": [
+            "We keep your account data while your account is open. Payment and audit records are kept as long as tax and accounting rules require. Request logs are kept for a short time. [TODO: set your retention periods.]"
+          ]
+        },
+        {
+          "h": "8. Your rights",
+          "p": [
+            "Depending on where you live, you can ask to see, correct, export or delete your data, or object to how we use it. Write to {{contactEmail}}. You can also complain to your local data protection authority.",
+            "You can change your name, language and email notifications at any time in Settings."
+          ]
+        },
+        {
+          "h": "9. Children",
+          "p": [
+            "The site is not meant for children under 16, and we don't knowingly collect their data."
+          ]
+        },
+        {
+          "h": "10. Changes to this policy",
+          "p": [
+            "We may update this policy. If a change matters, we will tell you on the site or by email."
+          ]
+        },
+        {
+          "h": "11. Contact",
+          "p": [
+            "[TODO: legal entity name], [TODO: registered address]. Email: {{contactEmail}}."
+          ]
+        }
+      ]
+    }
+  }
+}

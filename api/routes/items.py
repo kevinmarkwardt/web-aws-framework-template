@@ -6,14 +6,12 @@ This is the generic CRUD template. Rename 'items' to your domain entity
 
 from __future__ import annotations
 
-import json
-
 import ulid
 
 try:
-    from lib import db, response
+    from lib import accounts, config, db, params, response, subscriptions
 except ImportError:
-    from api.lib import db, response
+    from api.lib import accounts, config, db, params, response, subscriptions
 
 
 def list_items(user_id: str, event: dict) -> dict:
@@ -22,29 +20,34 @@ def list_items(user_id: str, event: dict) -> dict:
     return response.ok(result)
 
 
+def _read_only(user_id: str, user: dict | None = None) -> dict | None:
+    """A banned account is read-only (api/lib/accounts.py): the 403 for writes, or None."""
+    ok, why = accounts.can_write(user_id, user)
+    return None if ok else response.error(why, 403, "ACCOUNT_RESTRICTED")
+
+
 def create_item(user_id: str, event: dict) -> dict:
     """POST /api/items — create a new item."""
     user = db.get_user(user_id)
     if not user:
         return response.error("User not found", 404)
+    if refused := _read_only(user_id, user):
+        return refused
 
-    plan = user.get("plan", "free")
-    current_count = user.get("itemCount", 0)
-    limit = db.ITEM_LIMITS.get(plan, 10)
+    plan = subscriptions.effective_plan(user)  # free once a failed renewal's grace has run out
+    current_count = int(user.get("itemCount", 0))
+    limit = config.plan_limit(plan)  # admin-editable (CONFIG | GLOBAL planLimits); None = unlimited
 
-    body = json.loads(event.get("body", "{}"))
-    name = body.get("name", "").strip()
-    status = body.get("status", "ACTIVE").strip()
+    body = params.body(event)
+    name = params.text(body, "name").strip()
+    status = params.text(body, "status", "ACTIVE").strip() or "ACTIVE"
 
     if not name:
         return response.error("name is required", 400)
 
-    if current_count >= limit:
-        return response.error(
-            f"Plan limit reached. {plan.title()} plan allows {int(limit)} items. "
-            f"You have {current_count}.",
-            403,
-        )
+    if limit is not None and current_count >= limit:
+        return response.error("Plan limit reached. The {plan} plan allows {limit} items. You have {count}.", 403, "PLAN_LIMIT",
+                              plan=plan.title(), limit=limit, count=current_count)
 
     item_id = str(ulid.ULID())
     item = db.create_item(user_id, item_id, name, status)
@@ -57,13 +60,19 @@ def update_item(user_id: str, item_id: str, event: dict) -> dict:
     existing = db.get_item(user_id, item_id)
     if not existing:
         return response.not_found("Item not found")
+    if refused := _read_only(user_id):
+        return refused
 
-    body = json.loads(event.get("body", "{}"))
+    body = params.body(event)
     updates = {}
     if "name" in body:
-        updates["name"] = body["name"].strip()
+        updates["name"] = params.text(body, "name").strip()
+        if not updates["name"]:
+            return response.error("name cannot be empty", 400)
     if "status" in body:
-        updates["status"] = body["status"].strip()
+        updates["status"] = params.text(body, "status").strip()
+    if not updates:
+        return response.ok(existing)
 
     updated = db.update_item(user_id, item_id, updates)
     return response.ok(updated)
@@ -74,6 +83,8 @@ def delete_item(user_id: str, item_id: str, event: dict) -> dict:
     existing = db.get_item(user_id, item_id)
     if not existing:
         return response.not_found("Item not found")
+    if refused := _read_only(user_id):
+        return refused
 
     db.delete_item(user_id, item_id)
     db.increment_item_count(user_id, -1)

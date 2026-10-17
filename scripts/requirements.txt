@@ -1,0 +1,5 @@
+# Site-builder tooling (scripts/spec.py, init.py, new-entity.py, gen-fixtures.py). Not deployed: install into the
+# test venv with  .venv/bin/pip install -r scripts/requirements.txt  (scripts/verify.sh does it when missing).
+PyYAML>=6.0
+jsonschema>=4.21
+Faker>=25.0

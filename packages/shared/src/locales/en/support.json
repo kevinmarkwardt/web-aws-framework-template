@@ -1,0 +1,27 @@
+{
+  "support": {
+    "title": "Support",
+    "intro": "Ask us anything about your account or billing. We answer by email and here.",
+    "newRequest": "New request",
+    "tooManyOpen_one": "You have {{count}} open request. Add to it below, or wait for an answer.",
+    "tooManyOpen_other": "You have {{count}} open requests. Add to one of them below, or wait for an answer.",
+    "sent": "Sent. We'll get back to you soon.",
+    "topic": "Topic",
+    "message": "Message",
+    "messageHint": "At least a sentence, so we can help.",
+    "send": "Send",
+    "sendFailed": "Sending failed",
+    "yourRequests": "Your requests",
+    "none": "No requests yet.",
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "by": {
+      "support": "Support",
+      "you": "You"
+    },
+    "addPlaceholder": "Add a message",
+    "add": "Add to this request"
+  }
+}

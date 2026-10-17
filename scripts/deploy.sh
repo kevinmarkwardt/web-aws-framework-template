@@ -1,104 +1,90 @@
 #!/usr/bin/env bash
-# YourApp — Full deployment script
-# Builds frontend, packages Lambdas, deploys CDK stack, syncs SPA, invalidates cache.
+# YourApp deploy: bundle the Lambdas, deploy the CDK stack, build + upload both sites (user site and admin site),
+# invalidate both CloudFront distributions.
+#
+# Usage: STAGE=test|prod scripts/deploy.sh [--infra-only|--site-only]
+#   STAGE (required, no default)
+#     test   YourAppTestStack  https://test.yourapp.com, https://admin.test.yourapp.com  (test login, noindex, disposable)
+#     prod   YourAppStack      https://yourapp.com, https://admin.yourapp.com  (asks you to type "prod"; YES=1 skips, for CI)
+#   --infra-only   Lambdas + CDK only;  --site-only   both sites only (needs an earlier full deploy of that stage)
+# Writes cdk-outputs-{stage}.json (stack outputs), frontend/.env.production.local and admin/.env.production.local.
 set -euo pipefail
 
-PROJ_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STACK_NAME="YourAppStack"
-REGION="us-east-1"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REGION="${AWS_REGION:-us-east-1}"
+MODE="${1:-all}"
 
-echo "========================================="
-echo "  YourApp — Full Deploy"
-echo "========================================="
+die() { echo "deploy: $*" >&2; exit 1; }
+case "$MODE" in all|--infra-only|--site-only) ;; *) die "usage: STAGE=prod|test $0 [--infra-only|--site-only]" ;; esac
 
-# ── 1. Install frontend dependencies ─────────────────────────────────────────
-echo ""
-echo "[1/6] Installing frontend dependencies..."
-cd "$PROJ_ROOT/frontend"
-npm ci --silent
-echo "  Frontend dependencies installed."
+. "$ROOT/scripts/lib/stage.sh"
+. "$ROOT/scripts/lib/outputs.sh"
+resolve_stage
+out() { stack_output "$ROOT/$OUT_FILE" "$STACK" "$1"; }
 
-# ── 2. Package Lambda functions ──────────────────────────────────────────────
-echo ""
-echo "[2/6] Packaging Lambda functions..."
+ACCOUNT="$(aws sts get-caller-identity --query Account --output text)" || die "no AWS credentials"
+echo "== target: stage=$STAGE stack=$STACK account=$ACCOUNT region=$REGION ($MODE)"
 
-LAMBDA_DIRS=(
-  "$PROJ_ROOT/api"
-  "$PROJ_ROOT/lambdas/daily-job"
-)
+if [ "$STAGE" = prod ] && [ "${YES:-}" != 1 ]; then
+  [ -t 0 ] || die "prod needs a typed confirmation: run it in a terminal, or set YES=1"
+  read -r -p "Deploy ($MODE) to PROD, account $ACCOUNT? Type prod to continue: " answer
+  [ "$answer" = prod ] || die "cancelled"
+fi
 
-for dir in "${LAMBDA_DIRS[@]}"; do
-  name="$(basename "$dir")"
-  echo "  Packaging $name..."
-  if [ -f "$dir/requirements.txt" ]; then
-    # Install Linux ARM64 wheels for Lambda (not local macOS binaries)
-    pip install -q -r "$dir/requirements.txt" -t "$dir/" --upgrade \
-      --platform manylinux2014_aarch64 \
-      --implementation cp \
-      --python-version 3.12 \
-      --only-binary :all: 2>/dev/null || true
-  fi
-done
-echo "  All Lambdas packaged."
+# ---- infrastructure: Lambda bundles + CDK
+if [ "$MODE" != --site-only ]; then
+  echo "== bundling Lambdas (Python 3.12, arm64)"
+  "$ROOT/scripts/bundle-lambdas.sh"
+  echo "== cdk deploy $STACK"
+  cd "$ROOT/cdk"
+  [ -d node_modules ] || npm ci --silent
+  npx cdk deploy "$STACK" -c stage="$STAGE" --require-approval never --outputs-file "$ROOT/$OUT_FILE"
+fi
 
-# ── 3. CDK deploy ────────────────────────────────────────────────────────────
-echo ""
-echo "[3/6] Deploying CDK stack..."
-cd "$PROJ_ROOT/cdk"
-npm ci --silent
-npx cdk deploy --require-approval never --outputs-file "$PROJ_ROOT/cdk-outputs.json"
-echo "  CDK stack deployed."
+# ---- site
+if [ "$MODE" != --infra-only ]; then
+  [ -f "$ROOT/$OUT_FILE" ] || die "$OUT_FILE is missing: run a full deploy of the $STAGE stage first"
+  POOL="$(out UserPoolId)"
+  CLIENT="$(out UserPoolClientId)"
+  BUCKET="$(out SpaBucketName)"
+  DIST="$(out CloudFrontDistributionId)"
+  ADMIN_BUCKET="$(out AdminBucket)"
+  ADMIN_DIST="$(out AdminDistributionId)"
+  ADMIN_URL="$(out AdminUrl)"
+  SITE_URL="https://$(out DomainName)"
 
-# ── 4. Build frontend with CDK outputs ───────────────────────────────────────
-echo ""
-echo "[4/6] Building React frontend..."
-USER_POOL_ID=$(jq -r ".${STACK_NAME}.UserPoolId" "$PROJ_ROOT/cdk-outputs.json")
-CLIENT_ID=$(jq -r ".${STACK_NAME}.UserPoolClientId" "$PROJ_ROOT/cdk-outputs.json")
+  common_env() {
+    echo "# written by scripts/deploy.sh for the $STAGE stage"
+    echo "VITE_STAGE=$STAGE"
+    echo "VITE_USER_POOL_ID=$POOL"
+    echo "VITE_CLIENT_ID=$CLIENT"
+  }
+  { common_env; [ "$STAGE" != test ] || echo "VITE_TEST_LOGIN=1"; echo "VITE_ADMIN_URL=$ADMIN_URL"; echo "VITE_SITE_URL=$SITE_URL"; } \
+    > "$ROOT/frontend/.env.production.local"
+  { common_env; echo "VITE_SITE_URL=$SITE_URL"; } > "$ROOT/admin/.env.production.local"
 
-cat > "$PROJ_ROOT/frontend/.env" <<EOF
-VITE_USER_POOL_ID=${USER_POOL_ID}
-VITE_CLIENT_ID=${CLIENT_ID}
-EOF
+  echo "== building both sites ($STAGE)"
+  cd "$ROOT"
+  [ -d node_modules ] || npm ci --silent
+  npm run build   # packages/shared (typecheck), frontend/, admin/
 
-cd "$PROJ_ROOT/frontend"
-npm run build
-echo "  Frontend built with UserPoolId=${USER_POOL_ID}"
+  # Vite's hashed assets never change, so browsers keep them for a year; everything else (index.html, icons) is
+  # revalidated on every visit, so a deploy shows up at once. Old assets are kept (no --delete on assets/): a tab
+  # opened before this deploy can still load its lazy chunks.
+  upload() {  # upload DIST_DIR BUCKET
+    echo "== uploading $1 to s3://$2"
+    aws s3 sync "$1/assets/" "s3://$2/assets/" --region "$REGION" --only-show-errors \
+      --cache-control "public, max-age=31536000, immutable"
+    aws s3 sync "$1/" "s3://$2/" --delete --region "$REGION" --only-show-errors \
+      --exclude "assets/*" --cache-control "no-cache"
+  }
+  upload "$ROOT/frontend/dist" "$BUCKET"
+  upload "$ROOT/admin/dist" "$ADMIN_BUCKET"
 
-# ── 5. Sync frontend to S3 ──────────────────────────────────────────────────
-echo ""
-echo "[5/6] Syncing frontend to S3..."
+  echo "== invalidating CloudFront (site and admin)"
+  aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*" --query 'Invalidation.Id' --output text
+  aws cloudfront create-invalidation --distribution-id "$ADMIN_DIST" --paths "/*" --query 'Invalidation.Id' --output text
+fi
 
-SPA_BUCKET=$(jq -r ".${STACK_NAME}.SpaBucketName" "$PROJ_ROOT/cdk-outputs.json")
-CF_DIST_ID=$(jq -r ".${STACK_NAME}.CloudFrontDistributionId" "$PROJ_ROOT/cdk-outputs.json")
-
-aws s3 sync "$PROJ_ROOT/frontend/dist/" "s3://${SPA_BUCKET}/" \
-  --delete \
-  --region "$REGION"
-echo "  Synced to s3://${SPA_BUCKET}/"
-
-# ── 6. Invalidate CloudFront cache ──────────────────────────────────────────
-echo ""
-echo "[6/6] Invalidating CloudFront cache..."
-aws cloudfront create-invalidation \
-  --distribution-id "$CF_DIST_ID" \
-  --paths "/*" \
-  --region "$REGION" \
-  --output text --query 'Invalidation.Id'
-echo "  CloudFront invalidation created."
-
-# ── Done ─────────────────────────────────────────────────────────────────────
-echo ""
-echo "========================================="
-echo "  Deploy complete!"
-echo "========================================="
-echo ""
-
-API_URL=$(jq -r ".${STACK_NAME}.ApiUrl" "$PROJ_ROOT/cdk-outputs.json")
-CF_DOMAIN=$(jq -r ".${STACK_NAME}.CloudFrontDomain" "$PROJ_ROOT/cdk-outputs.json")
-DOMAIN=$(jq -r ".${STACK_NAME}.DomainName" "$PROJ_ROOT/cdk-outputs.json")
-
-echo "  Site:     https://${DOMAIN}"
-echo "  CDN:      https://${CF_DOMAIN}"
-echo "  API:      ${API_URL}"
-echo ""
-echo "  Outputs:  $PROJ_ROOT/cdk-outputs.json"
+echo "== done: https://$(out DomainName)  (admin: $(out AdminUrl))"
+echo "   outputs: $ROOT/$OUT_FILE"

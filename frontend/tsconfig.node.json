@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "site-plugins.ts", "src/seo.ts", "../packages/shared/vite/mockGuard.ts"]
 }

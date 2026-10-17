@@ -1,0 +1,23 @@
+{
+  "name": "yourapp",
+  "private": true,
+  "description": "npm workspaces: packages/shared (API client, auth, UI kit, theme), frontend/ (user site), admin/ (admin site). cdk/ has its own package.",
+  "workspaces": [
+    "packages/shared",
+    "frontend",
+    "admin"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present && npm run i18n:check",
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "dev": "npm run dev -w frontend",
+    "dev:admin": "npm run dev -w admin"
+  },
+  "msw": {
+    "workerDirectory": [
+      "frontend/public",
+      "admin/public"
+    ]
+  }
+}
